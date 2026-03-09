@@ -14,6 +14,7 @@ QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 
 PACMAN_PACKAGES=(
+  archlinux-xdg-menu
   base-devel
   cpupower
   discord
@@ -221,6 +222,17 @@ install_icons() {
   fi
 }
 
+install_fonts() {
+  if [[ ! -d "$REPO_DIR/assets/system-fonts" ]]; then
+    return
+  fi
+
+  log "Installing bundled fonts"
+  sudo mkdir -p /usr/share/fonts
+  sudo cp -a "$REPO_DIR/assets/system-fonts/." /usr/share/fonts/
+  need_cmd fc-cache && sudo fc-cache -f /usr/share/fonts >/dev/null 2>&1 || true
+}
+
 install_configs() {
   log "Installing config directories and files"
   mkdir -p "$CONFIG_DIR"
@@ -259,7 +271,22 @@ install_quickshell_config() {
   rm -rf "$CONFIG_DIR/quickshell/.git"
 }
 
+fix_xdg_menu() {
+  if [[ ! -d /etc/xdg/menus ]]; then
+    return
+  fi
+
+  log "Refreshing system desktop database"
+  sudo update-desktop-database || true
+
+  if [[ -e /etc/xdg/menus/arch-applications.menu ]]; then
+    log "Renaming arch-applications.menu to applications.menu"
+    sudo mv /etc/xdg/menus/arch-applications.menu /etc/xdg/menus/applications.menu
+  fi
+}
+
 post_install() {
+  fix_xdg_menu
   log "Refreshing desktop caches"
   need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
   need_cmd xdg-user-dirs-update && xdg-user-dirs-update || true
@@ -278,6 +305,7 @@ main() {
   install_cargo_tools
   install_oh_my_zsh
   install_zsh_plugins
+  install_fonts
   install_icons
   install_configs
   install_home_files

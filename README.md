@@ -19,20 +19,24 @@ cd <repo>
 ## Ne Yapar
 
 - Gerekli Arch paketlerini `pacman` ile kurar.
+- `archlinux-xdg-menu` paketini de kurar.
 - `git` ve `base-devel` kurar.
 - `discord`, `telegram-desktop`, `kwrite`, `obs-studio` ve `keepassxc` gibi repo paketlerini kurar.
 - `yay` kurulu degilse AUR'dan derleyip kurar.
-- `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin` ve `iriunwebcam-bin` paketlerini `yay` ile kurar.
+- `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
 - `opencl-amd` paketini AUR reposundan cekip `42c9eb7` commit'ine sabitleyerek derler ve kurar.
 - `oh-my-zsh` kurar.
 - `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fast-syntax-highlighting` ve `zsh-autocomplete` pluginlerini `git clone` ile kurar veya gunceller.
+- `cargo install matugen` calistirir.
 - Gerekli aktif fontlari `yay` ile kurar: `ttf-jetbrains-mono-nerd`, `ttf-hack`, `noto-fonts`.
+- Repo icindeki bundled sistem fontlarini `/usr/share/fonts` altina kopyalar ve `sudo fc-cache` calistirir.
 - `assets/icons/Ars-Light-Icons` temasini `~/.local/share/icons` altina kurar ve rofi/Qt tarafinda bunu kullanir.
 - `config/` altindaki senin masaustu ayarlarini `~/.config` altina kopyalar.
 - `~/.config/quickshell` klasorunu `https://github.com/ekremx25/quickshell` reposundan clone eder.
 - `home/.zshrc` dosyasini dogrudan `~/.zshrc` olarak kurar.
 - `Pictures/wallpapers` klasorunu dogrudan `~/Pictures/wallpapers` olarak kurar.
+- `sudo update-desktop-database` calistirir ve varsa `/etc/xdg/menus/arch-applications.menu` dosyasini `applications.menu` olarak yeniden adlandirir.
 - Eski config varsa zaman damgali `.bak.YYYYMMDD-HHMMSS` yedegi olusturur.
 
 ## Dahil Olanlar
