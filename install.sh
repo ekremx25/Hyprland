@@ -19,6 +19,7 @@ PACMAN_PACKAGES=(
   base-devel
   cpupower
   discord
+  dolphin
   feh
   git
   gwenview
@@ -38,6 +39,7 @@ PACMAN_PACKAGES=(
   quickshell
   rclone
   rofi
+  sddm
   swww
   telegram-desktop
   unarchiver
@@ -294,6 +296,8 @@ fix_xdg_menu() {
 
 post_install() {
   fix_xdg_menu
+  log "Enabling display manager"
+  sudo systemctl enable sddm.service >/dev/null 2>&1 || true
   log "Refreshing desktop caches"
   need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
   need_cmd xdg-user-dirs-update && xdg-user-dirs-update || true
