@@ -5,14 +5,14 @@ Arch Linux icin tek komutla paketleri, `yay`, AUR temalarini, fontlari, icon tem
 ## Kurulum
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/<kullanici>/<repo>/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/ekremx25/Hyprland/main/install.sh)
 ```
 
 Alternatif:
 
 ```bash
-git clone https://github.com/<kullanici>/<repo>.git
-cd <repo>
+git clone https://github.com/ekremx25/Hyprland.git
+cd Hyprland
 ./install.sh
 ```
 
