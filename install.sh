@@ -32,7 +32,6 @@ PACMAN_PACKAGES=(
   rofi
   swww
   telegram-desktop
-  waypaper
   wl-clipboard
   xdg-desktop-portal-hyprland
 )
@@ -40,16 +39,19 @@ PACMAN_PACKAGES=(
 YAY_PACKAGES=(
   antigravity
   brave-bin
+  cargo
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
   codex-desktop-bin
   iriunwebcam-bin
   libxcrypt-compat
+  matugen-bin
   noto-fonts
   nwg-look
   qt6ct-kde
   ttf-hack
   ttf-jetbrains-mono-nerd
+  waypaper
   zsh
   zsh-autosuggestions
   zsh-syntax-highlighting
@@ -176,6 +178,16 @@ install_zsh_plugins() {
   clone_or_update_plugin "https://github.com/marlonrichert/zsh-autocomplete.git" "$plugin_dir/zsh-autocomplete"
 }
 
+install_cargo_tools() {
+  if ! need_cmd cargo; then
+    log "cargo is not available after package installation"
+    exit 1
+  fi
+
+  log "Installing matugen with cargo"
+  cargo install matugen || cargo install --force matugen
+}
+
 backup_path() {
   local path="$1"
   if [[ -e "$path" || -L "$path" ]]; then
@@ -248,6 +260,7 @@ main() {
   install_yay
   install_yay_packages
   install_opencl_amd
+  install_cargo_tools
   install_oh_my_zsh
   install_zsh_plugins
   install_icons
