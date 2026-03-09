@@ -15,10 +15,14 @@ OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/
 
 PACMAN_PACKAGES=(
   archlinux-xdg-menu
+  ark
   base-devel
   cpupower
   discord
+  feh
   git
+  gwenview
+  gvfs-gphoto2
   hyprland
   hypridle
   hyprlock
@@ -30,11 +34,14 @@ PACMAN_PACKAGES=(
   kwrite
   network-manager-applet
   obs-studio
+  mpv
   quickshell
   rclone
   rofi
   swww
   telegram-desktop
+  unar
+  unzip
   wl-clipboard
   xdg-desktop-portal-hyprland
 )
