@@ -216,6 +216,13 @@ install_home_files() {
   done
 }
 
+install_wallpapers() {
+  log "Installing wallpapers"
+  mkdir -p "$HOME/Pictures"
+  backup_path "$WALLPAPER_DIR"
+  cp -a "$REPO_DIR/Pictures/wallpapers" "$HOME/Pictures/wallpapers"
+}
+
 install_quickshell_config() {
   log "Installing quickshell config from GitHub"
   mkdir -p "$BUILD_DIR"
@@ -224,14 +231,6 @@ install_quickshell_config() {
   backup_path "$CONFIG_DIR/quickshell"
   cp -a "$BUILD_DIR/quickshell" "$CONFIG_DIR/quickshell"
   rm -rf "$CONFIG_DIR/quickshell/.git"
-}
-
-prepare_extras() {
-  log "Preparing supporting directories"
-  mkdir -p "$WALLPAPER_DIR"
-  if [[ ! -f "$WALLPAPER_DIR/rain-house-tree.jpg" ]]; then
-    cp -a "$REPO_DIR/config/hypr/lock/wallpaper.jpg" "$WALLPAPER_DIR/rain-house-tree.jpg"
-  fi
 }
 
 post_install() {
@@ -255,7 +254,7 @@ main() {
   install_configs
   install_home_files
   install_quickshell_config
-  prepare_extras
+  install_wallpapers
   post_install
 }
 

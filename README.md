@@ -32,8 +32,8 @@ cd <repo>
 - `config/` altindaki senin masaustu ayarlarini `~/.config` altina kopyalar.
 - `~/.config/quickshell` klasorunu `https://github.com/ekremx25/quickshell` reposundan clone eder.
 - `home/.zshrc` dosyasini dogrudan `~/.zshrc` olarak kurar.
+- `Pictures/wallpapers` klasorunu dogrudan `~/Pictures/wallpapers` olarak kurar.
 - Eski config varsa zaman damgali `.bak.YYYYMMDD-HHMMSS` yedegi olusturur.
-- `~/Pictures/wallpapers/rain-house-tree.jpg` yoksa kilit ekrani gorselinden olusturur.
 
 ## Dahil Olanlar
 
@@ -53,6 +53,7 @@ cd <repo>
 - `brave-flags.conf`
 - `kdeglobals`
 - `user-dirs.*`
+- `Pictures/wallpapers`
 
 ## Notlar
 
