@@ -25,7 +25,6 @@ PACMAN_PACKAGES=(
   discord
   dolphin
   dnsmasq
-  ebtables
   feh
   git
   gwenview
@@ -47,13 +46,16 @@ PACMAN_PACKAGES=(
   mpv
   openbsd-netcat
   pahole
+  pipewire-jack
   quickshell
   qemu-full
+  qt6-multimedia-ffmpeg
   rclone
   rofi
   sddm
   swww
   telegram-desktop
+  ttf-roboto
   unarchiver
   unzip
   vde2
