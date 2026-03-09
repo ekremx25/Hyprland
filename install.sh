@@ -20,6 +20,8 @@ PACMAN_PACKAGES=(
   cpupower
   discord
   dolphin
+  dnsmasq
+  ebtables
   feh
   git
   gwenview
@@ -33,10 +35,15 @@ PACMAN_PACKAGES=(
   kitty
   kvantum
   kwrite
+  libvirt
+  libguestfs
   network-manager-applet
+  nftables
   obs-studio
   mpv
+  openbsd-netcat
   quickshell
+  qemu-full
   rclone
   rofi
   sddm
@@ -44,6 +51,9 @@ PACMAN_PACKAGES=(
   telegram-desktop
   unarchiver
   unzip
+  vde2
+  virt-manager
+  virt-viewer
   wl-clipboard
   xdg-desktop-portal-hyprland
 )
@@ -294,8 +304,23 @@ fix_xdg_menu() {
   fi
 }
 
+configure_libvirt() {
+  if ! need_cmd virsh; then
+    return
+  fi
+
+  log "Configuring libvirt"
+  sudo install -d /etc/libvirt
+  sudo touch /etc/libvirt/libvirtd.conf
+  sudo sed -i 's|^#\\?unix_sock_group = .*|unix_sock_group = \"libvirt\"|' /etc/libvirt/libvirtd.conf
+  sudo sed -i 's|^#\\?unix_sock_rw_perms = .*|unix_sock_rw_perms = \"0770\"|' /etc/libvirt/libvirtd.conf
+  sudo usermod -a -G libvirt "$(id -un)"
+  sudo systemctl enable --now libvirtd >/dev/null 2>&1 || true
+}
+
 post_install() {
   fix_xdg_menu
+  configure_libvirt
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
   log "Refreshing desktop caches"

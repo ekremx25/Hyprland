@@ -21,7 +21,7 @@ cd Hyprland
 - Gerekli Arch paketlerini `pacman` ile kurar.
 - `archlinux-xdg-menu` paketini de kurar.
 - `git` ve `base-devel` kurar.
-- `discord`, `telegram-desktop`, `kwrite`, `obs-studio`, `keepassxc`, `dolphin`, `ark`, `unzip`, `unarchiver`, `feh`, `gwenview`, `mpv`, `sddm` ve `gvfs-gphoto2` gibi repo paketlerini kurar.
+- `discord`, `telegram-desktop`, `kwrite`, `obs-studio`, `keepassxc`, `dolphin`, `ark`, `unzip`, `unarchiver`, `feh`, `gwenview`, `mpv`, `sddm`, `qemu-full`, `virt-manager`, `virt-viewer`, `libvirt`, `dnsmasq`, `vde2`, `openbsd-netcat`, `ebtables`, `nftables`, `libguestfs` ve `gvfs-gphoto2` gibi repo paketlerini kurar.
 - `yay` kurulu degilse AUR'dan derleyip kurar.
 - `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
@@ -37,6 +37,7 @@ cd Hyprland
 - `home/.zshrc` dosyasini dogrudan `~/.zshrc` olarak kurar.
 - `Pictures/wallpapers` klasorunu dogrudan `~/Pictures/wallpapers` olarak kurar.
 - `sudo update-desktop-database` calistirir ve varsa `/etc/xdg/menus/arch-applications.menu` dosyasini `applications.menu` olarak yeniden adlandirir.
+- `/etc/libvirt/libvirtd.conf` icinde `unix_sock_group` ve `unix_sock_rw_perms` ayarlarini yapar, kullaniciyi `libvirt` grubuna ekler ve `libvirtd` servisini aktif eder.
 - `sddm.service` bir sonraki acilista giris ekraninin gelmesi icin aktif edilir.
 - Eski config varsa zaman damgali `.bak.YYYYMMDD-HHMMSS` yedegi olusturur.
 
