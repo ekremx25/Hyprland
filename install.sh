@@ -2,12 +2,14 @@
 
 set -euo pipefail
 
-REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="$SCRIPT_DIR"
 CONFIG_DIR="$HOME/.config"
 LOCAL_SHARE_DIR="$HOME/.local/share"
 ICON_DIR="$LOCAL_SHARE_DIR/icons"
 WALLPAPER_DIR="$HOME/Pictures/wallpapers"
 BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-setup"
+DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
 QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 
@@ -92,6 +94,18 @@ log() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1
+}
+
+ensure_repo_files() {
+  if [[ -d "$REPO_DIR/assets" && -d "$REPO_DIR/config" && -d "$REPO_DIR/home" ]]; then
+    return
+  fi
+
+  log "Fetching dotfiles repository contents"
+  mkdir -p "$BUILD_DIR"
+  rm -rf "$BUILD_DIR/repo"
+  git clone --depth 1 "$DOTFILES_REPO_URL" "$BUILD_DIR/repo"
+  REPO_DIR="$BUILD_DIR/repo"
 }
 
 install_packages() {
@@ -256,6 +270,7 @@ post_install() {
 }
 
 main() {
+  ensure_repo_files
   install_packages
   install_yay
   install_yay_packages
