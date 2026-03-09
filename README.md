@@ -26,6 +26,7 @@ cd Hyprland
 - `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
 - `opencl-amd` paketini AUR reposundan cekip `42c9eb7` commit'ine sabitleyerek derler ve kurar.
+- `kernel.org/releases.json` uzerinden son `stable` kernel surumunu bulur, kaynak kodunu indirir, `kernel/config-6.19.6-Eko` tabanli config ile `olddefconfig` yapar ve ozel kernel olarak `/boot` altina kurar.
 - `oh-my-zsh` kurar.
 - `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fast-syntax-highlighting` ve `zsh-autocomplete` pluginlerini `git clone` ile kurar veya gunceller.
 - `cargo install matugen` calistirir.
@@ -38,6 +39,7 @@ cd Hyprland
 - `Pictures/wallpapers` klasorunu dogrudan `~/Pictures/wallpapers` olarak kurar.
 - `sudo update-desktop-database` calistirir ve varsa `/etc/xdg/menus/arch-applications.menu` dosyasini `applications.menu` olarak yeniden adlandirir.
 - `/etc/libvirt/libvirtd.conf` icinde `unix_sock_group` ve `unix_sock_rw_perms` ayarlarini yapar, kullaniciyi `libvirt` grubuna ekler ve `libvirtd` servisini aktif eder.
+- `/etc/default/grub` icinde `amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive` kernel parametrelerini `GRUB_CMDLINE_LINUX_DEFAULT` satirina ekler.
 - `sddm.service` bir sonraki acilista giris ekraninin gelmesi icin aktif edilir.
 - Eski config varsa zaman damgali `.bak.YYYYMMDD-HHMMSS` yedegi olusturur.
 
@@ -60,6 +62,7 @@ cd Hyprland
 - `kdeglobals`
 - `user-dirs.*`
 - `Pictures/wallpapers`
+- `kernel/config-6.19.6-Eko`
 - `kernel/config-7.0.0-rc3-Eko`
 
 ## Notlar

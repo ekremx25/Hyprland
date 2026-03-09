@@ -12,11 +12,15 @@ BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-setup"
 DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
 QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
+KERNEL_RELEASES_JSON_URL="https://www.kernel.org/releases.json"
+KERNEL_CONFIG_RELATIVE_PATH="kernel/config-6.19.6-Eko"
+GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive)
 
 PACMAN_PACKAGES=(
   archlinux-xdg-menu
   ark
   base-devel
+  cpio
   cpupower
   discord
   dolphin
@@ -42,6 +46,7 @@ PACMAN_PACKAGES=(
   obs-studio
   mpv
   openbsd-netcat
+  pahole
   quickshell
   qemu-full
   rclone
@@ -222,6 +227,77 @@ install_cargo_tools() {
   cargo install matugen || cargo install --force matugen
 }
 
+configure_grub_kernel_params() {
+  local grub_default="/etc/default/grub"
+  local current_line current_params param
+
+  if [[ ! -f "$grub_default" ]]; then
+    return
+  fi
+
+  log "Configuring GRUB kernel parameters"
+  current_line="$(sudo grep '^GRUB_CMDLINE_LINUX_DEFAULT=' "$grub_default" || true)"
+  current_params="${current_line#GRUB_CMDLINE_LINUX_DEFAULT=\"}"
+  current_params="${current_params%\"}"
+
+  for param in "${GRUB_KERNEL_PARAMS[@]}"; do
+    if [[ " $current_params " != *" $param "* ]]; then
+      current_params="${current_params:+$current_params }$param"
+    fi
+  done
+
+  sudo sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=\"${current_params}\"|" "$grub_default"
+  sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
+}
+
+build_custom_kernel() {
+  local kernel_config="$REPO_DIR/$KERNEL_CONFIG_RELATIVE_PATH"
+  local stable_version
+  local stable_major
+  local kernel_url
+  local kernel_archive
+  local kernel_build_dir
+  local kernel_release
+
+  if [[ ! -f "$kernel_config" ]]; then
+    log "Kernel config not found at $kernel_config"
+    return
+  fi
+
+  stable_version="$(curl -fsSL "$KERNEL_RELEASES_JSON_URL" | sed -n 's/.*"moniker":"stable".*"version":"\([^"]*\)".*/\1/p' | head -n1)"
+  if [[ -z "$stable_version" ]]; then
+    log "Could not determine latest stable kernel version"
+    return
+  fi
+
+  stable_major="${stable_version%%.*}"
+  kernel_url="https://cdn.kernel.org/pub/linux/kernel/v${stable_major}.x/linux-${stable_version}.tar.xz"
+  kernel_archive="$BUILD_DIR/linux-${stable_version}.tar.xz"
+  kernel_build_dir="$BUILD_DIR/linux-${stable_version}"
+
+  log "Building custom kernel from $kernel_url"
+  mkdir -p "$BUILD_DIR"
+  rm -rf "$kernel_build_dir"
+
+  curl -fL "$kernel_url" -o "$kernel_archive"
+  tar -xf "$kernel_archive" -C "$BUILD_DIR"
+
+  cp "$kernel_config" "$kernel_build_dir/.config"
+
+  (
+    cd "$kernel_build_dir"
+    make olddefconfig
+    make -j"$(nproc)"
+    kernel_release="$(make -s kernelrelease)"
+    sudo make modules_install
+    sudo install -Dm644 .config "/boot/config-${kernel_release}"
+    sudo install -Dm644 System.map "/boot/System.map-${kernel_release}"
+    sudo install -Dm755 arch/x86/boot/bzImage "/boot/vmlinuz-${kernel_release}"
+    sudo mkinitcpio -k "$kernel_release" -g "/boot/initramfs-${kernel_release}.img"
+    sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
+  )
+}
+
 backup_path() {
   local path="$1"
   if [[ -e "$path" || -L "$path" ]]; then
@@ -321,6 +397,7 @@ configure_libvirt() {
 post_install() {
   fix_xdg_menu
   configure_libvirt
+  configure_grub_kernel_params
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
   log "Refreshing desktop caches"
@@ -339,6 +416,7 @@ main() {
   install_yay_packages
   install_opencl_amd
   install_cargo_tools
+  build_custom_kernel
   install_oh_my_zsh
   install_zsh_plugins
   install_fonts
