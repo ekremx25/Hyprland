@@ -40,7 +40,7 @@ PACMAN_PACKAGES=(
   rofi
   swww
   telegram-desktop
-  unar
+  unarchiver
   unzip
   wl-clipboard
   xdg-desktop-portal-hyprland

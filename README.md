@@ -21,7 +21,7 @@ cd Hyprland
 - Gerekli Arch paketlerini `pacman` ile kurar.
 - `archlinux-xdg-menu` paketini de kurar.
 - `git` ve `base-devel` kurar.
-- `discord`, `telegram-desktop`, `kwrite`, `obs-studio`, `keepassxc`, `ark`, `unzip`, `unar`, `feh`, `gwenview`, `mpv` ve `gvfs-gphoto2` gibi repo paketlerini kurar.
+- `discord`, `telegram-desktop`, `kwrite`, `obs-studio`, `keepassxc`, `ark`, `unzip`, `unarchiver`, `feh`, `gwenview`, `mpv` ve `gvfs-gphoto2` gibi repo paketlerini kurar.
 - `yay` kurulu degilse AUR'dan derleyip kurar.
 - `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
