@@ -1,0 +1,13 @@
+[Unit]
+Description=User suspend actions
+Before=sleep.target
+
+[Service]
+User=%I
+Type=forking
+Environment=DISPLAY=:1 XDG_RUNTIME_DIR=/run/user/1000 WAYLAND_DISPLAY=wayland-1
+ExecStart=/usr/bin/swaylock -f
+ExecStartPost=/usr/bin/sleep 1
+
+[Install]
+WantedBy=sleep.target
