@@ -266,10 +266,10 @@ build_custom_kernel() {
     return
   fi
 
-  stable_version="$(curl -fsSL "$KERNEL_RELEASES_JSON_URL" | sed -n 's/.*"moniker":"stable".*"version":"\([^"]*\)".*/\1/p' | head -n1)"
+  stable_version="$(curl -fsSL "$KERNEL_RELEASES_JSON_URL" | tr -d '\n' | sed -n 's/.*"latest_stable":[[:space:]]*{[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p')"
   if [[ -z "$stable_version" ]]; then
     log "Could not determine latest stable kernel version"
-    return
+    exit 1
   fi
 
   stable_major="${stable_version%%.*}"
@@ -277,6 +277,7 @@ build_custom_kernel() {
   kernel_archive="$BUILD_DIR/linux-${stable_version}.tar.xz"
   kernel_build_dir="$BUILD_DIR/linux-${stable_version}"
 
+  log "Latest stable kernel: $stable_version"
   log "Building custom kernel from $kernel_url"
   mkdir -p "$BUILD_DIR"
   rm -rf "$kernel_build_dir"
@@ -296,6 +297,7 @@ build_custom_kernel() {
     sudo install -Dm644 System.map "/boot/System.map-${kernel_release}"
     sudo install -Dm755 arch/x86/boot/bzImage "/boot/vmlinuz-${kernel_release}"
     sudo mkinitcpio -k "$kernel_release" -g "/boot/initramfs-${kernel_release}.img"
+    [[ -e "/boot/vmlinuz-${kernel_release}" ]] || exit 1
     sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
   )
 }

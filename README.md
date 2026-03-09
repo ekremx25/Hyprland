@@ -26,7 +26,7 @@ cd Hyprland
 - `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
 - `opencl-amd` paketini AUR reposundan cekip `42c9eb7` commit'ine sabitleyerek derler ve kurar.
-- `kernel.org/releases.json` uzerinden son `stable` kernel surumunu bulur, kaynak kodunu indirir, `kernel/config-6.19.6-Eko` tabanli config ile `olddefconfig` yapar ve ozel kernel olarak `/boot` altina kurar.
+- `kernel.org/releases.json` icindeki `latest_stable.version` alanindan son `stable` kernel surumunu bulur, kaynak kodunu indirir, `kernel/config-6.19.6-Eko` tabanli config ile `olddefconfig` yapar ve ozel kernel olarak `/boot` altina kurar.
 - `oh-my-zsh` kurar.
 - `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fast-syntax-highlighting` ve `zsh-autocomplete` pluginlerini `git clone` ile kurar veya gunceller.
 - `cargo install matugen` calistirir.
