@@ -278,6 +278,7 @@ build_custom_kernel() {
   kernel_build_dir="$BUILD_DIR/linux-${stable_version}"
 
   log "Latest stable kernel: $stable_version"
+  log "BUILDING CUSTOM KERNEL NOW"
   log "Building custom kernel from $kernel_url"
   mkdir -p "$BUILD_DIR"
   rm -rf "$kernel_build_dir"
@@ -419,8 +420,8 @@ main() {
   install_yay
   install_yay_packages
   install_opencl_amd
-  install_cargo_tools
   build_custom_kernel
+  install_cargo_tools
   install_oh_my_zsh
   install_zsh_plugins
   install_fonts
