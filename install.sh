@@ -77,6 +77,7 @@ YAY_PACKAGES=(
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
   codex-desktop-bin
+  lact
   libxcrypt-compat
   matugen-bin
   noto-fonts
