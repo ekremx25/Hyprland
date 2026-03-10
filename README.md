@@ -26,7 +26,7 @@ cd Hyprland
 - `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
 - `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
 - `opencl-amd` paketini AUR reposundan cekip `42c9eb7` commit'ine sabitleyerek derler ve kurar.
-- `kernel.org/releases.json` icindeki `latest_stable.version` alanindan son `stable` kernel surumunu bulur, kaynak kodunu indirir, `kernel/config-6.19.6-Eko` tabanli config ile `olddefconfig` yapar ve ozel kernel olarak `/boot` altina kurar.
+- Kurulumun sonunda `kernel.org/releases.json` icindeki `latest_stable.version` alanindan son `stable` kernel surumunu bulup kaynak kodunu indirir, `kernel/config-6.19.6-Eko` tabanli config ile `olddefconfig` yapar ve ozel kernel olarak `/boot` altina kurmayi dener.
 - `oh-my-zsh` kurar.
 - `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fast-syntax-highlighting` ve `zsh-autocomplete` pluginlerini `git clone` ile kurar veya gunceller.
 - `cargo install matugen` calistirir.
@@ -70,4 +70,5 @@ cd Hyprland
 - Script su an `Arch Linux` icin yazildi.
 - `install.sh` `sudo` ister; `pacman` ve `yay` kurulumu sirasinda parola sorar.
 - Aktif configte gereken fontlar paket yoneticisi ile kurulur; bundled font kopyalama yoktur.
+- Ozel kernel derlemesi basarisiz olursa kurulum bozulmaz; sistem stock kernel ile kullanilmaya devam eder.
 - Kurulumdan sonra oturumu kapatip yeniden Hyprland oturumu acman gerekir.

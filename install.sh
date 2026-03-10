@@ -269,7 +269,7 @@ build_custom_kernel() {
   stable_version="$(curl -fsSL "$KERNEL_RELEASES_JSON_URL" | tr -d '\n' | sed -n 's/.*"latest_stable":[[:space:]]*{[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p')"
   if [[ -z "$stable_version" ]]; then
     log "Could not determine latest stable kernel version"
-    exit 1
+    return 1
   fi
 
   stable_major="${stable_version%%.*}"
@@ -283,8 +283,8 @@ build_custom_kernel() {
   mkdir -p "$BUILD_DIR"
   rm -rf "$kernel_build_dir"
 
-  curl -fL "$kernel_url" -o "$kernel_archive"
-  tar -xf "$kernel_archive" -C "$BUILD_DIR"
+  curl -fL "$kernel_url" -o "$kernel_archive" || return 1
+  tar -xf "$kernel_archive" -C "$BUILD_DIR" || return 1
 
   cp "$kernel_config" "$kernel_build_dir/.config"
 
@@ -300,7 +300,17 @@ build_custom_kernel() {
     sudo mkinitcpio -k "$kernel_release" -g "/boot/initramfs-${kernel_release}.img"
     [[ -e "/boot/vmlinuz-${kernel_release}" ]] || exit 1
     sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
-  )
+  ) || return 1
+
+  return 0
+}
+
+install_custom_kernel_optional() {
+  if build_custom_kernel; then
+    log "Custom kernel installed successfully"
+  else
+    log "Custom kernel build failed; stock kernel remains active"
+  fi
 }
 
 backup_path() {
@@ -420,7 +430,6 @@ main() {
   install_yay
   install_yay_packages
   install_opencl_amd
-  build_custom_kernel
   install_cargo_tools
   install_oh_my_zsh
   install_zsh_plugins
@@ -431,6 +440,7 @@ main() {
   install_quickshell_config
   install_wallpapers
   post_install
+  install_custom_kernel_optional
 }
 
 main "$@"
