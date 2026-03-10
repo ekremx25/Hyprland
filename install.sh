@@ -12,15 +12,12 @@ BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-setup"
 DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
 QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
-KERNEL_RELEASES_JSON_URL="https://www.kernel.org/releases.json"
-KERNEL_CONFIG_RELATIVE_PATH="kernel/config-6.19.6-Eko"
 GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive)
 
 PACMAN_PACKAGES=(
   archlinux-xdg-menu
   ark
   base-devel
-  cpio
   cpupower
   discord
   dolphin
@@ -45,7 +42,6 @@ PACMAN_PACKAGES=(
   obs-studio
   mpv
   openbsd-netcat
-  pahole
   pipewire-jack
   quickshell
   qemu-full
@@ -219,16 +215,6 @@ install_zsh_plugins() {
   clone_or_update_plugin "https://github.com/marlonrichert/zsh-autocomplete.git" "$plugin_dir/zsh-autocomplete"
 }
 
-install_cargo_tools() {
-  if ! need_cmd cargo; then
-    log "cargo is not available after package installation"
-    exit 1
-  fi
-
-  log "Installing matugen with cargo"
-  cargo install matugen || cargo install --force matugen
-}
-
 configure_grub_kernel_params() {
   local grub_default="/etc/default/grub"
   local current_line current_params param
@@ -252,65 +238,14 @@ configure_grub_kernel_params() {
   sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
 }
 
-build_custom_kernel() {
-  local kernel_config="$REPO_DIR/$KERNEL_CONFIG_RELATIVE_PATH"
-  local stable_version
-  local stable_major
-  local kernel_url
-  local kernel_archive
-  local kernel_build_dir
-  local kernel_release
-
-  if [[ ! -f "$kernel_config" ]]; then
-    log "Kernel config not found at $kernel_config"
-    return
+install_cargo_tools() {
+  if ! need_cmd cargo; then
+    log "cargo is not available after package installation"
+    exit 1
   fi
 
-  stable_version="$(curl -fsSL "$KERNEL_RELEASES_JSON_URL" | tr -d '\n' | sed -n 's/.*"latest_stable":[[:space:]]*{[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p')"
-  if [[ -z "$stable_version" ]]; then
-    log "Could not determine latest stable kernel version"
-    return 1
-  fi
-
-  stable_major="${stable_version%%.*}"
-  kernel_url="https://cdn.kernel.org/pub/linux/kernel/v${stable_major}.x/linux-${stable_version}.tar.xz"
-  kernel_archive="$BUILD_DIR/linux-${stable_version}.tar.xz"
-  kernel_build_dir="$BUILD_DIR/linux-${stable_version}"
-
-  log "Latest stable kernel: $stable_version"
-  log "BUILDING CUSTOM KERNEL NOW"
-  log "Building custom kernel from $kernel_url"
-  mkdir -p "$BUILD_DIR"
-  rm -rf "$kernel_build_dir"
-
-  curl -fL "$kernel_url" -o "$kernel_archive" || return 1
-  tar -xf "$kernel_archive" -C "$BUILD_DIR" || return 1
-
-  cp "$kernel_config" "$kernel_build_dir/.config"
-
-  (
-    cd "$kernel_build_dir"
-    make olddefconfig
-    make -j"$(nproc)"
-    kernel_release="$(make -s kernelrelease)"
-    sudo make modules_install
-    sudo install -Dm644 .config "/boot/config-${kernel_release}"
-    sudo install -Dm644 System.map "/boot/System.map-${kernel_release}"
-    sudo install -Dm755 arch/x86/boot/bzImage "/boot/vmlinuz-${kernel_release}"
-    sudo mkinitcpio -k "$kernel_release" -g "/boot/initramfs-${kernel_release}.img"
-    [[ -e "/boot/vmlinuz-${kernel_release}" ]] || exit 1
-    sudo grub-mkconfig -o /boot/grub/grub.cfg >/dev/null 2>&1 || true
-  ) || return 1
-
-  return 0
-}
-
-install_custom_kernel_optional() {
-  if build_custom_kernel; then
-    log "Custom kernel installed successfully"
-  else
-    log "Custom kernel build failed; stock kernel remains active"
-  fi
+  log "Installing matugen with cargo"
+  cargo install matugen || cargo install --force matugen
 }
 
 backup_path() {
@@ -440,7 +375,6 @@ main() {
   install_quickshell_config
   install_wallpapers
   post_install
-  install_custom_kernel_optional
 }
 
 main "$@"
