@@ -189,6 +189,10 @@ install_zapret() {
   log "Installing zapret config to /opt/zapret/config"
   sudo install -d /opt/zapret
   sudo install -m 644 "$zapret_config_source" /opt/zapret/config
+
+  log "Enabling zapret service"
+  sudo systemctl enable zapret.service >/dev/null 2>&1 || true
+  sudo systemctl start zapret.service >/dev/null 2>&1 || true
 }
 
 install_opencl_amd() {
