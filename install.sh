@@ -22,6 +22,7 @@ PACMAN_PACKAGES=(
   discord
   dolphin
   dnsmasq
+  ffmpegthumbs
   feh
   git
   gwenview
@@ -76,6 +77,7 @@ YAY_PACKAGES=(
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
   codex-desktop-bin
+  fastfetch
   lact
   libxcrypt-compat
   matugen-bin
