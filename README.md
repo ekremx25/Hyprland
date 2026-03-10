@@ -61,8 +61,6 @@ cd Hyprland
 - `kdeglobals`
 - `user-dirs.*`
 - `Pictures/wallpapers`
-- `kernel/config-6.19.6-Eko`
-- `kernel/config-7.0.0-rc3-Eko`
 
 ## Notlar
 
