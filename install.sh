@@ -13,6 +13,7 @@ DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
 QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive)
+ZAPRET_CONFIG_SOURCE="$HOME/config"
 
 PACMAN_PACKAGES=(
   archlinux-xdg-menu
@@ -172,6 +173,20 @@ install_yay_packages() {
 install_iriunwebcam() {
   log "Installing iriunwebcam-bin with yay"
   yay -S --needed --noconfirm iriunwebcam-bin
+}
+
+install_zapret() {
+  log "Installing zapret with yay"
+  yay -S --needed --noconfirm zapret
+
+  if [[ ! -f "$ZAPRET_CONFIG_SOURCE" ]]; then
+    log "Missing zapret config source: $ZAPRET_CONFIG_SOURCE"
+    exit 1
+  fi
+
+  log "Installing zapret config to /opt/zapret/config"
+  sudo install -d /opt/zapret
+  sudo install -m 644 "$ZAPRET_CONFIG_SOURCE" /opt/zapret/config
 }
 
 install_opencl_amd() {
@@ -376,6 +391,7 @@ main() {
   install_packages
   install_yay
   install_iriunwebcam
+  install_zapret
   install_yay_packages
   install_opencl_amd
   install_cargo_tools
