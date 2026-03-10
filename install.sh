@@ -363,6 +363,8 @@ post_install() {
   configure_grub_kernel_params
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
+  log "Setting Dolphin as default file manager"
+  need_cmd xdg-mime && xdg-mime default org.kde.dolphin.desktop inode/directory || true
   log "Refreshing desktop caches"
   need_cmd update-desktop-database && update-desktop-database "$HOME/.local/share/applications" >/dev/null 2>&1 || true
   need_cmd xdg-user-dirs-update && xdg-user-dirs-update || true
