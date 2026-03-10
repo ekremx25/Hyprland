@@ -76,7 +76,3 @@ libinput-gestures-setup start &
 # clipboard
 wl-paste --type text --watch cliphist store &  # store text data
 wl-paste --type image --watch cliphist store & # store image data
-
-# idle
-swayidle -w timeout 600 "swaylock" before-sleep "swaylock" & # lock screen after 10 min of idle
-swayidle -w timeout 1200 "systemctl hibernate" &             # hibernate after 20 mins of idle

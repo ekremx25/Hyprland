@@ -34,7 +34,9 @@ PACMAN_PACKAGES=(
   keepassxc
   kitty
   kvantum
+  linux-headers
   kwrite
+  libpulse
   libvirt
   libguestfs
   network-manager-applet
@@ -42,8 +44,13 @@ PACMAN_PACKAGES=(
   obs-studio
   mpv
   openbsd-netcat
+  pavucontrol
+  playerctl
+  pipewire-pulse
   pipewire-jack
   quickshell
+  qt5-wayland
+  qt5ct
   qemu-full
   qt6-multimedia-ffmpeg
   rclone
@@ -58,6 +65,7 @@ PACMAN_PACKAGES=(
   virt-manager
   virt-viewer
   wl-clipboard
+  wireplumber
   xdg-desktop-portal-hyprland
 )
 
@@ -68,7 +76,6 @@ YAY_PACKAGES=(
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
   codex-desktop-bin
-  iriunwebcam-bin
   libxcrypt-compat
   matugen-bin
   noto-fonts
@@ -160,6 +167,11 @@ install_yay() {
 install_yay_packages() {
   log "Installing required packages with yay"
   yay -S --needed --noconfirm "${YAY_PACKAGES[@]}"
+}
+
+install_iriunwebcam() {
+  log "Installing iriunwebcam-bin with yay"
+  yay -S --needed --noconfirm iriunwebcam-bin
 }
 
 install_opencl_amd() {
@@ -363,6 +375,7 @@ main() {
   ensure_repo_files
   install_packages
   install_yay
+  install_iriunwebcam
   install_yay_packages
   install_opencl_amd
   install_cargo_tools
