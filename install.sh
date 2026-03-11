@@ -78,8 +78,10 @@ YAY_PACKAGES=(
   catppuccin-gtk-theme-latte
   codex-desktop-bin
   fastfetch
+  goverlay
   lact
   libxcrypt-compat
+  mangohud
   matugen-bin
   noto-fonts
   nwg-look
