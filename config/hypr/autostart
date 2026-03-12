@@ -48,7 +48,7 @@ exec swayosd-server &
 
 # notification daemon
 # dunst &
-swaync &
+
 
 # automatic mount storage-devices
 udiskie &
@@ -61,8 +61,6 @@ gBar bar 1 & # secondary monitor
 # battery notification
 ~/.config/hypr/scripts/batterynotify.sh &
 
-# eww
-eww daemon
 
 # applets
 # ~/.config/hypr/scripts/appindicator.py &
