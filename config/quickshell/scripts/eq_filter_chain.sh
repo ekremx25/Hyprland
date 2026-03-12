@@ -187,13 +187,13 @@ pick_best_sink() {
     echo "$cur_sink"
     return
   fi
+  if [[ -n "$remembered_sink" ]] && sink_exists "$remembered_sink"; then
+    echo "$remembered_sink"
+    return
+  fi
   running_sink="$(running_real_sink || true)"
   if [[ -n "$running_sink" ]] && sink_exists "$running_sink"; then
     echo "$running_sink"
-    return
-  fi
-  if [[ -n "$remembered_sink" ]] && sink_exists "$remembered_sink"; then
-    echo "$remembered_sink"
     return
   fi
   first_real_sink || true
@@ -207,13 +207,13 @@ pick_best_source() {
     echo "$cur_source"
     return
   fi
+  if [[ -n "$remembered_source" ]] && source_exists "$remembered_source"; then
+    echo "$remembered_source"
+    return
+  fi
   running_source="$(running_real_source || true)"
   if [[ -n "$running_source" ]] && source_exists "$running_source"; then
     echo "$running_source"
-    return
-  fi
-  if [[ -n "$remembered_source" ]] && source_exists "$remembered_source"; then
-    echo "$remembered_source"
     return
   fi
   first_real_source || true
@@ -296,6 +296,32 @@ wait_for_eq_nodes() {
   return 1
 }
 
+wait_for_sink() {
+  local sink_name="$1"
+  [[ -n "$sink_name" ]] || return 0
+  for _ in {1..100}; do
+    if sink_exists "$sink_name"; then
+      return 0
+    fi
+    sleep 0.2
+  done
+  echo "Timed out waiting for sink: $sink_name" >&2
+  return 1
+}
+
+wait_for_source() {
+  local source_name="$1"
+  [[ -n "$source_name" ]] || return 0
+  for _ in {1..100}; do
+    if source_exists "$source_name"; then
+      return 0
+    fi
+    sleep 0.2
+  done
+  echo "Timed out waiting for source: $source_name" >&2
+  return 1
+}
+
 stabilize_eq_route() {
   local sink_name="$1"
 
@@ -372,6 +398,8 @@ apply_eq() {
 
   restart_audio_stack
   wait_for_eq_nodes || true
+  [[ -n "${BASE_SINK:-}" ]] && wait_for_sink "$BASE_SINK" || true
+  [[ -n "${BASE_SOURCE:-}" ]] && wait_for_source "$BASE_SOURCE" || true
 
   [[ -n "${BASE_SINK:-}" ]] && stabilize_eq_route "$BASE_SINK" || true
   normalize_eq_sink
@@ -380,6 +408,45 @@ apply_eq() {
   [[ -n "${BASE_SINK:-}" ]] && finalize_eq_route "$BASE_SINK" || true
   normalize_eq_sink
   echo "applied file=$EQ_FILE"
+}
+
+switch_eq_target() {
+  local target_sink="${1:-}"
+
+  read_state
+  capture_eq_sink_state
+
+  if [[ -z "$target_sink" ]]; then
+    echo "Usage: $0 switch <target_sink>" >&2
+    exit 2
+  fi
+  if is_virtual_eq_sink "$target_sink"; then
+    echo "Refusing to switch to virtual EQ sink" >&2
+    exit 2
+  fi
+  if ! sink_exists "$target_sink"; then
+    echo "Requested sink not found: $target_sink" >&2
+    exit 1
+  fi
+
+  BASE_SINK="$target_sink"
+  write_state
+
+  if [[ -f "$PW_CONF_FILE" ]] && sink_exists "effect_input.eq"; then
+    wait_for_eq_nodes || true
+    wait_for_sink "$BASE_SINK" || true
+    stabilize_eq_route "$BASE_SINK" || true
+    normalize_eq_sink
+    set_default_sink_compat "effect_input.eq" || true
+    [[ -n "${BASE_SOURCE:-}" ]] && set_default_source_compat "$BASE_SOURCE" || true
+    finalize_eq_route "$BASE_SINK" || true
+    normalize_eq_sink
+    echo "switched target=$BASE_SINK"
+    return 0
+  fi
+
+  set_default_sink_compat "$BASE_SINK" || true
+  echo "switched base=$BASE_SINK"
 }
 
 disable_eq() {
@@ -436,6 +503,9 @@ case "$cmd" in
     mapfile -t gains < <(ensure_gains "${@:1:10}")
     apply_eq "$target_sink" "${gains[@]}"
     ;;
+  switch)
+    switch_eq_target "${1:-}"
+    ;;
   disable)
     disable_eq
     ;;
@@ -446,7 +516,7 @@ case "$cmd" in
     status_eq
     ;;
   *)
-    echo "Usage: $0 {apply <10 gains> [target_sink|auto]|disable|recover|status}" >&2
+    echo "Usage: $0 {apply <10 gains> [target_sink|auto]|switch <target_sink>|disable|recover|status}" >&2
     exit 2
     ;;
 esac

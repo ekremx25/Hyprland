@@ -180,7 +180,7 @@ Item {
 
     Process {
         id: audioInfoProc
-        command: ["/bin/bash", "-lc", "STATE_FILE=\"" + backend.configDir + "/../.local/state/quickshell/eq_filter_chain.state\"; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Sink:/{print $2; exit}'); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; S=\"$DEFAULT_SINK\"; if [ \"$DEFAULT_SINK\" = \"effect_input.eq\" ]; then if [ -n \"$RUNNING_SINK\" ]; then S=\"$RUNNING_SINK\"; elif [ -n \"$STATE_SINK\" ]; then S=\"$STATE_SINK\"; fi; fi; SR=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Source:/{print $2; exit}'); SV=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SM=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); SRV=$(/usr/bin/pactl get-source-volume \"$SR\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SRM=$(/usr/bin/pactl get-source-mute \"$SR\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); echo \"SINK=$S\"; echo \"SOURCE=$SR\"; echo \"SINKVOL=$SV\"; echo \"SINKMUTE=$SM\"; echo \"SOURCEVOL=$SRV\"; echo \"SOURCEMUTE=$SRM\""]
+        command: ["/bin/bash", "-lc", "STATE_FILE=\"" + backend.configDir + "/../.local/state/quickshell/eq_filter_chain.state\"; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Sink:/{print $2; exit}'); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; S=\"$DEFAULT_SINK\"; if [ \"$DEFAULT_SINK\" = \"effect_input.eq\" ]; then if [ -n \"$STATE_SINK\" ]; then S=\"$STATE_SINK\"; elif [ -n \"$RUNNING_SINK\" ]; then S=\"$RUNNING_SINK\"; fi; fi; SR=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Source:/{print $2; exit}'); SV=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SM=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); SRV=$(/usr/bin/pactl get-source-volume \"$SR\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SRM=$(/usr/bin/pactl get-source-mute \"$SR\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); echo \"SINK=$S\"; echo \"SOURCE=$SR\"; echo \"SINKVOL=$SV\"; echo \"SINKMUTE=$SM\"; echo \"SOURCEVOL=$SRV\"; echo \"SOURCEMUTE=$SRM\""]
         running: false
         property string out: ""
         stdout: SplitParser { onRead: data => { audioInfoProc.out += data + "\n"; } }
@@ -351,7 +351,9 @@ Item {
         pendingAutoTargetSink = sinkName;
         currentSinkName = sinkName;
         sinkDisplayName = formatSinkLabel(sinkName);
-        applyEqToTarget(sinkName);
+        applyStatus = "Switching output...";
+        eqProc.requestedTargetSink = sinkName;
+        startManagedProcess(eqProc, ["/bin/bash", eqScriptPath, "switch", sinkName]);
     }
 
     function loadEqStateFromFile() {

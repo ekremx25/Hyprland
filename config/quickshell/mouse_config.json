@@ -1,6 +1,6 @@
 {
   "sensitivity": 0.5,
-  "scrollFactor": 2.5,
+  "scrollFactor": 2.8000000000000003,
   "accelProfile": "adaptive",
   "cursorTheme": "catppuccin-mocha-peach-cursors",
   "cursorSize": 25,
