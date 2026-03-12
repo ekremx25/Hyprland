@@ -1,0 +1,167 @@
+import QtQuick
+import Qt.labs.platform
+import "."
+import "../../../Services/core/Log.js" as Log
+
+Item {
+    id: backend
+
+    property var barConfig: ({ left: [], center: [], right: [] })
+    property var dockConfig: ({})
+    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
+    property string dockConfigPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
+    property var dockLeftModulesList: []
+    property var dockRightModulesList: []
+
+    property var leftModel: null
+    property var centerModel: null
+    property var rightModel: null
+    property var inactiveModel: null
+    property var dockLeftModel: null
+    property var dockRightModel: null
+
+    readonly property var moduleInfo: ({
+        "Launcher": { icon: "\ue7e6", label: "Launcher", color: "#1e66f5" },
+        "Calendar": { icon: "", label: "Calendar", color: "#f5c2e7" },
+        "Notepad": { icon: "󰠮", label: "Notepad", color: "#f9e2af" },
+        "Workspaces": { icon: "", label: "Workspaces", color: "#cba6f7" },
+        "Notifications": { icon: "󰂚", label: "Notifications", color: "#fab387" },
+        "Weather": { icon: "󰖕", label: "Weather", color: "#f9e2af" },
+        "Volume": { icon: "󰕾", label: "Volume", color: "#89b4fa" },
+        "Equalizer": { icon: "󱞙", label: "Equalizer", color: "#89dceb" },
+        "Tray": { icon: "󰇚", label: "Tray", color: "#a6adc8" },
+        "Clipboard": { icon: "󰅍", label: "Clipboard", color: "#fab387" },
+        "Power": { icon: "⏻", label: "Power", color: "#f38ba8" },
+        "PowerGroup": { icon: "", label: "Power Group", color: "#a6e3a1" },
+        "SysInfoGroup": { icon: "", label: "System Group", color: "#f9e2af" },
+        "RamModule": { icon: "󰘚", label: "Memory", color: "#a6e3a1" },
+        "Media": { icon: "♫", label: "Media", color: "#f5c2e7" }
+    })
+
+    readonly property var allModuleNames: [
+        "Launcher", "Calendar", "Notepad",
+        "Workspaces", "Notifications", "Weather", "Volume", "Equalizer",
+        "Tray", "Clipboard", "Power",
+        "PowerGroup", "SysInfoGroup", "RamModule", "Media"
+    ]
+
+    JsonFileStore {
+        id: barConfigStore
+        path: backend.configPath
+        onLoaded: function(text) {
+            backend.applyBarConfig(backend.parseJsonObject(text, { left: [], center: [], right: [], inactive: [] }));
+        }
+    }
+
+    JsonFileStore {
+        id: dockConfigStore
+        path: backend.dockConfigPath
+        onLoaded: function(text) {
+            backend.applyDockModuleLists(backend.parseJsonObject(text, {}));
+            barConfigStore.read();
+        }
+    }
+
+    function parseJsonObject(text, fallback) {
+        var raw = (text || "").trim();
+        if (raw === "") return fallback;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            Log.warn("SettingsBackend", "Settings parse error: " + e);
+            return fallback;
+        }
+    }
+
+    function syncListModel(model, names) {
+        if (!model) return;
+        model.clear();
+        for (var i = 0; i < names.length; ++i) {
+            model.append({ name: names[i] });
+        }
+    }
+
+    function getModelNames(model) {
+        var names = [];
+        if (!model) return names;
+        for (var i = 0; i < model.count; ++i) {
+            names.push(model.get(i).name);
+        }
+        return names;
+    }
+
+    function applyDockModuleLists(cfg) {
+        var leftModules = cfg.leftModules || [];
+        var rightModules = cfg.rightModules || [];
+        syncListModel(dockLeftModel, leftModules);
+        syncListModel(dockRightModel, rightModules);
+        dockLeftModulesList = leftModules.slice();
+        dockRightModulesList = rightModules.slice();
+        dockConfig = cfg;
+    }
+
+    function normalizeBarConfig(cfg) {
+        var normalized = cfg || {};
+        if (!normalized.left) normalized.left = [];
+        if (!normalized.center) normalized.center = [];
+        if (!normalized.right) normalized.right = [];
+        if (!normalized.inactive) normalized.inactive = [];
+
+        var allDockMods = dockLeftModulesList.concat(dockRightModulesList);
+        var cleanInactive = [];
+        for (var k = 0; k < normalized.inactive.length; ++k) {
+            if (allDockMods.indexOf(normalized.inactive[k]) === -1) cleanInactive.push(normalized.inactive[k]);
+        }
+        normalized.inactive = cleanInactive;
+
+        var activeModules = normalized.left.concat(normalized.center).concat(normalized.right).concat(normalized.inactive).concat(allDockMods);
+        for (var i = 0; i < allModuleNames.length; ++i) {
+            var moduleName = allModuleNames[i];
+            if (activeModules.indexOf(moduleName) === -1) normalized.inactive.push(moduleName);
+        }
+        return normalized;
+    }
+
+    function applyBarConfig(cfg) {
+        var normalized = normalizeBarConfig(cfg);
+        barConfig = normalized;
+        syncListModel(leftModel, normalized.left);
+        syncListModel(centerModel, normalized.center);
+        syncListModel(rightModel, normalized.right);
+        syncListModel(inactiveModel, normalized.inactive);
+    }
+
+    function buildBarConfigFromModels() {
+        var cfg = JSON.parse(JSON.stringify(barConfig));
+        cfg.left = getModelNames(leftModel);
+        cfg.center = getModelNames(centerModel);
+        cfg.right = getModelNames(rightModel);
+        cfg.inactive = getModelNames(inactiveModel);
+        return cfg;
+    }
+
+    function buildDockConfigFromModels() {
+        var cfg = JSON.parse(JSON.stringify(dockConfig || {}));
+        cfg.leftModules = getModelNames(dockLeftModel);
+        cfg.rightModules = getModelNames(dockRightModel);
+        delete cfg.modules;
+        return cfg;
+    }
+
+    function loadConfig() {
+        dockConfigStore.read();
+    }
+
+    function saveConfig(onSaved) {
+        var cfg = buildBarConfigFromModels();
+        Log.debug("SettingsBackend", "Saving config to " + configPath);
+        barConfig = cfg;
+        barConfigStore.write(JSON.stringify(cfg, null, 2));
+
+        var dockCfg = buildDockConfigFromModels();
+        dockConfig = dockCfg;
+        dockConfigStore.write(JSON.stringify(dockCfg, null, 2));
+
+        if (onSaved) onSaved(cfg);
+    }
+}

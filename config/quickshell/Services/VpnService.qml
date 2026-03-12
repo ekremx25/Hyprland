@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "./core/Log.js" as Log
 
 Singleton {
     id: root
@@ -43,6 +44,51 @@ Singleton {
         refreshActive();
     }
 
+    function runVpnCommand(proc, command) {
+        proc.buf = "";
+        proc.command = command;
+        proc.running = false;
+        proc.running = true;
+    }
+
+    function parseProfiles(text) {
+        var lines = text.trim().length ? text.trim().split('\n') : [];
+        var out = [];
+        for (var i = 0; i < lines.length; i++) {
+            var parts = lines[i].split(':');
+            if (parts.length >= 3 && (parts[2] === "vpn" || parts[2] === "wireguard")) {
+                var autoconnect = parts.length >= 5 ? (parts[4] === "yes") : false;
+                out.push({ name: parts[0], uuid: parts[1], type: parts[2], serviceType: parts[3] || "", autoconnect: autoconnect });
+            }
+        }
+        return out;
+    }
+
+    function parseActiveConnections(text) {
+        var lines = text.trim().length ? text.trim().split('\n') : [];
+        var act = [];
+        var now = Date.now();
+        for (var i = 0; i < lines.length; i++) {
+            var parts = lines[i].split(':');
+            if (parts.length >= 5 && (parts[2] === "vpn" || parts[2] === "wireguard")) {
+                var uuid = parts[1];
+                var existing = null;
+                for (var j = 0; j < root.activeConnections.length; j++) {
+                    if (root.activeConnections[j].uuid === uuid) { existing = root.activeConnections[j]; break; }
+                }
+                var timestamp = existing && existing.timestamp ? existing.timestamp : now;
+                act.push({
+                    name: parts[0],
+                    uuid: uuid,
+                    device: parts[3],
+                    state: parts[4],
+                    timestamp: timestamp
+                });
+            }
+        }
+        return act;
+    }
+
     // Watch for NetworkManager changes via dbus
     Process {
         id: nmMonitor
@@ -59,7 +105,7 @@ Singleton {
     }
 
     function listProfiles() {
-        getProfiles.running = true;
+        runVpnCommand(getProfiles, getProfiles.command);
     }
 
     Process {
@@ -69,22 +115,13 @@ Singleton {
         property string buf: ""
         stdout: SplitParser { onRead: data => { getProfiles.buf += data + "\n"; } }
         onExited: {
-            var lines = getProfiles.buf.trim().length ? getProfiles.buf.trim().split('\n') : [];
-            var out = [];
-            for (var i = 0; i < lines.length; i++) {
-                var parts = lines[i].split(':');
-                if (parts.length >= 3 && (parts[2] === "vpn" || parts[2] === "wireguard")) {
-                    var autoconnect = parts.length >= 5 ? (parts[4] === "yes") : false;
-                    out.push({ name: parts[0], uuid: parts[1], type: parts[2], serviceType: parts[3] || "", autoconnect: autoconnect });
-                }
-            }
-            root.profiles = out;
+            root.profiles = root.parseProfiles(getProfiles.buf);
             getProfiles.buf = "";
         }
     }
 
     function refreshActive() {
-        getActive.running = true;
+        runVpnCommand(getActive, getActive.command);
     }
 
     function getConnectionDetails(uuid) {
@@ -114,27 +151,7 @@ Singleton {
         property string buf: ""
         stdout: SplitParser { onRead: data => { getActive.buf += data + "\n"; } }
         onExited: {
-            var lines = getActive.buf.trim().length ? getActive.buf.trim().split('\n') : [];
-            var act = [];
-            var now = Date.now();
-            for (var i = 0; i < lines.length; i++) {
-                var parts = lines[i].split(':');
-                if (parts.length >= 5 && (parts[2] === "vpn" || parts[2] === "wireguard")) {
-                    var uuid = parts[1];
-                    var existing = null;
-                    for (var j = 0; j < root.activeConnections.length; j++) {
-                        if (root.activeConnections[j].uuid === uuid) { existing = root.activeConnections[j]; break; }
-                    }
-                    var timestamp = existing && existing.timestamp ? existing.timestamp : now;
-                    act.push({
-                        name: parts[0],
-                        uuid: uuid,
-                        device: parts[3],
-                        state: parts[4],
-                        timestamp: timestamp
-                    });
-                }
-            }
+            var act = root.parseActiveConnections(getActive.buf);
             root.activeConnections = act;
             root.activeUuids = act.map(function(a) { return a.uuid; }).filter(function(u) { return !!u; });
             root.activeNames = act.map(function(a) { return a.name; }).filter(function(n) { return !!n; });
@@ -180,15 +197,11 @@ Singleton {
             var script = "set -e\n" +
                          "nmcli -t -f UUID,TYPE connection show --active | awk -F: '$2 ~ /^(vpn|wireguard)$/ {print $1}' | while read u; do [ -n \"$u\" ] && nmcli connection down uuid \"$u\" || true; done\n" +
                          upCmd + "\n";
-            vpnSwitch.command = ["bash", "-lc", script];
-            vpnSwitch.running = true;
+            runVpnCommand(vpnSwitch, ["bash", "-lc", script]);
         } else {
-            if (_looksLikeUuid(uuidOrName)) {
-                vpnUp.command = ["nmcli", "connection", "up", "uuid", uuidOrName];
-            } else {
-                vpnUp.command = ["nmcli", "connection", "up", "id", uuidOrName];
-            }
-            vpnUp.running = true;
+            runVpnCommand(vpnUp, _looksLikeUuid(uuidOrName)
+                ? ["nmcli", "connection", "up", "uuid", uuidOrName]
+                : ["nmcli", "connection", "up", "id", uuidOrName]);
         }
     }
 
@@ -201,12 +214,9 @@ Singleton {
 
         root.isBusy = true;
         root.errorMessage = "";
-        if (_looksLikeUuid(uuidOrName)) {
-            vpnDown.command = ["nmcli", "connection", "down", "uuid", uuidOrName];
-        } else {
-            vpnDown.command = ["nmcli", "connection", "down", "id", uuidOrName];
-        }
-        vpnDown.running = true;
+        runVpnCommand(vpnDown, _looksLikeUuid(uuidOrName)
+            ? ["nmcli", "connection", "down", "uuid", uuidOrName]
+            : ["nmcli", "connection", "down", "id", uuidOrName]);
     }
 
     function toggle(uuid) {
@@ -224,12 +234,9 @@ Singleton {
         if (root.isBusy) return;
         root.isBusy = true;
         root.errorMessage = "";
-        if (_looksLikeUuid(uuidOrName)) {
-            vpnDelete.command = ["nmcli", "connection", "delete", "uuid", uuidOrName];
-        } else {
-            vpnDelete.command = ["nmcli", "connection", "delete", "id", uuidOrName];
-        }
-        vpnDelete.running = true;
+        runVpnCommand(vpnDelete, _looksLikeUuid(uuidOrName)
+            ? ["nmcli", "connection", "delete", "uuid", uuidOrName]
+            : ["nmcli", "connection", "delete", "id", uuidOrName]);
     }
 
     Process {
@@ -241,6 +248,7 @@ Singleton {
             root.isBusy = false;
             if (exitCode !== 0 && !vpnUp.buf.toLowerCase().includes("successfully")) {
                 root.errorMessage = vpnUp.buf.trim() || "Failed to connect VPN";
+                Log.warn("VpnService", root.errorMessage);
             }
             vpnUp.buf = "";
             refreshAll();
@@ -256,6 +264,7 @@ Singleton {
             root.isBusy = false;
             if (exitCode !== 0) {
                 root.errorMessage = vpnDown.buf.trim() || "Failed to disconnect VPN";
+                Log.warn("VpnService", root.errorMessage);
             }
             vpnDown.buf = "";
             refreshAll();
@@ -271,6 +280,7 @@ Singleton {
             root.isBusy = false;
             if (exitCode !== 0 && root.errorMessage === "") {
                 root.errorMessage = "Failed to switch VPN";
+                Log.warn("VpnService", root.errorMessage);
             }
             vpnSwitch.buf = "";
             refreshAll();
@@ -286,6 +296,7 @@ Singleton {
             root.isBusy = false;
             if (exitCode !== 0) {
                 root.errorMessage = vpnDelete.buf.trim() || "Failed to delete VPN";
+                Log.warn("VpnService", root.errorMessage);
             }
             vpnDelete.buf = "";
             refreshAll();
@@ -296,8 +307,7 @@ Singleton {
         if (root.isBusy) return;
         root.isBusy = true;
         var script = "nmcli -t -f UUID,TYPE connection show --active | awk -F: '$2 ~ /^(vpn|wireguard)$/ {print $1}' | while read u; do [ -n \"$u\" ] && nmcli connection down uuid \"$u\" || true; done";
-        vpnSwitch.command = ["bash", "-lc", script];
-        vpnSwitch.running = true;
+        runVpnCommand(vpnSwitch, ["bash", "-lc", script]);
     }
 
     function setAutoconnect(uuidOrName, enabled) {
@@ -305,12 +315,9 @@ Singleton {
         root.isBusy = true;
         root.errorMessage = "";
         var value = enabled ? "yes" : "no";
-        if (_looksLikeUuid(uuidOrName)) {
-            setAutoconnectProcess.command = ["nmcli", "connection", "modify", "uuid", uuidOrName, "connection.autoconnect", value];
-        } else {
-            setAutoconnectProcess.command = ["nmcli", "connection", "modify", "id", uuidOrName, "connection.autoconnect", value];
-        }
-        setAutoconnectProcess.running = true;
+        runVpnCommand(setAutoconnectProcess, _looksLikeUuid(uuidOrName)
+            ? ["nmcli", "connection", "modify", "uuid", uuidOrName, "connection.autoconnect", value]
+            : ["nmcli", "connection", "modify", "id", uuidOrName, "connection.autoconnect", value]);
     }
 
     Process {
@@ -320,6 +327,7 @@ Singleton {
             root.isBusy = false;
             if (exitCode !== 0 && root.errorMessage === "") {
                 root.errorMessage = "Failed to update autoconnect";
+                Log.warn("VpnService", root.errorMessage);
             }
             refreshAll();
         }

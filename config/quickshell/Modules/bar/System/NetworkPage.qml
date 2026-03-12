@@ -1,257 +1,36 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
-import "../../../Widgets"
 import "../../../Widgets"
 
 Item {
     id: networkPage
+    NetworkService {
+        id: networkService
+        active: networkPage.visible
+    }
 
-
-    // ── Properties ──
-    property string ifaceName: ""
-    property string ipAddr: ""
-    property string gateway: ""
-    property string connName: ""
-    property string connStatus: "Checking..."
-    property string macAddr: ""
-    property string dns: ""
-    property string connType: "" // ethernet / wifi
-
-    // IPv4/IPv6/DNS/Proxy method states
-    property string ipv4Method: "auto"
-    property string ipv6Method: "auto"
-    property string dnsMethod: "auto"
-    property string proxyMethod: "none"
-    property string mtuValue: "1500"
-    property string macMode: "default"
-
-    // WiFi
-    property var wifiList: []
-    property string connectingSsid: ""
+    property alias ifaceName: networkService.ifaceName
+    property alias ipAddr: networkService.ipAddr
+    property alias gateway: networkService.gateway
+    property alias connName: networkService.connName
+    property alias connStatus: networkService.connStatus
+    property alias macAddr: networkService.macAddr
+    property alias dns: networkService.dns
+    property alias connType: networkService.connType
+    property alias ipv4Method: networkService.ipv4Method
+    property alias ipv6Method: networkService.ipv6Method
+    property alias dnsMethod: networkService.dnsMethod
+    property alias proxyMethod: networkService.proxyMethod
+    property alias mtuValue: networkService.mtuValue
+    property alias macMode: networkService.macMode
+    property alias wifiList: networkService.wifiList
+    property alias connectingSsid: networkService.connectingSsid
+    property alias applyStatus: networkService.applyStatus
+    property alias applyError: networkService.applyError
 
     function refresh() {
-        nmcliProc.running = false;
-        nmcliProc.running = true;
-        refreshDelayTimer.start();
-    }
-
-    // ═══════════ PROCESSES ═══════════
-
-    // Device status
-    Process {
-        id: nmcliProc
-        command: ["nmcli", "-t", "-f", "DEVICE,TYPE,STATE,CONNECTION", "device"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { nmcliProc.buf += data + "\n"; } }
-        onExited: { parseDeviceStatus(nmcliProc.buf); nmcliProc.buf = ""; }
-    }
-
-    // IP detection
-    Process {
-        id: ipProc
-        command: ["sh", "-c", "ip -4 addr show | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}'"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { ipProc.buf = data.trim(); } }
-        onExited: { networkPage.ipAddr = ipProc.buf; ipProc.buf = ""; }
-    }
-
-    // Gateway
-    Process {
-        id: gwProc
-        command: ["sh", "-c", "ip route | grep default | awk '{print $3}' | head -1"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { gwProc.buf = data.trim(); } }
-        onExited: { networkPage.gateway = gwProc.buf; gwProc.buf = ""; }
-    }
-
-    // MAC address
-    Process {
-        id: macProc
-        property string iface: ""
-        command: ["sh", "-c", "cat /sys/class/net/" + iface + "/address 2>/dev/null || echo '--'"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { macProc.buf = data.trim(); } }
-        onExited: { networkPage.macAddr = macProc.buf; macProc.buf = ""; }
-    }
-
-    // DNS info
-    Process {
-        id: dnsProc
-        command: ["sh", "-c", "nmcli -t -f IP4.DNS connection show --active 2>/dev/null | head -1 | cut -d: -f2"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { dnsProc.buf = data.trim(); } }
-        onExited: { networkPage.dns = dnsProc.buf || "Automatic"; dnsProc.buf = ""; }
-    }
-
-    // Connection details (ipv4.method, ipv6.method, proxy, MTU)
-    Process {
-        id: connDetailProc
-        property string conn: ""
-        command: ["sh", "-c", "nmcli -t -f ipv4.method,ipv6.method,802-3-ethernet.mtu connection show '" + conn + "' 2>/dev/null"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { connDetailProc.buf += data + "\n"; } }
-        onExited: {
-            var lines = connDetailProc.buf.split("\n");
-            for (var i = 0; i < lines.length; i++) {
-                var parts = lines[i].split(":");
-                if (parts[0] === "ipv4.method") networkPage.ipv4Method = parts[1] || "auto";
-                if (parts[0] === "ipv6.method") networkPage.ipv6Method = parts[1] || "auto";
-                if (parts[0] === "802-3-ethernet.mtu") networkPage.mtuValue = (parts[1] && parts[1] !== "" && parts[1] !== "0") ? parts[1] : "1500";
-            }
-            connDetailProc.buf = "";
-        }
-    }
-
-
-
-    // WiFi scan
-    Process {
-        id: wifiScanProc
-        command: ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY,BARS,ACTIVE", "device", "wifi", "list", "--rescan", "no"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { wifiScanProc.buf += data + "\n"; } }
-        onExited: { parseWifiList(wifiScanProc.buf); wifiScanProc.buf = ""; }
-    }
-
-    // WiFi connect
-    Process {
-        id: connectProc
-        command: []
-        onExited: {
-            networkPage.connectingSsid = "";
-            nmcliProc.buf = ""; nmcliProc.running = false; nmcliProc.running = true;
-            wifiScanProc.buf = ""; wifiScanProc.running = false; wifiScanProc.running = true;
-        }
-    }
-
-
-
-    // Disconnect
-    Process {
-        id: disconnectProc
-        command: []
-        onExited: {
-            nmcliProc.buf = ""; nmcliProc.running = false; nmcliProc.running = true;
-            ipProc.buf = ""; ipProc.running = false; ipProc.running = true;
-        }
-    }
-
-    // Apply network setting
-    property string applyStatus: ""
-    property bool applyError: false
-
-    // Modify connection settings (no shell - direct args)
-    Process {
-        id: applyProc
-        command: []
-        property string errBuf: ""
-        stdout: SplitParser { onRead: (data) => console.log("[net-apply]: " + data) }
-        stderr: SplitParser { onRead: (data) => { applyProc.errBuf += data + " "; console.log("[net-apply err]: " + data); } }
-        onExited: (code) => {
-            if (code !== 0) {
-                networkPage.applyStatus = "❌ Modify error: " + applyProc.errBuf;
-                networkPage.applyError = true;
-            } else {
-                // Step 2: Bring connection up with new settings
-                networkPage.applyStatus = "⏳ Restarting connection...";
-                connUpProc.errBuf = "";
-                connUpProc.command = ["nmcli", "connection", "up", networkPage.connName];
-                connUpProc.running = false;
-                connUpProc.running = true;
-            }
-            applyProc.errBuf = "";
-        }
-    }
-
-    // Bring connection up after modify
-    Process {
-        id: connUpProc
-        command: []
-        property string errBuf: ""
-        stdout: SplitParser { onRead: (data) => console.log("[conn-up]: " + data) }
-        stderr: SplitParser { onRead: (data) => { connUpProc.errBuf += data + " "; console.log("[conn-up err]: " + data); } }
-        onExited: (code) => {
-            if (code !== 0) {
-                networkPage.applyStatus = "❌ Connection error: " + connUpProc.errBuf;
-                networkPage.applyError = true;
-            } else {
-                networkPage.applyStatus = "✅ IP changed successfully!";
-                networkPage.applyError = false;
-                refreshDelayTimer.start();
-            }
-            connUpProc.errBuf = "";
-        }
-    }
-
-    Timer {
-        id: refreshDelayTimer
-        interval: 2000; repeat: false
-        onTriggered: {
-            nmcliProc.buf = ""; nmcliProc.running = false; nmcliProc.running = true;
-            ipProc.buf = ""; ipProc.running = false; ipProc.running = true;
-            gwProc.buf = ""; gwProc.running = false; gwProc.running = true;
-        }
-    }
-
-    // ═══════════ PARSERS ═══════════
-    function parseDeviceStatus(text) {
-        var lines = text.split("\n");
-        for (var i = 0; i < lines.length; i++) {
-            var parts = lines[i].split(":");
-            if (parts.length >= 4 && parts[2] === "connected") {
-                ifaceName = parts[0];
-                connName = parts[3];
-                connType = parts[1];
-                connStatus = "Connected";
-                // Get details
-                macProc.iface = parts[0];
-                macProc.buf = ""; macProc.running = false; macProc.running = true;
-                connDetailProc.conn = parts[3];
-                connDetailProc.buf = ""; connDetailProc.running = false; connDetailProc.running = true;
-                return;
-            }
-        }
-        connStatus = "Disconnected";
-    }
-
-    function parseWifiList(text) {
-        var lines = text.split("\n");
-        var list = [];
-        var seen = {};
-        for (var i = 0; i < lines.length; i++) {
-            var match = lines[i].match(/^(.*):(\\d+):(.*):(.*):(yes|no)$/);
-            if (!match) continue;
-            var s = match[1].replace(/\\:/g, ":");
-            var sig = parseInt(match[2]);
-            var sec = match[3];
-            var bars = match[4];
-            var act = match[5] === "yes";
-            if (!s || seen[s]) continue;
-            seen[s] = true;
-            list.push({ ssid: s, signal: sig, security: sec, bars: bars, active: act });
-        }
-        list.sort(function(a, b) { return a.active ? -1 : b.active ? 1 : b.signal - a.signal; });
-        if (list.length > 0) wifiList = list;
-    }
-
-    // ═══════════ LIFECYCLE ═══════════
-    Component.onCompleted: {
-        nmcliProc.running = true;
-        ipProc.running = true;
-        gwProc.running = true;
-        dnsProc.running = true;
-        wifiScanProc.running = true;
-    }
-
-    Timer {
-        interval: 10000; running: networkPage.visible; repeat: true
-        onTriggered: {
-            nmcliProc.buf = ""; nmcliProc.running = false; nmcliProc.running = true;
-            ipProc.buf = ""; ipProc.running = false; ipProc.running = true;
-            dnsProc.buf = ""; dnsProc.running = false; dnsProc.running = true;
-        }
+        networkService.refresh();
     }
 
     // ═══════════ UI ═══════════
@@ -329,7 +108,11 @@ Item {
                             Text { anchors.centerIn: parent; text: "Disconnect"; color: "#f38ba8"; font.pixelSize: 12; font.bold: true }
                             MouseArea {
                                 id: discMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: { if (networkPage.ifaceName) { disconnectProc.command = ["nmcli", "device", "disconnect", networkPage.ifaceName]; disconnectProc.running = true; } }
+                                onClicked: {
+                                    if (networkPage.ifaceName) {
+                                        networkService.disconnectCurrentDevice();
+                                    }
+                                }
                             }
                         }
                     }
@@ -362,7 +145,7 @@ Item {
                     RowLayout {
                         spacing: 10
                         Text { text: "DNS Method:"; color: Theme.subtext; font.pixelSize: 12 }
-                        SegmentButton {
+                        NetworkSegmentButton {
                             options: ["Automatic", "Manual"]
                             selectedIndex: networkPage.dnsMethod === "auto" ? 0 : 1
                             onSelected: (idx) => {
@@ -399,7 +182,7 @@ Item {
                     RowLayout {
                         spacing: 10
                         Text { text: "Method:"; color: Theme.subtext; font.pixelSize: 12 }
-                        SegmentButton {
+                        NetworkSegmentButton {
                             options: ["Automatic", "Manual", "Link-Local"]
                             selectedIndex: networkPage.ipv4Method === "auto" ? 0 : networkPage.ipv4Method === "manual" ? 1 : 2
                             onSelected: (idx) => {
@@ -414,7 +197,7 @@ Item {
                     RowLayout {
                         spacing: 10
                         Text { text: "Method:"; color: Theme.subtext; font.pixelSize: 12 }
-                        SegmentButton {
+                        NetworkSegmentButton {
                             options: ["Automatic", "Manual", "Ignore"]
                             selectedIndex: networkPage.ipv6Method === "auto" ? 0 : networkPage.ipv6Method === "manual" ? 1 : 2
                             onSelected: (idx) => {
@@ -449,7 +232,7 @@ Item {
                     RowLayout {
                         spacing: 10
                         Text { text: "Proxy Method:"; color: Theme.subtext; font.pixelSize: 12 }
-                        SegmentButton {
+                        NetworkSegmentButton {
                             options: ["None", "Manual", "Automatic"]
                             selectedIndex: networkPage.proxyMethod === "none" ? 0 : networkPage.proxyMethod === "manual" ? 1 : 2
                             onSelected: (idx) => {
@@ -516,9 +299,7 @@ Item {
                                 id: mtuApplyMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     if (networkPage.connName) {
-                                        applyProc.command = ["nmcli", "connection", "modify", networkPage.connName, "802-3-ethernet.mtu", networkPage.mtuValue];
-                                        applyProc.running = false;
-                                        applyProc.running = true;
+                                        networkService.applyMtu();
                                     }
                                 }
                             }
@@ -533,7 +314,7 @@ Item {
 
                         Text { text: "MAC Address:"; color: Theme.subtext; font.pixelSize: 12 }
 
-                        SegmentButton {
+                        NetworkSegmentButton {
                             options: ["Default", "Cloned"]
                             selectedIndex: networkPage.macMode === "default" ? 0 : 1
                             onSelected: (idx) => {
@@ -553,9 +334,7 @@ Item {
                                 onClicked: {
                                     if (networkPage.connName) {
                                         var macVal = networkPage.macMode === "default" ? "" : networkPage.macAddr;
-                                        applyProc.command = ["nmcli", "connection", "modify", networkPage.connName, "802-3-ethernet.cloned-mac-address", macVal || "permanent"];
-                                        applyProc.running = false;
-                                        applyProc.running = true;
+                                        networkService.applyMacMode();
                                     }
                                 }
                             }
@@ -587,9 +366,7 @@ Item {
                     MouseArea {
                         id: refreshMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            wifiScanProc.buf = "";
-                            wifiScanProc.running = false;
-                            wifiScanProc.running = true;
+                            networkService.refreshWifiScan();
                         }
                     }
                 }
@@ -665,8 +442,7 @@ Item {
                                 enabled: networkPage.connectingSsid === ""
                                 onClicked: {
                                     networkPage.connectingSsid = modelData.ssid;
-                                    connectProc.command = ["nmcli", "device", "wifi", "connect", modelData.ssid];
-                                    connectProc.running = true;
+                                    networkService.connectToWifi(modelData.ssid);
                                 }
                             }
                         }
@@ -756,7 +532,7 @@ Item {
                         RowLayout {
                             spacing: 12
                             Text { text: "Method:"; color: Theme.subtext; Layout.preferredWidth: 80 }
-                            SegmentButton {
+                            NetworkSegmentButton {
                                 options: ["Automatic", "Manual", "Link-Local"]
                                 selectedIndex: networkPage.ipv4Method === "auto" ? 0 : networkPage.ipv4Method === "manual" ? 1 : 2
                                 onSelected: (idx) => networkPage.ipv4Method = idx === 0 ? "auto" : idx === 1 ? "manual" : "link-local"
@@ -800,7 +576,7 @@ Item {
                         RowLayout {
                             spacing: 12
                             Text { text: "Method:"; color: Theme.subtext; Layout.preferredWidth: 80 }
-                            SegmentButton {
+                            NetworkSegmentButton {
                                 options: ["Automatic", "Manual", "Ignore"]
                                 selectedIndex: networkPage.ipv6Method === "auto" ? 0 : networkPage.ipv6Method === "manual" ? 1 : 2
                                 onSelected: (idx) => networkPage.ipv6Method = idx === 0 ? "auto" : idx === 1 ? "manual" : "ignore"
@@ -879,11 +655,7 @@ Item {
                                     cmd.push("ipv4.ignore-auto-dns", "no");
                                 }
 
-                                networkPage.applyStatus = "Applying...";
-                                applyProc.errBuf = "";
-                                applyProc.command = cmd;
-                                applyProc.running = false;
-                                applyProc.running = true;
+                                networkService.applyConnectionSettings(cmd);
                                 // editConnPopup.close(); // Keep open to show status
                             }
                         }
@@ -912,37 +684,4 @@ Item {
 
     // ── Add VPN Popup ──
 
-    // ═══════════ SEGMENT BUTTON COMPONENT ═══════════
-    component SegmentButton: Row {
-        property var options: []
-        property int selectedIndex: 0
-        signal selected(int idx)
-        spacing: 0
-
-        Repeater {
-            model: options
-            Rectangle {
-                required property string modelData
-                required property int index
-                width: Math.max(segText.implicitWidth + 20, 70)
-                height: 30
-                radius: 6
-                color: index === selectedIndex ? Theme.primary : Qt.rgba(49/255, 50/255, 68/255, 0.6)
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    id: segText
-                    anchors.centerIn: parent
-                    text: modelData
-                    color: index === selectedIndex ? "#1e1e2e" : Theme.text
-                    font.pixelSize: 11; font.bold: index === selectedIndex
-                }
-
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: selected(index)
-                }
-            }
-        }
-    }
 }

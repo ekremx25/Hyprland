@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
+import "."
 import "../../../Widgets"
 
 Rectangle {
     id: diskRoot
     property bool isHovered: ma.containsMouse
+    DiskService { id: diskService }
 
     // --- RENK AYARLARI (Standardize edilmiş) ---
     property color containerColor: Theme.diskColor
@@ -20,36 +21,9 @@ Rectangle {
     border.width: 0
     // border.color: "#ccd0da"
 
-    // --- VERİ DEĞİŞKENLERİ ---
-    property string diskUsed: "0G"
-    property string diskTotal: "0G"
-    property string diskPercent: "0%"
-
-    // --- DİSK BİLGİSİNİ ÇEKEN KOMUT ---
-    Process {
-        id: diskProc
-        // df -h komutuyla root (/) diskinin boyutunu, kullanılanı ve yüzdesini alır
-        command: ["sh", "-c", "df -h / | awk 'NR==2 {print $3 \"|\" $2 \"|\" $5}'"]
-        running: true
-        stdout: SplitParser {
-            onRead: data => {
-                var parts = String(data).trim().split('|');
-                if (parts.length >= 3) {
-                    diskRoot.diskUsed = parts[0];
-                    diskRoot.diskTotal = parts[1];
-                    diskRoot.diskPercent = parts[2];
-                }
-            }
-        }
-    }
-
-    // Disk güncelleme sıklığı artırıldı (5 saniye)
-    Timer {
-        interval: 5000; running: true; repeat: true
-        onTriggered: {
-            if (!diskProc.running) diskProc.running = true
-        }
-    }
+    property alias diskUsed: diskService.diskUsed
+    property alias diskTotal: diskService.diskTotal
+    property alias diskPercent: diskService.diskPercent
 
     // --- GÖRSEL DÜZEN (BARDA GÖRÜNEN KISIM) ---
     RowLayout {
@@ -64,7 +38,7 @@ Rectangle {
         }
 
         Text {
-            text: diskRoot.diskPercent
+            text: diskService.diskPercent
             color: textColor
             font.bold: true
             font.pixelSize: 13
@@ -143,7 +117,7 @@ Rectangle {
                         font.family: "JetBrainsMono Nerd Font"
                     }
                     Text {
-                        text: diskRoot.diskUsed + " / " + diskRoot.diskTotal
+                        text: diskService.diskUsed + " / " + diskService.diskTotal
                         color: "#a6e3a1" // Yeşilimsi
                         font.bold: true
                         font.pixelSize: 13

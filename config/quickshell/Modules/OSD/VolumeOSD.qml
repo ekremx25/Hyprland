@@ -34,6 +34,7 @@ PanelWindow {
     visible: false
     // State control
     property real displayVolume: (Volume.sinkVolume !== undefined && Volume.sinkVolume !== null ? Volume.sinkVolume : 0) * 100
+    readonly property real clampedDisplayVolume: Math.max(0, Math.min(displayVolume, 150))
     
     // Auto-hide Timer
     Timer {
@@ -55,40 +56,30 @@ PanelWindow {
         }
     }
 
-    // Stable last-known values for change detection
-    property int lastVolumeInt: Math.round((Volume.sinkVolume !== undefined && Volume.sinkVolume !== null ? Volume.sinkVolume : 0) * 100)
-    property bool lastMuteState: Volume.sinkMuted === true
-
-    Component.onCompleted: {
-        root.displayVolume = Math.round(Volume.sinkVolume * 100)
-        root.lastVolumeInt = root.displayVolume
-        root.lastMuteState = (Volume.sinkMuted === true)
+    function syncFromVolume() {
+        const vol = (Volume.sinkVolume !== undefined && Volume.sinkVolume !== null) ? Volume.sinkVolume : 0
+        root.displayVolume = Math.round(vol * 100)
     }
+
+    Component.onCompleted: root.syncFromVolume()
 
     // React to Volume Changes from the Service
     Connections {
         target: Volume
-        function onSinkVolumeChanged() {
-            let currentVolInt = Math.round(Volume.sinkVolume * 100)
-
-            // Show OSD on actual volume delta.
-            if (currentVolInt !== root.lastVolumeInt) {
-                root.displayVolume = currentVolInt
-                root.lastVolumeInt = currentVolInt
-                root.refreshOSD()
-            }
+        function onOsdPulse() {
+            root.syncFromVolume()
+            root.showOsd()
         }
-        function onSinkMutedChanged() {
-            const mutedNow = (Volume.sinkMuted === true)
-            if (mutedNow !== root.lastMuteState) {
-                root.lastMuteState = mutedNow
-                root.displayVolume = Math.round(Volume.sinkVolume * 100)
-                root.refreshOSD()
-            }
+        function onTargetSinkNameChanged() {
+            root.syncFromVolume()
+        }
+        function onRefreshSerialChanged() {
+            root.syncFromVolume()
+            root.showOsd()
         }
     }
     
-    function refreshOSD() {
+    function showOsd() {
         if (!root.visible) {
             root.visible = true
         }
@@ -147,7 +138,7 @@ PanelWindow {
                             top: parent.top
                             bottom: parent.bottom
                         }
-                        width: parent.width * (root.displayVolume / 100)
+                        width: parent.width * (root.clampedDisplayVolume / 150)
                         radius: 8
                         color: Volume.sinkMuted ? Theme.red : Theme.primary
                         

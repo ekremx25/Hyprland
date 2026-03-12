@@ -16,28 +16,10 @@
   "dockAlignment": "center",
   "pinned": [
     {
-      "name": "Antigravity",
-      "icon": "antigravity",
-      "cmd": "__desktop__:antigravity-url-handler",
-      "appId": "antigravity"
-    },
-    {
-      "name": "telegram-desktop",
-      "icon": "org.telegram.desktop",
-      "cmd": "telegram-desktop",
-      "appId": "org.telegram.desktop"
-    },
-    {
-      "name": "OBS Studio",
-      "icon": "com.obsproject.studio",
-      "cmd": "__desktop__:com.obsproject.Studio",
-      "appId": "com.obsproject.Studio"
-    },
-    {
-      "name": "Iriunwebcam",
-      "icon": "iriunwebcam",
-      "cmd": "__desktop__:iriunwebcam",
-      "appId": "iriunwebcam"
+      "name": "Brave",
+      "icon": "brave-browser",
+      "cmd": "brave-browser-stable --ozone-platform=wayland --enable-features=UseOzonePlatform,WebRTCPipeWireCapturer,WaylandWindowDecorations,AcceleratedVideoEncoder,AcceleratedVideoDecodeLinuxGL",
+      "appId": "brave-browser"
     },
     {
       "name": "Files",
@@ -46,10 +28,52 @@
       "appId": "dolphin"
     },
     {
-      "name": "Brave",
-      "icon": "brave-browser",
-      "cmd": "__desktop__:brave-browser",
-      "appId": "brave-browser"
+      "name": "antigravity",
+      "icon": "antigravity",
+      "cmd": "antigravity",
+      "appId": "antigravity"
+    },
+    {
+      "name": "telegram-desktop",
+      "icon": "org.telegram.desktop",
+      "cmd": "/usr/bin/telegram-desktop --",
+      "appId": "org.telegram.desktop"
+    },
+    {
+      "name": "Lutris",
+      "icon": "net.lutris.lutris",
+      "cmd": "__desktop__:net.lutris.Lutris",
+      "appId": "net.lutris.Lutris"
+    },
+    {
+      "name": "Virt-manager",
+      "icon": "virt-manager",
+      "cmd": "virt-manager",
+      "appId": "virt-manager"
+    },
+    {
+      "name": "Discord",
+      "icon": "discord",
+      "cmd": "discord",
+      "appId": "discord"
+    },
+    {
+      "name": "Iriunwebcam",
+      "icon": "iriunwebcam",
+      "cmd": "iriunwebcam",
+      "appId": "iriunwebcam"
+    },
+    {
+      "name": "VS Code",
+      "icon": "codex",
+      "cmd": "__desktop__:codex",
+      "appId": "Codex"
+    },
+    {
+      "name": "OBS Studio",
+      "icon": "com.obsproject.Studio",
+      "cmd": "obs",
+      "appId": "obs"
     }
   ],
   "leftModules": [
@@ -57,6 +81,7 @@
   ],
   "rightModules": [
     "Power",
-    "Media"
+    "Media",
+    "Tray"
   ]
 }

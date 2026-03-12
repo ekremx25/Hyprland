@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
 # init_dock.sh - Sisteme kurulu uygulamalara göre dock_config.json oluşturur.
 # dock_config.json yoksa ilk çalıştırmada otomatik çağrılır.
 
@@ -81,10 +82,10 @@ for entry in "${APPS[@]}"; do
     IFS='|' read -r appId name cmd icon <<< "$entry"
 
     # Komutun ilk kelimesini al (nautilus --new-window → nautilus)
-    bin=$(echo "$cmd" | awk '{print $1}')
+    bin=$(printf '%s\n' "$cmd" | awk '{print $1}')
 
     # Kurulu mu kontrol et
-    if ! command -v "$bin" &>/dev/null; then
+    if ! command_exists "$bin"; then
         continue
     fi
 
@@ -132,3 +133,6 @@ cat > "$CONFIG_FILE" << ENDJSON
 ENDJSON
 
 echo "generated"
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../../../Services/core/Log.js" as Log
 
 Item {
     id: root
@@ -13,16 +14,37 @@ Item {
     property color colorPrimary: "#cba6f7"
     property color colorBackground: "#1e1e2e"
 
+    readonly property var workspaceConfig: settingsPopup && settingsPopup.barConfig && settingsPopup.barConfig.workspaces
+        ? settingsPopup.barConfig.workspaces
+        : ({})
+
     // Geçici seçim durumu (Henüz kaydedilmemiş)
-    property string selectedFormat: settingsPopup ? (settingsPopup.barConfig.workspaces?.format || "chinese") : "chinese"
-    property string selectedStyle: settingsPopup ? (settingsPopup.barConfig.workspaces?.style || "fill") : "fill"
-    property bool isTransparent: settingsPopup ? (settingsPopup.barConfig.workspaces?.transparent === true) : false
+    property string selectedFormat: workspaceConfig.format || "chinese"
+    property string selectedStyle: workspaceConfig.style || "fill"
+    property bool isTransparent: workspaceConfig.transparent === true
     
     // Yeni özelliklerin geçici seçim durumu (DMS özellikleri)
-    property bool showApps: settingsPopup ? (settingsPopup.barConfig.workspaces?.showApps !== false) : true
-    property bool groupApps: settingsPopup ? (settingsPopup.barConfig.workspaces?.groupApps !== false) : true
-    property bool scrollEnabled: settingsPopup ? (settingsPopup.barConfig.workspaces?.scrollEnabled !== false) : true
-    property int iconSize: settingsPopup ? (settingsPopup.barConfig.workspaces?.iconSize || 20) : 20
+    property bool showApps: workspaceConfig.showApps !== false
+    property bool groupApps: workspaceConfig.groupApps !== false
+    property bool scrollEnabled: workspaceConfig.scrollEnabled !== false
+    property int iconSize: workspaceConfig.iconSize || 20
+
+    function applyWorkspaceSettings() {
+        var cfg = JSON.parse(JSON.stringify(settingsPopup.barConfig || {}));
+        if (!cfg.workspaces) cfg.workspaces = {};
+
+        cfg.workspaces.format = root.selectedFormat;
+        cfg.workspaces.style = root.selectedStyle;
+        cfg.workspaces.transparent = root.isTransparent;
+        cfg.workspaces.showApps = root.showApps;
+        cfg.workspaces.groupApps = root.groupApps;
+        cfg.workspaces.scrollEnabled = root.scrollEnabled;
+        cfg.workspaces.iconSize = root.iconSize;
+
+        settingsPopup.barConfig = cfg;
+        settingsPopup.saveConfig();
+        Log.debug("WorkspacesPage", "Workspace config saved");
+    }
 
 
     Flickable {
@@ -494,25 +516,7 @@ Item {
                     id: applyArea
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        // Deep clone to ensure we break the binding/reference and trigger a proper update
-                        var cfg = JSON.parse(JSON.stringify(settingsPopup.barConfig));
-                        if (!cfg.workspaces) cfg.workspaces = {};
-                        
-                        cfg.workspaces.format = root.selectedFormat;
-                        cfg.workspaces.style = root.selectedStyle;
-                        cfg.workspaces.transparent = root.isTransparent;
-                        
-                        // DMS özellikleri save
-                        cfg.workspaces.showApps = root.showApps;
-                        cfg.workspaces.groupApps = root.groupApps;
-                        cfg.workspaces.scrollEnabled = root.scrollEnabled;
-                        cfg.workspaces.iconSize = root.iconSize;
-                        
-                        settingsPopup.barConfig = cfg; 
-                        settingsPopup.saveConfig();
-                        console.log("WorkspacesPage: Config saved via Settings.qml. New config: " + JSON.stringify(cfg.workspaces));
-                    }
+                    onClicked: root.applyWorkspaceSettings()
                 }
             }
         }

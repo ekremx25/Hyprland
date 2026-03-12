@@ -8,6 +8,7 @@ QtObject {
     property string userSelectedTheme: themeConfig.name || "Catppuccin Mocha"
     property string currentTheme: userSelectedTheme
     property string currentThemeName: currentTheme
+    property string lastMaterialSyncSignature: ""
 
     // --- TEMALAR ---
     readonly property var themes: ({
@@ -173,7 +174,6 @@ QtObject {
                 currentTheme = name;
                 currentThemeName = name;
             }
-            console.log("Theme.qml: User theme set to " + name + " (Active: " + currentTheme + ")");
         }
     }
 
@@ -190,15 +190,17 @@ QtObject {
 
     function syncMaterialYou() {
         if (ColorPaletteService.enabled) {
-            console.log("Theme.qml: Syncing Material You colors...");
-            
-            // Map service colors to theme structure
             var p = ColorPaletteService;
-            // Modules - mix of palette colors (Prioritize Light/Pastel backgrounds for hardcoded dark text)
-            // In Light Mode: Use Container colors (Light)
-            // In Dark Mode: Use Main colors (Pastel/Light)
             var isLight = (p.mode === "light");
-            console.log("Theme.qml: Syncing. Mode: " + p.mode + " IsLight: " + isLight + " Type: " + p.matugenType);
+            var signature = [
+                p.enabled ? "1" : "0",
+                p.mode,
+                p.matugenType,
+                p.primaryColor,
+                p.surfaceColor,
+                p.backgroundColor
+            ].join("|");
+            if (signature === root.lastMaterialSyncSignature && currentTheme === "Material You") return;
             
             var newTheme;
 
@@ -334,10 +336,11 @@ QtObject {
             }
             
             materialYouTheme = newTheme;
+            root.lastMaterialSyncSignature = signature;
             currentTheme = "Material You";
             currentThemeName = "Material You";
         } else {
-            console.log("Theme.qml: Reverting to user theme: " + userSelectedTheme);
+            root.lastMaterialSyncSignature = "";
             currentTheme = userSelectedTheme;
             currentThemeName = userSelectedTheme;
         }

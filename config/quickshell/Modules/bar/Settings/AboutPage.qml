@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 import "../../../Services"
 
@@ -12,26 +11,26 @@ Item {
     property string systemInfo: ""
 
     Component.onCompleted: {
-        versionProc.running = true;
-        systemProc.running = true;
+        quickshellVersionReader.refresh();
+        systemInfoReader.refresh();
     }
 
-    Process {
-        id: versionProc
+    CommandValue {
+        id: quickshellVersionReader
         command: ["quickshell", "--version"]
-        running: false
-        property string buf: ""
-        stdout: SplitParser { onRead: data => { versionProc.buf += data; } }
-        onExited: { aboutPage.quickshellVersion = versionProc.buf.trim() || "Unknown"; versionProc.buf = ""; }
+        fallback: "Unknown"
+        onLoaded: value => {
+            aboutPage.quickshellVersion = value;
+        }
     }
 
-    Process {
-        id: systemProc
+    CommandValue {
+        id: systemInfoReader
         command: ["sh", "-c", "cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"' || echo 'Unknown OS'"]
-        running: false
-        property string buf: ""
-        stdout: SplitParser { onRead: data => { systemProc.buf += data; } }
-        onExited: { aboutPage.systemInfo = systemProc.buf.trim() || "Unknown"; systemProc.buf = ""; }
+        fallback: "Unknown"
+        onLoaded: value => {
+            aboutPage.systemInfo = value;
+        }
     }
 
     Flickable {

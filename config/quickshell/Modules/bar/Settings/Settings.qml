@@ -2,13 +2,22 @@ import QtQuick
 import Qt.labs.platform
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
+import "."
 import "../../../Widgets"
 import "../System" as Sys
 
 PanelWindow {
     id: settingsPopup
+    SettingsBackend {
+        id: backend
+        leftModel: leftModel
+        centerModel: centerModel
+        rightModel: rightModel
+        inactiveModel: inactiveModel
+        dockLeftModel: dockLeftModel
+        dockRightModel: dockRightModel
+    }
     visible: false
     color: "transparent"
 
@@ -22,14 +31,12 @@ PanelWindow {
     function closeSettings() {
         settingsPopup.visible = false;
     }
-
-    property var barConfig: ({ left: [], center: [], right: [] })
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
-    property string dockConfigPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
-    
-    // Dock modüllerini saklamak için
-    property var dockLeftModulesList: []
-    property var dockRightModulesList: []
+    property alias barConfig: backend.barConfig
+    property alias dockConfig: backend.dockConfig
+    property alias configPath: backend.configPath
+    property alias dockConfigPath: backend.dockConfigPath
+    property alias dockLeftModulesList: backend.dockLeftModulesList
+    property alias dockRightModulesList: backend.dockRightModulesList
 
     // Aktif sayfa
     property string currentPage: "bar"
@@ -40,32 +47,8 @@ PanelWindow {
     property string dragModuleName: ""
 
     // Modül bilgileri
-    readonly property var moduleInfo: ({
-        "Launcher": { icon: "\ue7e6", label: "Launcher", color: "#1e66f5" },
-        "Calendar": { icon: "", label: "Calendar", color: "#f5c2e7" },
-        "Notepad": { icon: "󰠮", label: "Notepad", color: "#f9e2af" },
-        "Workspaces": { icon: "", label: "Workspaces", color: "#cba6f7" },
-        "Notifications": { icon: "󰂚", label: "Notifications", color: "#fab387" },
-        "Weather": { icon: "󰖕", label: "Weather", color: "#f9e2af" },
-        "Volume": { icon: "󰕾", label: "Volume", color: "#89b4fa" },
-        "Equalizer": { icon: "󱞙", label: "Equalizer", color: "#89dceb" },
-        "Tray": { icon: "󰇚", label: "Tray", color: "#a6adc8" },
-        "Clipboard": { icon: "󰅍", label: "Clipboard", color: "#fab387" },
-        "Power": { icon: "⏻", label: "Power", color: "#f38ba8" },
-
-        "PowerGroup": { icon: "", label: "Power Group", color: "#a6e3a1" },
-        "SysInfoGroup": { icon: "", label: "System Group", color: "#f9e2af" },
-        "RamModule": { icon: "󰘚", label: "Memory", color: "#a6e3a1" },
-        "Media": { icon: "♫", label: "Media", color: "#f5c2e7" }
-    })
-
-    // Bilinen tüm modül adları
-    readonly property var allModuleNames: [
-        "Launcher", "Calendar", "Notepad",
-        "Workspaces", "Notifications", "Weather", "Volume", "Equalizer",
-        "Tray", "Clipboard", "Power",
-        "PowerGroup", "SysInfoGroup", "RamModule", "Media"
-    ]
+    readonly property alias moduleInfo: backend.moduleInfo
+    readonly property alias allModuleNames: backend.allModuleNames
 
     // Sidebar menü kategorileri
     readonly property var menuCategories: [
@@ -98,6 +81,7 @@ PanelWindow {
             title: "HARDWARE",
             items: [
                 { key: "monitors",   icon: "󰍹", label: "Monitors" },
+                { key: "mouse",      icon: "🖱", label: "Mouse" },
                 { key: "screens",    icon: "󰹑", label: "Screen Prefs" },
                 { key: "sound",      icon: "󰕾", label: "Sound" },
                 { key: "network",    icon: "󰤨", label: "Network" }
@@ -105,207 +89,11 @@ PanelWindow {
         }
     ]
 
-
-
-    // Config okuma
-    Process {
-        id: readProc
-        command: ["cat", settingsPopup.configPath]
-        property string output: ""
-        stdout: SplitParser {
-            onRead: data => { readProc.output += data; }
-        }
-        onExited: {
-            try {
-                var cfg = JSON.parse(readProc.output);
-                if (!cfg.left) cfg.left = [];
-                if (!cfg.center) cfg.center = [];
-                if (!cfg.right) cfg.right = [];
-                if (!cfg.inactive) cfg.inactive = [];
-
-                // Dock'ta olanları inactive listesinden temizle
-                var allDockMods = settingsPopup.dockLeftModulesList.concat(settingsPopup.dockRightModulesList);
-                var cleanInactive = [];
-                for (var k = 0; k < cfg.inactive.length; k++) {
-                    if (allDockMods.indexOf(cfg.inactive[k]) === -1) {
-                        cleanInactive.push(cfg.inactive[k]);
-                    }
-                }
-                cfg.inactive = cleanInactive;
-
-                // Aktif modülleri topla (Bar + Dock)
-                var activeModules = cfg.left.concat(cfg.center).concat(cfg.right).concat(cfg.inactive);
-                
-                // Dock modüllerini de aktif say (böylece pasif listesinde çıkmazlar)
-                for (var j = 0; j < allDockMods.length; j++) {
-                     activeModules.push(allDockMods[j]);
-                }
-
-                // Eksik modülleri inactive'e ekle
-                for (var i = 0; i < settingsPopup.allModuleNames.length; i++) {
-                    var mName = settingsPopup.allModuleNames[i];
-                    if (activeModules.indexOf(mName) === -1) {
-                        cfg.inactive.push(mName);
-                    }
-                }
-
-                settingsPopup.barConfig = cfg;
-                leftModel.clear(); centerModel.clear(); rightModel.clear(); inactiveModel.clear();
-                for (var i = 0; i < cfg.left.length; i++) leftModel.append({name: cfg.left[i]});
-                for (var i = 0; i < cfg.center.length; i++) centerModel.append({name: cfg.center[i]});
-                for (var i = 0; i < cfg.right.length; i++) rightModel.append({name: cfg.right[i]});
-                for (var i = 0; i < cfg.inactive.length; i++) inactiveModel.append({name: cfg.inactive[i]});
-            } catch(e) { console.log("Config okuma hatası: " + e); }
-            readProc.output = "";
-        }
-    }
-
-    // Dock Config okuma
-    Process {
-        id: readDockProc
-        command: ["cat", settingsPopup.dockConfigPath]
-        property string output: ""
-        stdout: SplitParser {
-            onRead: data => { readDockProc.output += data; }
-        }
-        onExited: {
-            try {
-                var cfg = JSON.parse(readDockProc.output);
-                dockLeftModel.clear();
-                dockRightModel.clear();
-                var tempLeft = [];
-                var tempRight = [];
-                if (cfg.leftModules) {
-                    for (var i = 0; i < cfg.leftModules.length; i++) {
-                        dockLeftModel.append({name: cfg.leftModules[i]});
-                        tempLeft.push(cfg.leftModules[i]);
-                    }
-                }
-                if (cfg.rightModules) {
-                    for (var i = 0; i < cfg.rightModules.length; i++) {
-                        dockRightModel.append({name: cfg.rightModules[i]});
-                        tempRight.push(cfg.rightModules[i]);
-                    }
-                }
-                
-                settingsPopup.dockLeftModulesList = tempLeft;
-                settingsPopup.dockRightModulesList = tempRight;
-                console.log("Settings.qml: Loaded dock left modules: " + JSON.stringify(tempLeft));
-                console.log("Settings.qml: Loaded dock right modules: " + JSON.stringify(tempRight));
-
-            } catch(e) { console.log("Dock Config okuma hatası: " + e); }
-            readDockProc.output = "";
-            
-            // Dock okunduktan sonra Bar config'i oku (zincirleme)
-            readProc.output = "";
-            readProc.running = false;
-            readProc.running = true;
-        }
-    }
-
-    // Config yazma
-    Process {
-        id: writeProc
-        property string jsonData: ""
-        command: ["bash", "-c", "cat > " + settingsPopup.configPath + " << 'ENDOFJSON'\n" + jsonData + "\nENDOFJSON"]
-    }
-
-    // Dock Config yazma
-    Process {
-        id: writeDockProc
-        property string jsonData: ""
-        command: ["bash", "-c", "cat > " + settingsPopup.dockConfigPath + " << 'ENDOFJSON'\n" + jsonData + "\nENDOFJSON"]
-    }
-
-    function loadConfig() {
-        readDockProc.output = "";
-        readDockProc.running = false;
-        readDockProc.running = true;
-        
-        // readProc artık readDockProc bitince çağrılıyor (zincirleme)
-        // readProc.output = "";
-        // readProc.running = false;
-        // readProc.running = true;
-    }
-
+    function loadConfig() { backend.loadConfig(); }
     function saveConfig() {
-        // Clone existing config to preserve other keys (e.g. workspaces)
-        var cfg = JSON.parse(JSON.stringify(settingsPopup.barConfig));
-        
-        cfg.left = [];
-        cfg.center = [];
-        cfg.right = [];
-        cfg.inactive = [];
-
-        for (var i = 0; i < leftModel.count; i++) cfg.left.push(leftModel.get(i).name);
-        for (var i = 0; i < centerModel.count; i++) cfg.center.push(centerModel.get(i).name);
-        for (var i = 0; i < rightModel.count; i++) cfg.right.push(rightModel.get(i).name);
-        for (var i = 0; i < inactiveModel.count; i++) cfg.inactive.push(inactiveModel.get(i).name);
-        
-        console.log("Settings.qml: Saving config to " + settingsPopup.configPath);
-        console.log("Settings.qml: Content: " + JSON.stringify(cfg));
-
-        writeProc.jsonData = JSON.stringify(cfg, null, 2);
-        writeProc.running = false;
-        writeProc.running = true;
-        
-        settingsPopup.barConfig = cfg;
-        settingsPopup.barConfig = cfg;
-        settingsPopup.configSaved(cfg);
-
-        // Save Dock Config
-        // We need to read the existing dock config first to preserve other keys, but for now we can mistakenly overwrite if we are not careful.
-        // Better strategy: We can't easily read-then-write in one sync function without callbacks or blocking.
-        // For now, let's just read what we have in memory if we had a proper object.
-        // Since we only have the model, we should probably read the file again or assume we have the full config somewhere?
-        // Simplest: Just use `cat` to read, then write back with modified modules.
-        // But `saveConfig` is called void.
-        // Let's use a chain: Read existing -> Modify 'modules' -> Write back.
-        // Or simpler: We know `dock_config.json` structure.
-        
-        // Let's trigger a read-modify-write specifically for dock config.
-        saveDockConfigChain.running = true;
-    }
-
-    Process {
-        id: saveDockConfigChain
-        command: ["cat", settingsPopup.dockConfigPath]
-        property string output: ""
-        stdout: SplitParser { onRead: data => saveDockConfigChain.output += data }
-        onExited: {
-            try {
-                var outputStr = saveDockConfigChain.output.trim();
-                var cfg = {
-                    showBackground: true,
-                    dockScale: 1.0,
-                    autoHide: false,
-                    pinned: [],
-                    modules: []
-                };
-                if (outputStr !== "") {
-                    try {
-                        var parsed = JSON.parse(outputStr);
-                        if (parsed) {
-                            cfg = parsed;
-                        }
-                    } catch(jsonErr) {
-                        console.log("saveDockConfigChain JSON error: " + jsonErr);
-                    }
-                }
-                
-                cfg.leftModules = [];
-                cfg.rightModules = [];
-                for (var i = 0; i < dockLeftModel.count; i++) cfg.leftModules.push(dockLeftModel.get(i).name);
-                for (var i = 0; i < dockRightModel.count; i++) cfg.rightModules.push(dockRightModel.get(i).name);
-                delete cfg.modules;
-                
-                var newJson = JSON.stringify(cfg, null, 2);
-                writeDockProc.jsonData = newJson;
-                writeDockProc.running = false;
-                writeDockProc.running = true;
-            } catch(e) { console.log("Dock Config save logic error: " + e); }
-            saveDockConfigChain.output = "";
-        }
+        backend.saveConfig(function(cfg) {
+            settingsPopup.configSaved(cfg);
+        });
     }
 
 
@@ -407,8 +195,7 @@ PanelWindow {
             Rectangle {
                 Layout.preferredWidth: 190
                 Layout.fillHeight: true
-                // Use workspace color (surface variant) for sidebar background to adapt to Light/Dark mode
-                color: Qt.rgba(Theme.workspacesColor.r, Theme.workspacesColor.g, Theme.workspacesColor.b, 0.4)
+                color: Qt.rgba(0, 0, 0, 0.92)
                 radius: Theme.radius
 
                 ColumnLayout {
@@ -834,6 +621,11 @@ PanelWindow {
                 Sys.MonitorsPage {
                     anchors.fill: parent
                     visible: settingsPopup.currentPage === "monitors"
+                }
+
+                Sys.MousePage {
+                    anchors.fill: parent
+                    visible: settingsPopup.currentPage === "mouse"
                 }
 
                 Sys.SoundPage {

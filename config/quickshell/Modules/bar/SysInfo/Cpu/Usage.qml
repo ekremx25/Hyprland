@@ -2,10 +2,11 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
+import "."
 
 Rectangle {
     id: root
+    UsageBackend { id: backend }
     width: layout.implicitWidth + 16
     height: 30
     color: "#89b4fa" // Mavi
@@ -18,7 +19,7 @@ Rectangle {
 
         Text {
             id: mainText
-            text: "0%"
+            text: backend.totalUsage
             font.bold: true
             color: "#1e1e2e"
         }
@@ -26,58 +27,6 @@ Rectangle {
             text: ""
             font.pixelSize: 14
             color: "#1e1e2e"
-        }
-    }
-
-    // --- VERİ MODELİ ---
-    ListModel {
-        id: coreModel
-    }
-
-    property var previousStats: ({})
-
-    // --- İŞLEM (VERİ OKUMA) ---
-    Process {
-        id: cpuProc
-        command: ["cat", "/proc/stat"]
-
-        stdout: SplitParser {
-            onRead: line => {
-                if (line.startsWith("cpu")) {
-                    var parts = line.split(/\s+/)
-                    var name = parts[0]
-                    var idle = parseFloat(parts[4]) + parseFloat(parts[5])
-                    var total = 0
-                    for (var i = 1; i < parts.length; i++) {
-                        var val = parseFloat(parts[i])
-                        if (!isNaN(val)) total += val
-                    }
-                    var prev = previousStats[name] || { total: 0, idle: 0 }
-                    var diffTotal = total - prev.total
-                    var diffIdle = idle - prev.idle
-                    var usagePerc = 0
-                    if (diffTotal > 0) usagePerc = (diffTotal - diffIdle) / diffTotal * 100
-
-                        previousStats[name] = { total: total, idle: idle }
-                        var finalStr = Math.round(usagePerc) + "%"
-
-                        if (name === "cpu") {
-                            mainText.text = finalStr
-                        } else {
-                            // İsimleri "Core0" yerine "C0" yapalım, yer kazanalım
-                            var coreName = name.replace("cpu", "Core ")
-                            var found = false
-                            for (var k = 0; k < coreModel.count; k++) {
-                                if (coreModel.get(k).name === coreName) {
-                                    coreModel.setProperty(k, "usage", finalStr)
-                                    found = true
-                                    break
-                                }
-                            }
-                            if (!found) coreModel.append({ name: coreName, usage: finalStr })
-                        }
-                }
-            }
         }
     }
 
@@ -127,7 +76,7 @@ Rectangle {
                         rowSpacing: 2     // Satırlar arası boşluk
 
                         Repeater {
-                            model: coreModel
+                            model: backend.coreModel
                             Row {
                                 spacing: 10 // İsim ile Yüzde arasındaki boşluk
                                 Text {
@@ -151,11 +100,4 @@ Rectangle {
         }
     }
 
-    Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: cpuProc.running = true
-    }
 }

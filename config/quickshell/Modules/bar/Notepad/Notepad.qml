@@ -3,7 +3,6 @@ import QtQuick.Controls
 import Qt.labs.platform
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import "../../../Widgets"
 
@@ -14,7 +13,7 @@ Rectangle {
     color: "transparent"
     radius: 12
 
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/notes.txt"
+    NotepadService { id: notepadService }
 
     MouseArea {
         id: mouseArea
@@ -131,39 +130,11 @@ Rectangle {
                             border.width: 1
                         }
 
-                        onTextChanged: saveTimer.restart()
-                        Component.onCompleted: readProc.running = true
+                        text: notepadService.text
+                        onTextChanged: notepadService.queueSave(text)
                     }
                 }
             }
-        }
-    }
-
-    // --- LOGIC ---
-    Process {
-        id: readProc
-        command: ["cat", root.configPath]
-        property string output: ""
-        stdout: SplitParser { onRead: data => readProc.output += data }
-        onExited: {
-            textArea.text = readProc.output;
-        }
-    }
-
-    Process {
-        id: writeProc
-        property string fileContent: ""
-        command: ["bash", "-c", "cat > " + root.configPath + " << 'EOF'\n" + fileContent + "\nEOF"]
-    }
-
-    Timer {
-        id: saveTimer
-        interval: 1000
-        repeat: false
-        onTriggered: {
-            writeProc.fileContent = textArea.text;
-            if (writeProc.running) writeProc.running = false;
-            writeProc.running = true;
         }
     }
 }

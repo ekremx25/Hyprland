@@ -15,6 +15,77 @@ Item {
     property color colorBackground: "#1e1e2e"
 
     property var notifService: S.Notifications
+    readonly property var popupPositionOptions: [
+        { label: "Top Right", value: 1 },
+        { label: "Top Left", value: 2 },
+        { label: "Top Center", value: 3 },
+        { label: "Bottom Center", value: 4 },
+        { label: "Bottom Right", value: 5 },
+        { label: "Bottom Left", value: 6 }
+    ]
+
+    function popupPositionIndex(value) {
+        for (var i = 0; i < popupPositionOptions.length; ++i) {
+            if (popupPositionOptions[i].value === value) return i;
+        }
+        return 0;
+    }
+
+    function popupPositionValue(index) {
+        return popupPositionOptions[index] ? popupPositionOptions[index].value : popupPositionOptions[0].value;
+    }
+
+    function popupPositionLabels() {
+        var labels = [];
+        for (var i = 0; i < popupPositionOptions.length; ++i) {
+            labels.push(popupPositionOptions[i].label);
+        }
+        return labels;
+    }
+
+    component ToggleSettingCard : Rectangle {
+        id: toggleCard
+        property string title: ""
+        property string description: ""
+        property bool checked: false
+        signal toggled(bool checked)
+
+        Layout.fillWidth: true
+        height: 70
+        color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
+        radius: 10
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 16
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 2
+                Text { text: toggleCard.title; font.pixelSize: 14; color: colorText }
+                Text { text: toggleCard.description; font.pixelSize: 11; color: colorSubtext }
+            }
+
+            Switch {
+                checked: toggleCard.checked
+                onToggled: toggleCard.toggled(checked)
+
+                indicator: Rectangle {
+                    implicitWidth: 40; implicitHeight: 20; radius: 10
+                    color: parent.checked ? colorPrimary : colorSurface
+                    border.color: Qt.rgba(255,255,255,0.1)
+                    Rectangle {
+                        x: parent.parent.checked ? parent.width - width - 2 : 2
+                        width: 16; height: 16; radius: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        color: "#ffffff"
+                        Behavior on x { NumberAnimation { duration: 100 } }
+                    }
+                }
+            }
+        }
+    }
 
     Flickable {
         anchors.fill: parent
@@ -46,37 +117,11 @@ Item {
 
             Item { height: 10 }
 
-            // DND Switch
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
-                radius: 10
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 16
-                    
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: "Do Not Disturb (DND)"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Silence all incoming notification popups."; font.pixelSize: 11; color: colorSubtext }
-                    }
-                    
-                    Switch {
-                        checked: notifService.dnd
-                        onToggled: notifService.dnd = checked
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
-                            border.color: Qt.rgba(255,255,255,0.1)
-                            Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
-                        }
-                    }
-                }
+            ToggleSettingCard {
+                title: "Do Not Disturb (DND)"
+                description: "Silence all incoming notification popups."
+                checked: notifService.dnd
+                onToggled: checked => notifService.dnd = checked
             }
 
             // Popup Position
@@ -101,162 +146,39 @@ Item {
                     ComboBox {
                         id: positionCombo
                         implicitWidth: 150
-                        model: ["Top Right", "Top Left", "Top Center", "Bottom Center", "Bottom Right", "Bottom Left"]
-                        currentIndex: {
-                            switch(notifService.popupPosition) {
-                                case 1: return 0;
-                                case 2: return 1;
-                                case 3: return 2;
-                                case 4: return 3;
-                                case 5: return 4;
-                                case 6: return 5;
-                                default: return 0;
-                            }
-                        }
-                        onActivated: {
-                            switch(currentIndex) {
-                                case 0: notifService.popupPosition = 1; break;
-                                case 1: notifService.popupPosition = 2; break;
-                                case 2: notifService.popupPosition = 3; break;
-                                case 3: notifService.popupPosition = 4; break;
-                                case 4: notifService.popupPosition = 5; break;
-                                case 5: notifService.popupPosition = 6; break;
-                            }
-                        }
+                        model: popupPositionLabels()
+                        currentIndex: popupPositionIndex(notifService.popupPosition)
+                        onActivated: notifService.popupPosition = popupPositionValue(currentIndex)
                     }
                 }
             }
 
-            // Overlay Switch
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
-                radius: 10
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 16
-                    
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: "Notification Overlay"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Display all priorities over fullscreen apps."; font.pixelSize: 11; color: colorSubtext }
-                    }
-                    
-                    Switch {
-                        checked: notifService.overlayEnabled
-                        onToggled: notifService.overlayEnabled = checked
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
-                            border.color: Qt.rgba(255,255,255,0.1)
-                            Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
-                        }
-                    }
-                }
+            ToggleSettingCard {
+                title: "Notification Overlay"
+                description: "Display all priorities over fullscreen apps."
+                checked: notifService.overlayEnabled
+                onToggled: checked => notifService.overlayEnabled = checked
             }
 
-            // Compact Switch
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
-                radius: 10
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 16
-                    
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: "Compact"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Use smaller notification cards."; font.pixelSize: 11; color: colorSubtext }
-                    }
-                    
-                    Switch {
-                        checked: notifService.compactMode
-                        onToggled: notifService.compactMode = checked
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
-                            border.color: Qt.rgba(255,255,255,0.1)
-                            Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
-                        }
-                    }
-                }
+            ToggleSettingCard {
+                title: "Compact"
+                description: "Use smaller notification cards."
+                checked: notifService.compactMode
+                onToggled: checked => notifService.compactMode = checked
             }
 
-            // Popup Shadow Switch
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
-                radius: 10
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 16
-                    
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: "Popup Shadow"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Show drop shadow on notification popups."; font.pixelSize: 11; color: colorSubtext }
-                    }
-                    
-                    Switch {
-                        checked: notifService.popupShadowEnabled
-                        onToggled: notifService.popupShadowEnabled = checked
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
-                            border.color: Qt.rgba(255,255,255,0.1)
-                            Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
-                        }
-                    }
-                }
+            ToggleSettingCard {
+                title: "Popup Shadow"
+                description: "Show drop shadow on notification popups."
+                checked: notifService.popupShadowEnabled
+                onToggled: checked => notifService.popupShadowEnabled = checked
             }
 
-            // Privacy Mode Switch
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3)
-                radius: 10
-                
-                RowLayout {
-                    anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 16
-                    
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 2
-                        Text { text: "Privacy Mode"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Hide notification content until expanded."; font.pixelSize: 11; color: colorSubtext }
-                    }
-                    
-                    Switch {
-                        checked: notifService.privacyMode
-                        onToggled: notifService.privacyMode = checked
-                        
-                        indicator: Rectangle {
-                            implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
-                            border.color: Qt.rgba(255,255,255,0.1)
-                            Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
-                        }
-                    }
-                }
+            ToggleSettingCard {
+                title: "Privacy Mode"
+                description: "Hide notification content until expanded."
+                checked: notifService.privacyMode
+                onToggled: checked => notifService.privacyMode = checked
             }
 
             // Animation Speed

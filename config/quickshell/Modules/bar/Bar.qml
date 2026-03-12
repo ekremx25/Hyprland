@@ -1,11 +1,10 @@
 import QtQuick
-import Qt.labs.platform
 import QtQuick.Layouts
 import QtQuick.Window
 import Quickshell
 import Quickshell.Widgets
 import Quickshell.Wayland
-import Quickshell.Io
+import "."
 
 import "Launcher"
 import "./Workspaces"
@@ -29,11 +28,7 @@ import "../../Services" as S
 Variants {
     id: root
     model: S.ScreenManager.getFilteredScreens("bar")
-
-
-
-
-    // --- CONFIG DATA ---
+    BarBackend { id: backend }
     property var barLayout: ({
         left: ["Launcher", "Calendar"],
         center: ["Workspaces", "Notifications"],
@@ -44,20 +39,25 @@ Variants {
             transparent: false
         }
     })
-
-    // Bar pozisyonu: "top", "bottom", "left", "right"
     property string barPosition: "top"
-    property bool isVertical: barPosition === "left" || barPosition === "right"
+    property bool isVertical: false
+    property var workspacesConfig: ({ format: "arabic", style: "fill", transparent: false })
 
-    // Separate workspace config property - for reactive binding
-    property var workspacesConfig: barLayout.workspaces || { format: "arabic", style: "fill", transparent: false }
-    onBarLayoutChanged: {
-        workspacesConfig = barLayout.workspaces || { format: "arabic", style: "fill", transparent: false };
-        console.log("Bar.qml: workspacesConfig updated: " + JSON.stringify(workspacesConfig));
+    function syncFromBackend() {
+        root.barLayout = backend.barLayout;
+        root.barPosition = backend.barPosition;
+        root.isVertical = backend.isVertical;
+        root.workspacesConfig = backend.workspacesConfig;
     }
 
-    // Config loaded? (prevent reading again on multiple screens)
-    property bool configLoaded: false
+    Connections {
+        target: backend
+        function onBarLayoutChanged() { root.syncFromBackend(); }
+        function onBarPositionChanged() { root.syncFromBackend(); }
+        function onIsVerticalChanged() { root.syncFromBackend(); }
+        function onWorkspacesConfigChanged() { root.syncFromBackend(); }
+    }
+
 
     // Module component map (excluding Launcher)
     property var moduleMap: ({
@@ -129,74 +129,17 @@ Variants {
             exclusiveZone: barSize
             WlrLayershell.layer: WlrLayer.Top
 
-            // --- READ CONFIG (Runs inside PanelWindow) ---
-            Process {
-                id: configReader
-                command: ["cat", StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"]
-                property string output: ""
-                property string lastConfigContent: ""
-
-                stdout: SplitParser {
-                    onRead: data => { configReader.output += data; }
-                }
-                onExited: {
-                    var content = configReader.output.trim();
-                    configReader.output = "";
-                    
-                    if (content === "") return;
-                    if (content === configReader.lastConfigContent && root.configLoaded) return;
-                    
-                    configReader.lastConfigContent = content;
-
-                    try {
-                        var cfg = JSON.parse(content);
-                        console.log("Bar.qml: Config parsed. format=" + (cfg.workspaces ? cfg.workspaces.format : "none"));
-                        
-
-                        if (!cfg.workspaces) {
-                            cfg.workspaces = { format: "arabic", style: "fill", transparent: false };
-                        }
-                        
-                        // Bar pozisyonu oku
-                        if (cfg.barPosition) {
-                            root.barPosition = cfg.barPosition;
-                        }
-                        
-                        root.barLayout = cfg;
-                        root.configLoaded = true;
-                        console.log("Bar.qml: barLayout SET. format=" + root.barLayout.workspaces.format + " position=" + root.barPosition);
-                        
-                        // Load Theme
-                        if (cfg.theme && cfg.theme.name) {
-                            Theme.setTheme(cfg.theme.name);
-                        }
-                    } catch(e) {
-                        console.log("Bar.qml: Parse error: " + e);
-                    }
-                }
-            }
-
-            Timer {
-                interval: 500
-                running: true
-                repeat: true
-                triggeredOnStart: true
-                onTriggered: {
-                    if (!configReader.running) {
-                         configReader.output = ""; // clear buffer just in case
-                         configReader.running = true;
-                    }
-                }
-            }
-
             // Settings Popup
-            Settings {
-                id: settingsMenu
-                screen: modelData
-                onConfigSaved: (newConfig) => {
-                    root.barLayout = newConfig;
+                Settings {
+                    id: settingsMenu
+                    screen: modelData
+                    onConfigSaved: (newConfig) => {
+                        root.barLayout = newConfig;
+                        root.workspacesConfig = newConfig.workspaces || { format: "arabic", style: "fill", transparent: false };
+                        if (newConfig.barPosition) root.barPosition = newConfig.barPosition;
+                        root.isVertical = root.barPosition === "left" || root.barPosition === "right";
+                    }
                 }
-            }
 
 
 

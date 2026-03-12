@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import "../../../Widgets"
+import "../../../Services/core/Log.js" as Log
 
 PanelWindow {
     id: root
@@ -328,8 +329,8 @@ PanelWindow {
         id: vpnCreationProcess
         command: []
         property string errBuf: ""
-        stdout: SplitParser { onRead: (data) => console.log("[vpn]: " + data) }
-        stderr: SplitParser { onRead: (data) => { vpnCreationProcess.errBuf += data + " "; console.log("[vpn err]: " + data); } }
+        stdout: SplitParser { onRead: (data) => Log.debug("AddVpnPopup", data) }
+        stderr: SplitParser { onRead: (data) => { vpnCreationProcess.errBuf += data + " "; Log.warn("AddVpnPopup", data); } }
         onExited: (code) => {
             if (code !== 0) {
                 var err = vpnCreationProcess.errBuf;

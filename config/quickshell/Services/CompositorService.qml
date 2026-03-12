@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "./core/Log.js" as Log
 
 Singleton {
     id: root
@@ -24,10 +25,15 @@ Singleton {
         if (!isHyprland && !isNiri) {
             mangoDetectProc.running = true;
         } else {
-            console.log("[CompositorService] Compositor:", compositor);
             applySavedMonitorsProc.running = true;
             refreshMonitors();
         }
+    }
+
+    function startProcess(proc, clearBuffer) {
+        if (proc.running) return;
+        if (clearBuffer && proc.buf !== undefined) proc.buf = "";
+        proc.running = true;
     }
 
     // Mango detection via mmsg
@@ -38,7 +44,6 @@ Singleton {
         stdout: SplitParser { onRead: data => { mangoDetectProc.buf += data; } }
         onExited: {
             root.mangoDetected = mangoDetectProc.buf.trim().indexOf("yes") !== -1;
-            console.log("[CompositorService] Compositor:", root.compositor);
             applySavedMonitorsProc.running = true;
             root.refreshMonitors();
             mangoDetectProc.buf = "";
@@ -54,14 +59,11 @@ Singleton {
     // Monitor listing via hyprctl or niri msg
     function refreshMonitors() {
         if (isHyprland) {
-            hyprlandMonitorProc.buf = "";
-            hyprlandMonitorProc.running = true;
+            startProcess(hyprlandMonitorProc, true);
         } else if (isNiri) {
-            niriMonitorProc.buf = "";
-            niriMonitorProc.running = true;
+            startProcess(niriMonitorProc, true);
         } else if (isMango) {
-            mangoMonitorProc.buf = "";
-            mangoMonitorProc.running = true;
+            startProcess(mangoMonitorProc, true);
         }
     }
 
@@ -88,7 +90,7 @@ Singleton {
                 }
                 root.monitors = list;
             } catch(e) {
-                console.log("[CompositorService] Hyprland Monitor parse error: " + e);
+                Log.warn("CompositorService", "Hyprland monitor parse error: " + e);
             }
             hyprlandMonitorProc.buf = "";
         }
@@ -117,7 +119,7 @@ Singleton {
                 }
                 root.monitors = list;
             } catch(e) {
-                console.log("[CompositorService] Monitor parse error: " + e);
+                Log.warn("CompositorService", "Niri monitor parse error: " + e);
             }
             niriMonitorProc.buf = "";
         }
@@ -149,7 +151,7 @@ Singleton {
                 }
                 if (list.length > 0) root.monitors = list;
             } catch(e) {
-                console.log("[CompositorService] Mango Monitor parse error: " + e);
+                Log.warn("CompositorService", "Mango monitor parse error: " + e);
             }
             mangoMonitorProc.buf = "";
         }
@@ -158,21 +160,21 @@ Singleton {
     // Power controls
     function powerOnMonitors() {
         if (isHyprland) {
-            hyprPowerOnProc.running = true;
+            startProcess(hyprPowerOnProc, false);
         } else if (isNiri) {
-            powerOnProc.running = true;
+            startProcess(powerOnProc, false);
         } else if (isMango) {
-            mangoPowerOnProc.running = true;
+            startProcess(mangoPowerOnProc, false);
         }
     }
 
     function powerOffMonitors() {
         if (isHyprland) {
-            hyprPowerOffProc.running = true;
+            startProcess(hyprPowerOffProc, false);
         } else if (isNiri) {
-            powerOffProc.running = true;
+            startProcess(powerOffProc, false);
         } else if (isMango) {
-            mangoPowerOffProc.running = true;
+            startProcess(mangoPowerOffProc, false);
         }
     }
 
@@ -187,17 +189,40 @@ Singleton {
     function focusWindow(appId) {
         if (isHyprland) {
             focusProc.command = ["hyprctl", "dispatch", "focuswindow", "class:" + appId];
-            focusProc.running = true;
+            startProcess(focusProc, false);
         } else if (isNiri) {
             focusProc.command = ["sh", "-c", "niri msg --json windows | jq -r '.[] | select(.app_id==\"" + appId + "\") | .id' | head -1 | xargs -I{} niri msg action focus-window --id {}"];
-            focusProc.running = true;
+            startProcess(focusProc, false);
         } else if (isMango) {
-            // Mango'da direkt pencere odaklama sınırlı, focusstack ile dene
-            console.log("[CompositorService] Mango focusWindow not fully supported for appId: " + appId);
+            Log.warn("CompositorService", "Mango focusWindow not supported for appId: " + appId);
         }
     }
 
     Process { id: focusProc; command: [] }
+
+    Process {
+        id: focusByNameProc
+        command: []
+        running: false
+    }
+
+    function focusAppByName(appName) {
+        if (!appName || appName.trim() === "") return;
+        var safeName = appName.replace(/'/g, "'\\''");
+        if (isHyprland) {
+            focusByNameProc.command = ["sh", "-c",
+                "hyprctl clients -j | jq -r '.[] | select(((.class // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\")) or ((.title // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\"))) | .address' | head -1 | xargs -r -I{} hyprctl dispatch focuswindow address:{}"
+            ];
+            startProcess(focusByNameProc, false);
+        } else if (isNiri) {
+            focusByNameProc.command = ["sh", "-c",
+                "niri msg --json windows | jq -r '.[] | select(((.app_id // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\")) or ((.title // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\"))) | .id' | head -1 | xargs -r -I{} niri msg action focus-window --id {}"
+            ];
+            startProcess(focusByNameProc, false);
+        } else if (isMango) {
+            Log.warn("CompositorService", "Mango focusAppByName not supported for: " + appName);
+        }
+    }
 
     // Info string
     function getInfoString() {

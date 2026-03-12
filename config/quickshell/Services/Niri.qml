@@ -3,6 +3,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "./core/Log.js" as Log
 
 Singleton {
     property ListModel workspaces: ListModel {}
@@ -64,7 +65,7 @@ Singleton {
                         activateWorkspace(event.WorkspaceActivated);
                     }
                 } catch (e) {
-                    console.log("Niri Event Error:", e);
+                    Log.warn("Niri", "Event parse error: " + e);
                 }
             }
         }

@@ -3,6 +3,7 @@ pragma Singleton
 import Quickshell
 import Quickshell.Io
 import QtQuick
+import "./core/Log.js" as Log
 
 Singleton {
     id: root
@@ -80,7 +81,7 @@ Singleton {
 
                 root.monitorWorkspaces = monData;
             } catch (e) {
-                console.log("[Mango] Tag Parse Error:", e);
+                Log.warn("Mango", "Tag parse error: " + e);
             }
             refreshTagsProc.buf = "";
         }

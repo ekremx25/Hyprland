@@ -1,9 +1,9 @@
 import QtQuick
 import Qt.labs.platform
 import QtQuick.Layouts
+import "."
 import Quickshell
 import Quickshell.Wayland
-import Quickshell.Io
 import "../../../Widgets"
 import "../../../Services" as S
 import "../Weather"
@@ -83,7 +83,7 @@ Variants {
             id: hideCheckTimer
             interval: 500; running: dockWindow.dockConfigData && dockWindow.dockConfigData.autoHide; repeat: true
             onTriggered: {
-                if (!dockWindow.dockConfigData.autoHide || !winProc.outputBuffer) { dockWindow.hasOverlappingWindow = false; return; }
+                if (!dockWindow.dockConfigData.autoHide) { dockWindow.hasOverlappingWindow = false; return; }
                 
                 try {
                     // Check if any active window intersects dock region on this monitor
@@ -98,29 +98,26 @@ Variants {
         
         property bool dockContainsMouse: globalMouse.containsMouse || dockRowMouseArea.containsMouse
 
-
+        DockBackend {
+            id: dockBackend
+            is4K: dockWindow.is4K
+            suspendHotReload: dockWindow.isDragging
+        }
 
         // ── State ──
-        property var pinnedApps: []
-        property var runningWindows: []
-        property var dockItems: []
-        property var leftModules: []  // Sol taraf modülleri
-        property var rightModules: [] // Sağ taraf modülleri
+        property alias pinnedApps: dockBackend.pinnedApps
+        property alias runningWindows: dockBackend.runningWindows
+        property alias dockItems: dockBackend.dockItems
+        property alias leftModules: dockBackend.leftModules  // Sol taraf modülleri
+        property alias rightModules: dockBackend.rightModules // Sağ taraf modülleri
         
         // 4K monitör kontrolü (1080p'den büyükse varsayılan 1.5 al ama user ayarı ile ez)
         property bool is4K: modelData.height > 1200
-        property real dockScale: is4K ? 1.5 : 1.0
+        property real dockScale: (dockWindow.dockConfigData && dockWindow.dockConfigData.dockScale !== undefined)
+            ? dockWindow.dockConfigData.dockScale
+            : (dockWindow.is4K ? 1.5 : 1.0)
         
-        onDockScaleChanged: {
-            if (dockItems.length > 0) {
-                console.log("Dock.qml: dockScale changed to " + dockScale + ", rebuilding items...");
-                Qt.callLater(rebuildDockItems);
-            }
-        }
-        
-        property var dockConfigData: null // Ayarları okumak için obje
-
-        property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
+        property alias dockConfigData: dockBackend.dockConfigData // Ayarları okumak için obje
         property int contextMenuIndex: -1
         property bool contextMenuVisible: false
 
@@ -150,7 +147,7 @@ Variants {
                 source: {
                     if (!dockWindow.dragIcon) return "";
                     if (dockWindow.dragIcon.startsWith("/")) return "file://" + dockWindow.dragIcon;
-                    return "image://icon/" + dockWindow.dragIcon;
+                    return "image://icon/" + dockBackend.resolveThemedIconName(dockWindow.dragIcon);
                 }
                 sourceSize: Qt.size(64, 64)
                 fillMode: Image.PreserveAspectFit
@@ -159,69 +156,53 @@ Variants {
         }
 
         // ── appId → icon (Rofi/Wofi tarzı: .desktop dosyalarından) ──
-        property var desktopIcons: ({})
-        property var desktopCommands: ({})
-        property var desktopEntries: ({})
-        property string desktopIconScript: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/desktop_icons.sh"
+        property alias desktopIcons: dockBackend.desktopIcons
+        property alias desktopCommands: dockBackend.desktopCommands
+        property alias desktopEntries: dockBackend.desktopEntries
+        property alias lastDockConfigContent: dockBackend.lastDockConfigContent
 
-        Process {
-            id: desktopIconProc
-            command: ["bash", dockWindow.desktopIconScript]
-            property string outputBuffer: ""
-            stdout: SplitParser { onRead: (data) => desktopIconProc.outputBuffer += data + "\n" }
-            onExited: {
-                if (desktopIconProc.outputBuffer.trim() === "") return;
-                try {
-                    // Script outputs JSON objects separated by newline:
-                    // First JSON: icon map, Second JSON: command map, Third JSON: desktop id map
-                    var raw = desktopIconProc.outputBuffer.trim();
-                    // Find the boundary between two JSON objects
-                    // Each ends with "}", find boundaries by depth==0 transitions.
-                    var depth = 0;
-                    var parts = [];
-                    var startIdx = -1;
-                    for (var ci = 0; ci < raw.length; ci++) {
-                        if (raw[ci] === '{') {
-                            if (depth === 0) startIdx = ci;
-                            depth++;
-                        }
-                        else if (raw[ci] === '}') {
-                            depth--;
-                            if (depth === 0 && startIdx >= 0) {
-                                parts.push(raw.substring(startIdx, ci + 1));
-                                startIdx = -1;
-                            }
-                        }
-                    }
-                    if (parts.length > 0) {
-                        var iconJson = parts[0];
-                        var parsedIcons = JSON.parse(iconJson);
-                        dockWindow.desktopIcons = parsedIcons;
-                        console.log("Desktop icons loaded: " + Object.keys(parsedIcons).length + " apps");
-                        if (parts.length > 1) {
-                            var parsedCmds = JSON.parse(parts[1]);
-                            dockWindow.desktopCommands = parsedCmds;
-                            console.log("Desktop commands loaded: " + Object.keys(parsedCmds).length + " apps");
-                        }
-                        if (parts.length > 2) {
-                            var parsedDesktopIds = JSON.parse(parts[2]);
-                            dockWindow.desktopEntries = parsedDesktopIds;
-                            console.log("Desktop ids loaded: " + Object.keys(parsedDesktopIds).length + " apps");
-                        }
-                    } else {
-                        // Fallback: treat entire output as icon map only
-                        var parsed = JSON.parse(raw);
-                        dockWindow.desktopIcons = parsed;
-                        console.log("Desktop icons loaded (legacy): " + Object.keys(parsed).length + " apps");
-                    }
-                } catch (e) {
-                    console.log("Desktop icons parse error: " + e);
-                }
-                desktopIconProc.outputBuffer = "";
-                dockWindow.rebuildDockItems();
+        component ContextMenuAction: Rectangle {
+            required property string label
+            required property color labelColor
+            required property var onActivate
+
+            width: 140 * dockScale
+            height: 30 * dockScale
+            radius: 8 * dockScale
+            color: actionMouse.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.18) : "transparent"
+
+            Text {
+                anchors.centerIn: parent
+                text: label
+                color: labelColor
+                font.pixelSize: 12 * dockScale
+                font.bold: true
+                font.family: "JetBrainsMono Nerd Font"
             }
-            Component.onCompleted: running = true
+
+            MouseArea {
+                id: actionMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: if (onActivate) onActivate()
+            }
         }
+
+        component ContextMenuSeparator: Rectangle {
+            width: 120 * dockScale
+            height: 1
+            color: Qt.rgba(1, 1, 1, 0.1)
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
+
+        function shouldShowPinnedSeparator(itemIndex) {
+            if (itemIndex === 0 || itemIndex >= dockItems.length) return false;
+            var prev = dockItems[itemIndex - 1];
+            var curr = dockItems[itemIndex];
+            return !!(prev && curr && prev.isPinned && !curr.isPinned && !prev.isModule && !curr.isModule);
+        }
+
 
         // ── Modül Eşleştirmesi ──
         property var moduleMap: ({
@@ -253,471 +234,18 @@ Variants {
             id: launcherComp
             Launcher {
                 Component.onCompleted: {
-                    console.log("Dock: Launcher component created");
                     settingsRequested.connect(function() {
-                        console.log("Dock: Settings requested by Launcher");
                         settingsMenu.visible = !settingsMenu.visible;
-                        console.log("Dock: Settings menu visible set to " + settingsMenu.visible);
                     });
                 }
             }
-        }
-
-        // ── appId → icon (Rofi/Wofi yaklaşımı) ──
-        function getIcon(appId) {
-            if (!appId) return "application-x-executable";
-            var c = appId.toLowerCase();
-
-            var resolvedKey = resolveDesktopKey(c);
-            if (resolvedKey !== "") return dockWindow.desktopIcons[resolvedKey] || c;
-
-            // 1. .desktop dosyasından gelen icon adını bul
-            if (dockWindow.desktopIcons[c]) return dockWindow.desktopIcons[c];
-
-            // 2. "org.xxx.AppName" → kısa isimle tekrar dene
-            if (c.indexOf(".") !== -1) {
-                var parts = c.split(".");
-                var shortName = parts[parts.length - 1].toLowerCase();
-                if (dockWindow.desktopIcons[shortName]) return dockWindow.desktopIcons[shortName];
-            }
-
-            // 3. Özel durumlar
-            if (c.match(/resolve|davinci/)) return "/opt/resolve/graphics/DV_Resolve.png";
-
-            // 4. Son fallback: appId'yi doğrudan icon adı olarak ver
-            //    image://icon/ Qt'nin icon theme cache'ini kullanarak çözer
-            return c;
-        }
-
-        // ── appId/class/title benzeri değerlerden en yakın desktop anahtarını bul ──
-        function resolveDesktopKey(rawId) {
-            if (!rawId) return "";
-            var c = rawId.toLowerCase();
-
-            if (dockWindow.desktopEntries[c] || dockWindow.desktopIcons[c] || dockWindow.desktopCommands[c]) return c;
-
-            var compact = c.replace(/[^a-z0-9]/g, "");
-            if (compact.length === 0) return "";
-
-            // Prefer keys that contain the id or are contained by it.
-            var keys = Object.keys(dockWindow.desktopEntries);
-            for (var i = 0; i < keys.length; i++) {
-                var k = keys[i];
-                var kc = k.replace(/[^a-z0-9]/g, "");
-                if (kc === compact) return k;
-            }
-            for (var j = 0; j < keys.length; j++) {
-                var k2 = keys[j];
-                var kc2 = k2.replace(/[^a-z0-9]/g, "");
-                if (kc2.indexOf(compact) !== -1 || compact.indexOf(kc2) !== -1) return k2;
-            }
-
-            // Last token from org.example.App -> app
-            if (c.indexOf(".") !== -1) {
-                var parts = c.split(".");
-                var shortName = parts[parts.length - 1].toLowerCase();
-                if (dockWindow.desktopEntries[shortName] || dockWindow.desktopIcons[shortName] || dockWindow.desktopCommands[shortName]) return shortName;
-            }
-            return "";
-        }
-
-        // ── appId → name ──
-        function getAppName(appId) {
-            if (!appId) return "Uygulama";
-            var c = appId.toLowerCase();
-            if (c.match(/firefox/)) return "Firefox";
-            if (c.match(/brave/)) return "Brave";
-            if (c.match(/chrom/)) return "Chrome";
-            if (c.match(/opera/)) return "Opera";
-            if (c.match(/vivaldi/)) return "Vivaldi";
-            if (c.match(/edge/)) return "Edge";
-            if (c.match(/kitty/)) return "Kitty";
-            if (c.match(/konsole/)) return "Konsole";
-            if (c.match(/wezterm/)) return "WezTerm";
-            if (c.match(/ghostty/)) return "Ghostty";
-            if (c.match(/alacritty/)) return "Alacritty";
-            if (c.match(/foot/)) return "Foot";
-            if (c.match(/gnome-terminal/)) return "Terminal";
-            if (c.match(/telegram/)) return "telegram-desktop";
-            if (c.match(/discord|vesktop/)) return "Discord";
-            if (c.match(/signal/)) return "Signal";
-            if (c.match(/whatsapp/)) return "WhatsApp";
-            if (c.match(/slack/)) return "Slack";
-            if (c.match(/zoom/)) return "Zoom";
-            if (c.match(/teams/)) return "Teams";
-            if (c.match(/skype/)) return "Skype";
-            if (c.match(/dolphin/)) return "Dosyalar";
-            if (c.match(/thunar/)) return "Thunar";
-            if (c.match(/nemo/)) return "Nemo";
-            if (c.match(/nautilus/)) return "Dosyalar";
-            if (c.match(/spotify/)) return "Spotify";
-            if (c.match(/vscode|code/)) return "VS Code";
-            if (c.match(/cursor/)) return "Cursor";
-            if (c.match(/zed/)) return "Zed";
-            if (c.match(/intellij/)) return "IntelliJ";
-            if (c.match(/pycharm/)) return "PyCharm";
-            if (c.match(/android-studio/)) return "Android Studio";
-            if (c.match(/obs/)) return "OBS Studio";
-            if (c.match(/vlc/)) return "VLC";
-            if (c.match(/mpv/)) return "MPV";
-            if (c.match(/kdenlive/)) return "Kdenlive";
-            if (c.match(/blender/)) return "Blender";
-            if (c.match(/gimp/)) return "GIMP";
-            if (c.match(/inkscape/)) return "Inkscape";
-            if (c.match(/libreoffice/)) return "LibreOffice";
-            if (c.match(/steam/)) return "Steam";
-            if (c.match(/lutris/)) return "Lutris";
-            if (c.match(/heroic/)) return "Heroic";
-            if (c.match(/prismlauncher/)) return "Prism Launcher";
-            if (c.match(/virtualbox/)) return "VirtualBox";
-            if (c.match(/antigravity/)) return "Antigravity";
-            return appId.charAt(0).toUpperCase() + appId.slice(1);
-        }
-
-        // ── appId → cmd ──
-        function getCmd(appId) {
-            if (!appId) return "";
-            var c = appId.toLowerCase();
-            var resolvedKey = resolveDesktopKey(c);
-
-            // Steam game window ids often look like steam_app_570.
-            var steamMatch = c.match(/steam_app[_-](\d+)/);
-            if (steamMatch && steamMatch.length > 1) return "__steam_game__:" + steamMatch[1];
-            if (c === "dota2" || c === "dota" || c.indexOf("dota 2") !== -1) return "__steam_game__:570";
-
-            if (resolvedKey !== "") {
-                if (dockWindow.desktopEntries[resolvedKey]) return "__desktop__:" + dockWindow.desktopEntries[resolvedKey];
-                if (dockWindow.desktopCommands[resolvedKey]) return dockWindow.desktopCommands[resolvedKey];
-            }
-
-            // 0. Prefer desktop-id launcher (mimics rofi/wofi drun behavior better)
-            if (dockWindow.desktopEntries[c]) return "__desktop__:" + dockWindow.desktopEntries[c];
-
-            // 1. .desktop dosyasından gelen Exec komutunu kullan (en güvenilir)
-            if (dockWindow.desktopCommands[c]) return dockWindow.desktopCommands[c];
-
-            // 2. org.xxx.AppName → kısa isimle tekrar dene
-            if (c.indexOf(".") !== -1) {
-                var parts = c.split(".");
-                var shortName = parts[parts.length - 1].toLowerCase();
-                var shortSteamMatch = shortName.match(/steam_app[_-](\d+)/);
-                if (shortSteamMatch && shortSteamMatch.length > 1) return "__steam_game__:" + shortSteamMatch[1];
-                if (dockWindow.desktopEntries[shortName]) return "__desktop__:" + dockWindow.desktopEntries[shortName];
-                if (dockWindow.desktopCommands[shortName]) return dockWindow.desktopCommands[shortName];
-            }
-
-            // 3. Hardcoded fallback (eski davranış)
-            if (c.match(/telegram/)) return "telegram-desktop";
-            if (c.match(/vesktop/)) return "vesktop";
-            if (c.match(/discord/)) return "discord";
-            if (c.match(/brave/)) return "brave-browser-stable";
-            if (c.match(/dolphin/)) return "dolphin";
-            if (c.match(/obs/)) return "obs";
-
-            // 4. Son çare: appId'yi doğrudan komut olarak kullan
-            return appId;
-        }
-
-        // ── App ID Normalizasyonu ──
-        function normalizeAppId(appId) {
-            if (!appId) return "";
-            var lower = appId.toLowerCase();
-            if (lower === "telegram") return "telegram-desktop";
-            if (lower === "org.kde.dolphin") return "dolphin";
-            if (lower === "firefox-esr") return "firefox";
-            if (lower === "microsoft-edge") return "microsoft-edge-stable";
-            if (lower === "google-chrome") return "google-chrome-stable";
-               if (lower === "brave") return "brave-browser-stable";
-            return appId;
-        }
-
-        // ── Birleşik listeyi oluştur ──
-        Timer {
-            id: rebuildTimer
-            interval: 5
-            onTriggered: dockWindow.rebuildDockItemsImmediate()
-        }
-
-        function rebuildDockItems() {
-            rebuildTimer.restart();
-        }
-
-        function rebuildDockItemsImmediate() {
-            if (dockWindow.isDragging) return; 
-
-            var items = [];
-            var pinnedIds = {};
-
-            for (var i = 0; i < pinnedApps.length; i++) {
-                var p = pinnedApps[i];
-                pinnedIds[p.appId] = true;
-                var isRunning = false;
-                var windowId = -1;
-                for (var j = 0; j < runningWindows.length; j++) {
-                    var runningId = normalizeAppId(runningWindows[j].app_id);
-                    if (runningId === p.appId) {
-                        isRunning = true;
-                        windowId = runningWindows[j].id;
-                        break;
-                    }
-                }
-                var rawIcon = p.icon && p.icon !== "" ? p.icon : getIcon(p.appId);
-                var resolvedIcon = rawIcon;
-                
-                // Expand ~ to home directory
-                if (resolvedIcon.indexOf("~") === 0) {
-                    resolvedIcon = StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + resolvedIcon.substring(1);
-                }
-
-                if (dockWindow.desktopIcons[resolvedIcon.toLowerCase()]) {
-                     resolvedIcon = dockWindow.desktopIcons[resolvedIcon.toLowerCase()];
-                }
-
-                items.push({
-                    name: getAppName(p.appId), 
-                    icon: resolvedIcon,
-                    cmd: getCmd(p.appId),
-                    appId: p.appId, isPinned: true, isRunning: isRunning, windowId: windowId,
-                    isModule: false 
-                });
-            }
-
-            var seenIds = {};
-            for (var k = 0; k < runningWindows.length; k++) {
-                var win = runningWindows[k];
-                var rawId = win.app_id || "";
-                var normId = normalizeAppId(rawId);
-                
-                if (normId === "" || pinnedIds[normId] || seenIds[normId]) continue;
-                
-                seenIds[normId] = true;
-                items.push({
-                    name: getAppName(rawId), icon: getIcon(rawId), cmd: rawId,
-                    appId: normId, isPinned: false, isRunning: true, windowId: win.id,
-                    isModule: false
-                });
-            }
-
-
-            dockItems = items;
-        }
-
-        // ── Config yoksa otomatik oluştur, varsa oku ──
-        property string initDockScript: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/init_dock.sh"
-
-        Process {
-            id: initDockProc
-            command: ["bash", dockWindow.initDockScript]
-            onExited: {
-                console.log("init_dock.sh completed, reading generated config...");
-                configReadProc.running = true;
-            }
-        }
-
-        // ── Config okuma ──
-        Process {
-            id: configReadProc
-            command: ["cat", dockWindow.configPath]
-            property string outputBuffer: ""
-            property string lastContent: ""
-
-            stdout: SplitParser { onRead: (data) => configReadProc.outputBuffer += data }
-            onExited: {
-                if (dockWindow.isDragging) {
-                    configReadProc.outputBuffer = "";
-                    return;
-                }
-
-                var content = configReadProc.outputBuffer.trim();
-                configReadProc.outputBuffer = "";
-
-                // Config dosyası yoksa → init_dock.sh ile oluştur
-                if (content === "" && lastContent === "") {
-                    console.log("dock_config.json not found, running init_dock.sh...");
-                    initDockProc.running = true;
-                    return;
-                }
-                
-                if (content === "" || content === lastContent) return;
-                
-                try {
-                    var cfg = JSON.parse(content);
-                    lastContent = content;
-                    
-                    dockWindow.dockConfigData = cfg
-                    dockWindow.pinnedApps = cfg.pinned || [];
-                    dockWindow.leftModules = cfg.leftModules || [];
-                    dockWindow.rightModules = cfg.rightModules || [];
-                    
-                    if (cfg.dockScale !== undefined) {
-                        dockWindow.dockScale = cfg.dockScale;
-                    } else {
-                        dockWindow.dockScale = dockWindow.is4K ? 1.5 : 1.0;
-                    }
-                    
-                    // Force binding re-evaluation for items depending on visual scaling
-                    var currentScale = dockWindow.dockScale;
-                    dockWindow.dockScale = 0;
-                    dockWindow.dockScale = currentScale;
-                    
-                    // Trigger a re-evaluation of bindings relying on dockConfigData properties by assigning it again or explicitly modifying properties
-                    var showBg = cfg.showBackground !== undefined ? cfg.showBackground : true;
-                    var autoHide = cfg.autoHide !== undefined ? cfg.autoHide : false;
-                    
-                    if (dockWindow.dockConfigData.showBackground !== showBg) { dockWindow.dockConfigData.showBackground = showBg; }
-                    
-                    console.log("Dock config updated via hot-reload");
-                    dockWindow.rebuildDockItems();
-                } catch (e) {
-                    console.log("Dock config parse error: " + e);
-                }
-            }
-        }
-
-        Timer {
-            interval: 300
-            running: true
-            repeat: true
-            triggeredOnStart: true
-            onTriggered: {
-                if (!configReadProc.running) configReadProc.running = true;
-            }
-        }
-
-        // ── Çalışan pencere takibi ──
-        Process {
-            id: winProc
-            command: S.CompositorService.isHyprland ? ["hyprctl", "clients", "-j"] : ["niri", "msg", "-j", "windows"]
-            property string outputBuffer: ""
-            stdout: SplitParser { onRead: (data) => winProc.outputBuffer += data }
-            onExited: {
-                if (winProc.outputBuffer.trim() === "") return;
-                try {
-                    var parsed = JSON.parse(winProc.outputBuffer);
-                    if (S.CompositorService.isHyprland) {
-                        // Hyprland format: { "class": "...", "address": "0x..." }
-                        // Normalize to dock's expected format: { "app_id": "...", "id": "..." }
-                        var normalized = [];
-                        for (var i = 0; i < parsed.length; i++) {
-                            normalized.push({
-                                app_id: parsed[i].class || "",
-                                id: parsed[i].address || ""
-                            });
-                        }
-                        dockWindow.runningWindows = normalized;
-                    } else {
-                        dockWindow.runningWindows = parsed;
-                    }
-                } catch (e) {
-                    console.log("Dock win hatası: " + e);
-                }
-                winProc.outputBuffer = "";
-                dockWindow.rebuildDockItems();
-            }
-        }
-
-        // ── Config yazma ──
-        Process {
-            id: configWriteProc
-            command: []
-            running: false
-        }
-
-        // ── Debug Logging ──
-        Process { id: logProc; command: []; running: false }
-        function logToFile(msg) {
-            logProc.running = false;
-            var safeMsg = msg.replace(/"/g, '\\"');
-            logProc.command = ["sh", "-c", "echo \"" + safeMsg + "\" >> /tmp/qs_dock.log"];
-            logProc.running = true;
-        }
-
-        function savePinnedApps() {
-            // Start from existing config to preserve ALL settings
-            var obj = {};
-            if (dockWindow.dockConfigData) {
-                // Clone all existing config properties
-                var keys = Object.keys(dockWindow.dockConfigData);
-                for (var i = 0; i < keys.length; i++) {
-                    obj[keys[i]] = dockWindow.dockConfigData[keys[i]];
-                }
-            }
-            // Only overwrite pinned apps and modules
-            obj.pinned = pinnedApps;
-            obj.leftModules = dockWindow.leftModules;
-            obj.rightModules = dockWindow.rightModules;
-
-            var jsonStr = JSON.stringify(obj, null, 2);
-            configWriteProc.running = false;
-            configWriteProc.command = ["sh", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + configPath];
-            configWriteProc.running = true;
-        }
-
-        function pinApp(appId) {
-            for (var i = 0; i < pinnedApps.length; i++) {
-                if (pinnedApps[i].appId === appId) return;
-            }
-            var newPinned = pinnedApps.slice();
-            newPinned.push({
-                name: getAppName(appId), icon: appId.toLowerCase(),
-                cmd: getCmd(appId), appId: appId
-            });
-            pinnedApps = newPinned;
-
-            logToFile("pinApp: " + appId);
-            savePinnedApps();
-            rebuildDockItems();
-        }
-
-        function pinAppAt(appId, targetIndex) {
-            for (var i = 0; i < pinnedApps.length; i++) {
-                if (pinnedApps[i].appId === appId) return;
-            }
-            var newPinned = pinnedApps.slice();
-            var newItem = {
-                name: getAppName(appId), icon: appId.toLowerCase(),
-                cmd: getCmd(appId), appId: appId
-            };
-            if (targetIndex >= 0 && targetIndex <= newPinned.length) {
-                newPinned.splice(targetIndex, 0, newItem);
-            } else {
-                newPinned.push(newItem);
-            }
-            pinnedApps = newPinned;
-            savePinnedApps();
-            rebuildDockItems();
-        }
-
-        function reorderPinned(fromIdx, toIdx) {
-            if (fromIdx < 0 || fromIdx >= pinnedApps.length) return;
-            if (toIdx < 0) toIdx = 0;
-            if (toIdx >= pinnedApps.length) toIdx = pinnedApps.length - 1;
-            if (fromIdx === toIdx) return;
-
-            var newPinned = pinnedApps.slice();
-            var item = newPinned.splice(fromIdx, 1)[0];
-            newPinned.splice(toIdx, 0, item);
-            pinnedApps = newPinned;
-            logToFile("reorderPinned: from " + fromIdx + " to " + toIdx);
-            savePinnedApps();
-            rebuildDockItems();
-        }
-
-        function unpinApp(appId) {
-            var newPinned = [];
-            for (var i = 0; i < pinnedApps.length; i++) {
-                if (pinnedApps[i].appId !== appId) newPinned.push(pinnedApps[i]);
-            }
-            pinnedApps = newPinned;
-            savePinnedApps();
-            rebuildDockItems();
         }
 
         // ── Sürükle-bırak sonuçlandırma ──
         function handleDrop() {
             var fromIndex = dragFromIndex;
             var toIndex = dragOverIndex;
-            logToFile("handleDrop called. From: " + fromIndex + " To: " + toIndex);
+            dockBackend.logToFile("handleDrop called. From: " + fromIndex + " To: " + toIndex);
 
             if (fromIndex < 0 || fromIndex >= dockItems.length) return;
             if (toIndex < 0) toIndex = 0;
@@ -741,7 +269,7 @@ Variants {
                 } else {
                     toPinnedIdx = pinnedApps.length - 1;
                 }
-                reorderPinned(fromPinnedIdx, toPinnedIdx);
+                dockBackend.reorderPinned(fromPinnedIdx, toPinnedIdx);
             } else {
                 // Çalışan uygulamayı pinle
                 var insertIdx = pinnedApps.length;
@@ -756,7 +284,7 @@ Variants {
                         }
                     }
                 }
-                pinAppAt(fromItem.appId, insertIdx);
+                dockBackend.pinAppAt(fromItem.appId, insertIdx);
             }
         }
 
@@ -779,105 +307,6 @@ Variants {
             return totalItems - 1;
         }
 
-        // ── Uygulama başlatıcı ──
-        Process {
-            id: launchProc
-            command: []
-            running: false
-            stdout: SplitParser { onRead: (d) => dockWindow.logToFile("launch stdout: " + d) }
-            stderr: SplitParser { onRead: (d) => dockWindow.logToFile("launch stderr: " + d) }
-            onExited: (code) => { dockWindow.logToFile("launch exit: " + code + " cmd=" + JSON.stringify(command)); }
-        }
-        function shellQuote(s) {
-            if (s === undefined || s === null) return "''";
-            return "'" + String(s).replace(/'/g, "'\\''") + "'";
-        }
-        function detachedWrap(rawCmd) {
-            if (!rawCmd || rawCmd === "") return "";
-            // Fully detach child app from quickshell stdio/session to avoid EPIPE in Electron apps.
-            return "nohup sh -lc " + shellQuote(rawCmd) + " >/dev/null 2>&1 &";
-        }
-        function cmdFromDesktopId(desktopId) {
-            if (!desktopId) return "";
-            var keys = Object.keys(dockWindow.desktopEntries);
-            for (var i = 0; i < keys.length; i++) {
-                var k = keys[i];
-                if (dockWindow.desktopEntries[k] === desktopId && dockWindow.desktopCommands[k]) {
-                    return dockWindow.desktopCommands[k];
-                }
-            }
-            return "";
-        }
-        function launchApp(cmd) {
-            if (!cmd || cmd === "") return;
-            if (cmd && cmd.indexOf("__desktop__:") === 0) {
-                var desktopPrefix = "__desktop__:";
-                var desktopId = cmd.substring(desktopPrefix.length);
-                // Guard: if malformed desktop id is actually a shell path/cmd, run it as normal command.
-                if (desktopId.indexOf("/") !== -1 || desktopId.indexOf(" ") !== -1) {
-                    dockWindow.logToFile("launch branch=desktop-malformed cmd=" + desktopId);
-                    launchProc.running = false;
-                    launchProc.command = ["/bin/sh", "-lc", detachedWrap(desktopId)];
-                    launchProc.running = true;
-                    return;
-                }
-                var desktopExec = cmdFromDesktopId(desktopId);
-                if (desktopExec !== "") {
-                    dockWindow.logToFile("launch branch=desktop-exec id=" + desktopId + " exec=" + desktopExec);
-                    launchProc.running = false;
-                    launchProc.command = ["/bin/sh", "-lc", detachedWrap(desktopExec)];
-                    launchProc.running = true;
-                    return;
-                }
-                // gtk-launch handles full .desktop Exec/field codes reliably.
-                dockWindow.logToFile("launch branch=gtk-launch id=" + desktopId);
-                launchProc.running = false;
-                launchProc.command = ["/bin/sh", "-lc", detachedWrap("/usr/bin/gtk-launch " + shellQuote(desktopId))];
-                launchProc.running = true;
-                return;
-            }
-            if (cmd && cmd.indexOf("__steam_game__:") === 0) {
-                var steamPrefix = "__steam_game__:";
-                var gameId = cmd.substring(steamPrefix.length).replace(/[^0-9]/g, "");
-                if (gameId.length > 0) {
-                    var steamUrl = "steam://rungameid/" + gameId;
-                    dockWindow.logToFile("launch branch=steam id=" + gameId);
-                    launchProc.running = false;
-                    launchProc.command = ["/bin/sh", "-lc", detachedWrap("if command -v steam >/dev/null 2>&1; then steam " + shellQuote(steamUrl) + "; else flatpak run com.valvesoftware.Steam " + shellQuote(steamUrl) + "; fi")];
-                    launchProc.running = true;
-                    return;
-                }
-            }
-            dockWindow.logToFile("launch branch=shell cmd=" + cmd);
-            launchProc.running = false;
-            launchProc.command = ["/bin/sh", "-lc", detachedWrap(cmd)];
-            launchProc.running = true;
-        }
-
-        // Pencereye odaklan (compositor-aware)
-        Process { id: focusProc; command: []; running: false }
-        function focusWindow(windowId) {
-            focusProc.running = false;
-            if (S.CompositorService.isHyprland) {
-                focusProc.command = ["hyprctl", "dispatch", "focuswindow", "address:" + windowId];
-            } else {
-                focusProc.command = ["niri", "msg", "action", "focus-window", "--id", "" + windowId];
-            }
-            focusProc.running = true;
-        }
-
-        // ── Periyodik güncelleme ──
-        Timer {
-            id: updateTimer
-            interval: 1500; running: true; repeat: true; triggeredOnStart: true
-            onTriggered: {
-                if (!dockWindow.isDragging && !winProc.running) winProc.running = true;
-            }
-        }
-
-        Component.onCompleted: {
-            // configReadProc handled by Timer
-        }
 
         // ── Ana mouse alanı: tüm sürükleme burada yönetilir ──
         MouseArea {
@@ -990,18 +419,7 @@ Variants {
                             // Ayırıcı (Only for apps, or maybe logical to show between app and module too?)
                             // Original logic: if (index === 0) return false; ... prev.isPinned && !curr.isPinned
                             Rectangle {
-                                visible: {
-                                    if (index === 0) return false;
-                                    var items = dockWindow.dockItems;
-                                    if (index >= items.length) return false;
-                                    var prev = items[index - 1];
-                                    var curr = items[index];
-                                    // Separator if prev is pinned app and curr is unpinned app?
-                                    // Or between apps and modules?
-                                    // Let's keep original logic for now, simpler.
-                                    var p = (prev && curr && prev.isPinned && !curr.isPinned && !prev.isModule && !curr.isModule);
-                                    return !!p;
-                                }
+                                visible: dockWindow.shouldShowPinnedSeparator(index)
                                 width: 1 * dockScale
                                 height: dockWindow.cfgIconSize * 0.6 * dockScale
                                 color: Qt.rgba(147/255, 153/255, 178/255, 0.35)
@@ -1045,7 +463,7 @@ Variants {
                                     source: {
                                         if (!modelData.icon) return "image://icon/application-x-executable";
                                         if (modelData.icon.startsWith("/")) return "file://" + modelData.icon;
-                                        return "image://icon/" + modelData.icon;
+                                        return "image://icon/" + dockBackend.resolveThemedIconName(modelData.icon);
                                     }
                                     sourceSize: Qt.size(64, 64)
                                     fillMode: Image.PreserveAspectFit
@@ -1099,7 +517,6 @@ Variants {
                                             pressX = mouse.x;
                                             pressY = mouse.y;
                                             dragStarted = false;
-                                            console.log("Pressed. X: " + pressX);
                                         }
                                     }
 
@@ -1113,7 +530,7 @@ Variants {
                                         }
 
                                         if (!dragStarted && (Math.abs(mouse.x - pressX) > 4 || Math.abs(mouse.y - pressY) > 4)) {
-                                            logToFile("Drag started! Index: " + index);
+                                            dockBackend.logToFile("Drag started! Index: " + index);
                                             dragStarted = true;
                                             dockWindow.isDragging = true;
                                             dockWindow.dragFromIndex = index;
@@ -1158,12 +575,11 @@ Variants {
 
                                             var appIdToDelete = modelData.appId;
 
-                                            logToFile("Released. Outside: " + isOutside);
+                                            dockBackend.logToFile("Released. Outside: " + isOutside);
                                             
                                             if (isOutside) {
                                                 if (wasPinned) {
-                                                    console.log("Dock'tan kaldırılıyor: " + appIdToDelete);
-                                                    dockWindow.unpinApp(appIdToDelete);
+                                                    dockBackend.unpinApp(appIdToDelete);
                                                 }
                                             } else {
                                                 dockWindow.handleDrop();
@@ -1189,13 +605,13 @@ Variants {
                                                         " | Running: " + modelData.isRunning + 
                                                         " | WinID: " + modelData.windowId + 
                                                         " | Cmd: " + modelData.cmd;
-                                            dockWindow.logToFile(logMsg);
+                                            dockBackend.logToFile(logMsg);
 
                                             if (modelData.isRunning && modelData.windowId && modelData.windowId !== -1) {
                                                 // Açık pencereye odaklan
-                                                dockWindow.focusWindow(modelData.windowId);
+                                                dockBackend.focusWindow(modelData.windowId);
                                             } else {
-                                                dockWindow.launchApp(modelData.cmd);
+                                                dockBackend.launchApp(modelData.cmd);
                                             }
                                         }
                                     }
@@ -1245,96 +661,41 @@ Variants {
                                     anchors.centerIn: parent
                                     spacing: 2
 
-                                    Rectangle {
-                                        width: 140 * dockScale
-                                        height: 30 * dockScale
-                                        radius: 8 * dockScale
-                                        color: pinUnpinMouse.containsMouse
-                                            ? Qt.rgba(137/255, 180/255, 250/255, 0.18)
-                                            : "transparent"
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: modelData.isPinned ? "  Dock'tan Kaldır" : "  Dock'a Sabitle"
-                                            color: modelData.isPinned ? Theme.red : Theme.primary
-                                            font.pixelSize: 12 * dockScale
-                                            font.bold: true
-                                            font.family: "JetBrainsMono Nerd Font"
-                                        }
-
-                                        MouseArea {
-                                            id: pinUnpinMouse
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                if (modelData.isPinned) {
-                                                    dockWindow.unpinApp(modelData.appId);
-                                                } else {
-                                                    dockWindow.pinApp(modelData.appId);
-                                                }
-                                                dockWindow.contextMenuVisible = false;
+                                    ContextMenuAction {
+                                        label: modelData.isPinned ? "  Dock'tan Kaldır" : "  Dock'a Sabitle"
+                                        labelColor: modelData.isPinned ? Theme.red : Theme.primary
+                                        onActivate: function() {
+                                            if (modelData.isPinned) {
+                                                dockBackend.unpinApp(modelData.appId);
+                                            } else {
+                                                dockBackend.pinApp(modelData.appId);
                                             }
-                                        }
-                                    }
-                                    
-                                    // Separator
-                                    Rectangle { width: 120 * dockScale; height: 1; color: Qt.rgba(1,1,1,0.1); anchors.horizontalCenter: parent.horizontalCenter }
-                                    
-                                    Rectangle {
-                                        width: 140 * dockScale
-                                        height: 30 * dockScale
-                                        radius: 8 * dockScale
-                                        color: closeAppMouse.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.18) : "transparent"
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "  Uygulamayı Kapat"
-                                            color: Theme.text
-                                            font.pixelSize: 12 * dockScale
-                                        }
-                                        MouseArea {
-                                            id: closeAppMouse
-                                            anchors.fill: parent; hoverEnabled: true
-                                            onClicked: {
-                                                if (modelData.isRunning && modelData.windowId) {
-                                                    if (S.CompositorService.isHyprland) {
-                                                        launchProc.running = false;
-                                                        launchProc.command = ["hyprctl", "dispatch", "closewindow", "address:" + modelData.windowId];
-                                                        launchProc.running = true;
-                                                    } else {
-                                                        launchProc.running = false;
-                                                        launchProc.command = ["niri", "msg", "action", "close-window", "--id", "" + modelData.windowId];
-                                                        launchProc.running = true;
-                                                    }
-                                                }
-                                                console.log("Close app requested: " + modelData.appId);
-                                                dockWindow.contextMenuVisible = false;
-                                            }
+                                            dockWindow.contextMenuVisible = false;
                                         }
                                     }
 
-                                    // Separator
-                                    Rectangle { width: 120 * dockScale; height: 1; color: Qt.rgba(1,1,1,0.1); anchors.horizontalCenter: parent.horizontalCenter }
-                                    
-                                    Rectangle {
-                                        width: 140 * dockScale
-                                        height: 30 * dockScale
-                                        radius: 8 * dockScale
-                                        color: settingsMouseArea.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.18) : "transparent"
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "  Dock Ayarları"
-                                            color: Theme.text
-                                            font.pixelSize: 12 * dockScale
-                                        }
-                                        MouseArea {
-                                            id: settingsMouseArea
-                                            anchors.fill: parent; hoverEnabled: true
-                                            onClicked: {
-                                                settingsMenu.currentPage = "dock";
-                                                settingsMenu.visible = true;
-                                                dockWindow.contextMenuVisible = false;
+                                    ContextMenuSeparator {}
+
+                                    ContextMenuAction {
+                                        label: "  Uygulamayı Kapat"
+                                        labelColor: Theme.text
+                                        onActivate: function() {
+                                            if (modelData.isRunning && modelData.windowId) {
+                                                dockBackend.closeWindow(modelData.windowId);
                                             }
+                                            dockWindow.contextMenuVisible = false;
+                                        }
+                                    }
+
+                                    ContextMenuSeparator {}
+
+                                    ContextMenuAction {
+                                        label: "  Dock Ayarları"
+                                        labelColor: Theme.text
+                                        onActivate: function() {
+                                            settingsMenu.currentPage = "dock";
+                                            settingsMenu.visible = true;
+                                            dockWindow.contextMenuVisible = false;
                                         }
                                     }
                                 }

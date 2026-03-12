@@ -3,9 +3,9 @@ import QtQuick.Layouts
 import QtQuick.Window
 import QtQml
 import Quickshell
-import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
+import "."
 import "../../../Widgets"
 
 Rectangle {
@@ -18,28 +18,28 @@ Rectangle {
     border.width: root.useNeutralEqChip ? 1 : 0
     border.color: popupWindow.visible ? root.eqChipBorderActive : root.eqChipBorder
 
-    property var defaultSink: Pipewire.defaultAudioSink
-    property var defaultSource: Pipewire.defaultAudioSource
-
     property var currentPlayer: null
     property bool hasMedia: currentPlayer !== null
     property bool isPlaying: currentPlayer ? currentPlayer.isPlaying : false
 
-    property var eqFrequencies: ["31", "63", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"]
-    property var eqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-    property string selectedPreset: "Flat"
-    property string applyStatus: "Not applied"
-    property string sinkDisplayName: "Loading..."
-    property string sourceDisplayName: "Loading..."
-    property int sinkVolumePercent: 0
-    property int sourceVolumePercent: 0
-    property bool sinkMuted: false
-    property bool sourceMuted: false
-    property string currentSinkName: ""
-    property string currentSourceName: ""
-    readonly property string homeDir: Quickshell.env("HOME") || ""
-    readonly property string configDir: Quickshell.env("XDG_CONFIG_HOME") || (homeDir + "/.config")
-    readonly property string eqScriptPath: configDir + "/quickshell/scripts/eq_filter_chain.sh"
+    EqualizerBackend { id: backend }
+
+    readonly property var defaultSink: Pipewire.defaultAudioSink
+    readonly property var defaultSource: Pipewire.defaultAudioSource
+    property alias eqFrequencies: backend.eqFrequencies
+    property alias eqBands: backend.eqBands
+    property alias selectedPreset: backend.selectedPreset
+    property alias applyStatus: backend.applyStatus
+    property alias sinkDisplayName: backend.sinkDisplayName
+    property alias sourceDisplayName: backend.sourceDisplayName
+    property alias sinkVolumePercent: backend.sinkVolumePercent
+    property alias sourceVolumePercent: backend.sourceVolumePercent
+    property alias sinkMuted: backend.sinkMuted
+    property alias sourceMuted: backend.sourceMuted
+    property alias currentSinkName: backend.currentSinkName
+    property alias currentSourceName: backend.currentSourceName
+    property alias availableSinks: backend.availableSinks
+    readonly property alias presetNames: backend.presetNames
     readonly property real bgLuma: (Theme.background.r * 0.299) + (Theme.background.g * 0.587) + (Theme.background.b * 0.114)
     readonly property color eqAccent: Theme.equalizerColor
     readonly property real eqAccentLuma: (eqAccent.r * 0.299) + (eqAccent.g * 0.587) + (eqAccent.b * 0.114)
@@ -63,19 +63,9 @@ Rectangle {
     readonly property color adaptiveOnPrimary: primaryLuma > 0.62 ? "#0b1220" : "#f8fafc"
     readonly property color sinkAccent: uiIsLight ? "#0f766e" : "#a6e3a1"
     readonly property color sourceAccent: uiIsLight ? "#0369a1" : "#94e2d5"
-
-    readonly property var presetMap: ({
-        "Flat":    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "Bass":    [5, 4, 3, 2, 1, 0, -2, -3, -4, -5],
-        "Treble":  [-4, -3, -2, -1, 0, 1, 2, 3, 4, 5],
-        "Vocal":   [-2, -1, 1, 3, 4, 3, 1, -1, -2, -3],
-        "Pop":     [-1, 1, 3, 4, 2, 0, -1, 1, 3, 4],
-        "Rock":    [3, 2, 1, 0, -1, 1, 3, 4, 3, 2],
-        "Jazz":    [2, 1, 0, 2, 3, 2, 1, 0, 1, 2],
-        "Classic": [1, 2, 3, 1, -1, -1, 0, 1, 2, 3]
-    })
-
     PwObjectTracker { objects: [ root.defaultSink, root.defaultSource ] }
+    onDefaultSinkChanged: backend.scheduleRefresh(80)
+    onDefaultSourceChanged: backend.scheduleRefresh(80)
 
     Instantiator {
         id: playerTracker
@@ -91,63 +81,6 @@ Rectangle {
 
         onObjectAdded: root.checkPlayers()
         onObjectRemoved: root.checkPlayers()
-    }
-
-    Process {
-        id: eqProc
-        command: []
-        running: false
-        property string out: ""
-        stdout: SplitParser { onRead: data => { eqProc.out += data + "\n"; } }
-        stderr: SplitParser { onRead: data => { eqProc.out += data + "\n"; } }
-        onExited: (code) => {
-            if (code === 0) {
-                root.applyStatus = "Applied";
-            } else {
-                var errText = eqProc.out.trim();
-                if (errText.length > 80) errText = errText.substring(0, 80) + "...";
-                root.applyStatus = errText.length > 0 ? ("Error (" + code + "): " + errText) : ("Error (" + code + ")");
-            }
-            root.refreshAudioInfo();
-            eqProc.out = "";
-        }
-    }
-
-    Process {
-        id: audioInfoProc
-        command: ["/bin/bash", "-lc", "S=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Sink:/{print $2; exit}'); SR=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Source:/{print $2; exit}'); SV=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SM=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); SRV=$(/usr/bin/pactl get-source-volume \"$SR\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SRM=$(/usr/bin/pactl get-source-mute \"$SR\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); echo \"SINK=$S\"; echo \"SOURCE=$SR\"; echo \"SINKVOL=$SV\"; echo \"SINKMUTE=$SM\"; echo \"SOURCEVOL=$SRV\"; echo \"SOURCEMUTE=$SRM\""]
-        running: false
-        property string out: ""
-        stdout: SplitParser { onRead: data => { audioInfoProc.out += data + "\n"; } }
-        onExited: {
-            var lines = audioInfoProc.out.trim().split("\n");
-            for (var i = 0; i < lines.length; i++) {
-                var l = lines[i].trim();
-                if (l.length === 0) continue;
-                if (l.indexOf("SINK=") === 0) {
-                    var s = l.substring(5);
-                    if (s.length > 0) {
-                        root.currentSinkName = s;
-                        root.sinkDisplayName = s.replace(/^alsa_output\./, "").replace(/\.analog-stereo$/, "").replace(/_/g, " ");
-                    }
-                } else if (l.indexOf("SOURCE=") === 0) {
-                    var src = l.substring(7);
-                    if (src.length > 0) {
-                        root.currentSourceName = src;
-                        root.sourceDisplayName = src.replace(/^alsa_input\./, "").replace(/\.analog-stereo$/, "").replace(/_/g, " ");
-                    }
-                } else if (l.indexOf("SINKVOL=") === 0) {
-                    root.sinkVolumePercent = parseInt(l.substring(8)) || 0;
-                } else if (l.indexOf("SINKMUTE=") === 0) {
-                    root.sinkMuted = (l.substring(9).trim() === "yes");
-                } else if (l.indexOf("SOURCEVOL=") === 0) {
-                    root.sourceVolumePercent = parseInt(l.substring(10)) || 0;
-                } else if (l.indexOf("SOURCEMUTE=") === 0) {
-                    root.sourceMuted = (l.substring(11).trim() === "yes");
-                }
-            }
-            audioInfoProc.out = "";
-        }
     }
 
     function checkPlayers() {
@@ -169,119 +102,16 @@ Rectangle {
         root.currentPlayer = active;
     }
 
-    function applyPreset(name) {
-        if (!presetMap[name]) return;
-        selectedPreset = name;
-        eqBands = presetMap[name].slice();
-    }
-
-    function sameBands(a, b) {
-        if (!a || !b || a.length !== b.length) return false;
-        for (var i = 0; i < a.length; i++) {
-            if (Math.round(Number(a[i])) !== Math.round(Number(b[i]))) return false;
-        }
-        return true;
-    }
-
-    function detectPresetFromBands(arr) {
-        var keys = ["Flat", "Bass", "Treble", "Vocal", "Pop", "Rock", "Jazz", "Classic"];
-        for (var i = 0; i < keys.length; i++) {
-            var key = keys[i];
-            var p = presetMap[key];
-            if (sameBands(arr, p)) return key;
-        }
-        return "Custom";
-    }
-
-    function setBandFromY(idx, y, h) {
-        var r = 1 - Math.min(Math.max(y / h, 0), 1);
-        var db = Math.round((r * 24) - 12);
-        var arr = eqBands.slice();
-        arr[idx] = db;
-        eqBands = arr;
-        selectedPreset = "Custom";
-    }
-
-    function applyToPipeWire() {
-        if (eqProc.running) return;
-        root.applyStatus = "Applying...";
-        eqProc.command = [
-            "/bin/bash", root.eqScriptPath, "apply",
-            String(eqBands[0]), String(eqBands[1]), String(eqBands[2]), String(eqBands[3]), String(eqBands[4]),
-            String(eqBands[5]), String(eqBands[6]), String(eqBands[7]), String(eqBands[8]), String(eqBands[9]),
-            (root.currentSinkName.length > 0 ? root.currentSinkName : "auto")
-        ];
-        eqProc.running = true;
-    }
-
-    function disablePipeWireEq() {
-        if (eqProc.running) return;
-        root.applyStatus = "Disabling...";
-        eqProc.command = ["/bin/bash", root.eqScriptPath, "disable"];
-        eqProc.running = true;
-    }
-
-    function refreshAudioInfo() {
-        if (audioInfoProc.running) return;
-        audioInfoProc.out = "";
-        audioInfoProc.running = true;
-    }
-
-    Process {
-        id: readEqProc
-        command: ["/bin/bash", "-lc", "if [ -f \"" + root.configDir + "/quickshell/eq/parametric-eq.txt\" ]; then cat \"" + root.configDir + "/quickshell/eq/parametric-eq.txt\"; fi"]
-        running: false
-        property string out: ""
-        stdout: SplitParser { onRead: data => { readEqProc.out += data + "\n"; } }
-        onExited: {
-            var lines = readEqProc.out.split("\n");
-            var gains = [];
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
-                var m = line.match(/Gain\s+(-?\d+(?:\.\d+)?)\s+dB/i);
-                if (m && m.length > 1) gains.push(parseFloat(m[1]));
-            }
-            if (gains.length === 10) {
-                root.eqBands = gains;
-                root.selectedPreset = root.detectPresetFromBands(gains);
-            }
-            readEqProc.out = "";
-        }
-    }
-
-    function loadEqStateFromFile() {
-        if (readEqProc.running) return;
-        readEqProc.out = "";
-        readEqProc.running = true;
-    }
-
-    function setSinkVolumePercent(percent) {
-        var p = Math.max(0, Math.min(150, Math.round(percent)));
-        var sinkArg = (root.currentSinkName.length > 0 ? root.currentSinkName : "@DEFAULT_SINK@");
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-volume", sinkArg, String(p) + "%"]);
-        root.sinkVolumePercent = p;
-        Qt.callLater(root.refreshAudioInfo);
-    }
-
-    function setSourceVolumePercent(percent) {
-        var p = Math.max(0, Math.min(100, Math.round(percent)));
-        var srcArg = (root.currentSourceName.length > 0 ? root.currentSourceName : "@DEFAULT_SOURCE@");
-        Quickshell.execDetached(["/usr/bin/pactl", "set-source-volume", srcArg, String(p) + "%"]);
-        root.sourceVolumePercent = p;
-        Qt.callLater(root.refreshAudioInfo);
-    }
-
-    function toggleSinkMute() {
-        var sinkArg = (root.currentSinkName.length > 0 ? root.currentSinkName : "@DEFAULT_SINK@");
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-mute", sinkArg, "toggle"]);
-        Qt.callLater(root.refreshAudioInfo);
-    }
-
-    function toggleSourceMute() {
-        var srcArg = (root.currentSourceName.length > 0 ? root.currentSourceName : "@DEFAULT_SOURCE@");
-        Quickshell.execDetached(["/usr/bin/pactl", "set-source-mute", srcArg, "toggle"]);
-        Qt.callLater(root.refreshAudioInfo);
-    }
+    function applyPreset(name) { backend.applyPreset(name); }
+    function setBandFromY(idx, y, h) { backend.setBandFromY(idx, y, h); }
+    function applyToPipeWire() { backend.applyToPipeWire(); }
+    function disablePipeWireEq() { backend.disablePipeWireEq(); }
+    function loadEqStateFromFile() { backend.loadEqStateFromFile(); }
+    function setSinkVolumePercent(percent) { backend.setSinkVolumePercent(percent); }
+    function setSourceVolumePercent(percent) { backend.setSourceVolumePercent(percent); }
+    function toggleSinkMute() { backend.toggleSinkMute(); }
+    function toggleSourceMute() { backend.toggleSourceMute(); }
+    function selectOutputSink(sinkName) { backend.selectOutputSink(sinkName); }
 
     RowLayout {
         id: row
@@ -335,7 +165,7 @@ Rectangle {
                 openAnim.stop()
                 closeAnim.stop()
                 openAnim.start()
-                root.refreshAudioInfo()
+                backend.scheduleRefresh(0)
                 root.loadEqStateFromFile()
             }
         }
@@ -343,7 +173,7 @@ Rectangle {
         Rectangle {
             id: panel
             width: 480
-            height: 730
+            height: 1080
             radius: 16
             opacity: 0
             scale: 1.0
@@ -581,11 +411,11 @@ Rectangle {
                         GridLayout {
                             Layout.fillWidth: true
                             columns: 4
-                            rowSpacing: 6
+                            rowSpacing: 8
                             columnSpacing: 8
 
                             Repeater {
-                                model: ["Flat", "Bass", "Treble", "Vocal", "Pop", "Rock", "Jazz", "Classic"]
+                                model: root.presetNames
                                 delegate: Rectangle {
                                     Layout.fillWidth: true
                                     Layout.preferredHeight: 30
@@ -622,8 +452,8 @@ Rectangle {
                                 color: root.eqAccentButton
                                 border.width: 1
                                 border.color: root.eqAccent
-                                Text { anchors.centerIn: parent; text: eqProc.running ? "Applying..." : "Apply EQ"; color: root.adaptiveAccentText; font.bold: true; font.pixelSize: 12 }
-                                MouseArea { anchors.fill: parent; enabled: !eqProc.running; cursorShape: Qt.PointingHandCursor; onClicked: root.applyToPipeWire() }
+                                Text { anchors.centerIn: parent; text: backend.isBusy ? "Applying..." : "Apply EQ"; color: root.adaptiveAccentText; font.bold: true; font.pixelSize: 12 }
+                                MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.applyToPipeWire() }
                             }
 
                             Rectangle {
@@ -634,7 +464,7 @@ Rectangle {
                                 border.width: 1
                                 border.color: Theme.red
                                 Text { anchors.centerIn: parent; text: "Disable"; color: Theme.red; font.bold: true; font.pixelSize: 12 }
-                                MouseArea { anchors.fill: parent; enabled: !eqProc.running; cursorShape: Qt.PointingHandCursor; onClicked: root.disablePipeWireEq() }
+                                MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.disablePipeWireEq() }
                             }
                         }
 
@@ -801,6 +631,96 @@ Rectangle {
                         }
                     }
                 }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    height: 220
+                    radius: 10
+                    color: Theme.surface
+                    border.width: 1
+                    border.color: Qt.rgba(255,255,255,0.06)
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text { text: "󰓃"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: root.sinkAccent }
+                            Text {
+                                text: "Output Devices"
+                                color: root.adaptiveText
+                                font.bold: true
+                                font.pixelSize: 14
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: backend.isBusy ? "Applying..." : ""
+                                color: root.adaptiveSubtext
+                                font.pixelSize: 11
+                            }
+                        }
+
+                        ListView {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 8
+                            model: root.availableSinks
+
+                            delegate: Rectangle {
+                                required property var modelData
+                                width: ListView.view.width
+                                height: 52
+                                radius: 10
+                                color: modelData.selected ? root.eqAccentDim : Qt.rgba(255,255,255,0.04)
+                                border.width: 1
+                                border.color: modelData.selected ? root.eqAccentBorder : Qt.rgba(255,255,255,0.05)
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 8
+
+                                    Text {
+                                        text: modelData.selected ? "󰓃" : "󰖁"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+                                        color: modelData.selected ? root.sinkAccent : root.adaptiveSubtext
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: modelData.label
+                                            color: root.adaptiveText
+                                            font.pixelSize: 12
+                                            font.bold: modelData.selected
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            text: modelData.state.toLowerCase()
+                                            color: root.adaptiveSubtext
+                                            font.pixelSize: 10
+                                        }
+                                    }
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    enabled: !backend.isBusy
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.selectOutputSink(modelData.name)
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -847,10 +767,4 @@ Rectangle {
         }
     }
 
-    Timer {
-        interval: 2000
-        running: popupWindow.visible
-        repeat: true
-        onTriggered: root.refreshAudioInfo()
-    }
 }

@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
 import "../../../Widgets"
 
 Rectangle {
     id: root
+
+    PowerProfileService { id: powerProfileService }
 
     implicitWidth: layout.implicitWidth + 24
     implicitHeight: 34
@@ -15,14 +16,9 @@ Rectangle {
 
     Behavior on color { ColorAnimation { duration: 200 } }
 
-    property string currentProfile: "balanced"
-    property bool available: true
-
-    readonly property var profileData: ({
-        "performance": { icon: "󰓅", label: "Performance", color: "#f38ba8" },
-        "balanced":    { icon: "󰾅", label: "Balanced",    color: Theme.powerProfileColor },
-        "power-saver": { icon: "󰾆", label: "Power Saver",   color: "#a6e3a1" }
-    })
+    property alias currentProfile: powerProfileService.currentProfile
+    property alias available: powerProfileService.available
+    readonly property alias profileData: powerProfileService.profileData
 
     RowLayout {
         id: layout
@@ -45,54 +41,8 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         onClicked: {
             profilePopup.visible = !profilePopup.visible
-            if (profilePopup.visible) {
-                getProc.output = ""
-                getProc.running = true
-            }
+            if (profilePopup.visible) powerProfileService.refresh()
         }
-    }
-
-    // --- GET CURRENT PROFILE ---
-    Process {
-        id: getProc
-        command: ["powerprofilesctl", "get"]
-        property string output: ""
-        stdout: SplitParser { onRead: data => getProc.output += data }
-        onExited: {
-            var profile = getProc.output.trim()
-            if (profile === "performance" || profile === "balanced" || profile === "power-saver") {
-                root.currentProfile = profile
-                root.available = true
-            } else {
-                root.available = false
-            }
-            getProc.output = ""
-        }
-    }
-
-    // --- SET PROFILE ---
-    Process {
-        id: setProc
-        command: []
-        onExited: {
-            getProc.output = ""
-            getProc.running = true
-        }
-    }
-
-    // --- POLLING ---
-    Timer {
-        interval: 10000
-        running: true
-        repeat: true
-        onTriggered: {
-            getProc.output = ""
-            getProc.running = true
-        }
-    }
-
-    Component.onCompleted: {
-        getProc.running = true
     }
 
     // --- POPUP ---
@@ -228,10 +178,7 @@ Rectangle {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                setProc.command = ["powerprofilesctl", "set", modelData]
-                                setProc.running = true
-                            }
+                            onClicked: powerProfileService.setProfile(modelData)
                         }
                     }
                 }

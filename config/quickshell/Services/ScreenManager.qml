@@ -1,8 +1,9 @@
 pragma Singleton
 import QtQuick
 import Quickshell
-import Quickshell.Io
 import Qt.labs.platform
+import "./core" as Core
+import "./core/Log.js" as Log
 
 Singleton {
     id: root
@@ -10,53 +11,10 @@ Singleton {
     property var screenPreferences: ({})
     property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/screen_config.json"
 
-    // Read config on startup
-    Component.onCompleted: {
-        readConfigProc.running = true;
-    }
-
-    // Periodic re-read for hot-reload
-    Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        onTriggered: {
-            readConfigProc.output = "";
-            readConfigProc.running = false;
-            readConfigProc.running = true;
-        }
-    }
-
-    Process {
-        id: readConfigProc
-        command: ["cat", root.configPath]
-        property string output: ""
-        stdout: SplitParser {
-            onRead: data => { readConfigProc.output += data; }
-        }
-        onExited: {
-            if (readConfigProc.output.trim() === "") return;
-            try {
-                var cfg = JSON.parse(readConfigProc.output);
-                root.screenPreferences = cfg;
-            } catch(e) {
-                console.log("[ScreenManager] Config parse error: " + e);
-            }
-            readConfigProc.output = "";
-        }
-    }
-
-    // Save config
-    Process {
-        id: writeConfigProc
-        property string jsonData: ""
-        command: ["bash", "-c", "cat > " + root.configPath + " << 'ENDOFJSON'\n" + jsonData + "\nENDOFJSON"]
-    }
+    Component.onCompleted: configStore.load()
 
     function saveConfig() {
-        writeConfigProc.jsonData = JSON.stringify(root.screenPreferences, null, 2);
-        writeConfigProc.running = false;
-        writeConfigProc.running = true;
+        configStore.save(root.screenPreferences);
     }
 
     function getFilteredScreens(componentId) {
@@ -87,5 +45,23 @@ Singleton {
             names.push(Quickshell.screens[i].name);
         }
         return names;
+    }
+
+    Core.JsonDataStore {
+        id: configStore
+        path: root.configPath
+        defaultValue: ({})
+        onLoadedValue: function(value) {
+            root.screenPreferences = value || {};
+        }
+        onFailed: function(phase, exitCode, details) {
+            if (phase === "parse") Log.warn("ScreenManager", "Config parse error: " + details);
+        }
+    }
+
+    Core.FileChangeWatcher {
+        path: root.configPath
+        interval: 2000
+        onChanged: configStore.load()
     }
 }

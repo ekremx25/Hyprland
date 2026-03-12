@@ -1,20 +1,20 @@
 import QtQuick
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 
 Rectangle {
     id: root
 
+    BatteryService { id: batteryService }
+
     implicitWidth: layout.implicitWidth + 24
     implicitHeight: 34
     radius: 17
 
-    property bool hasBattery: false
-    property int batteryLevel: 100
-    property string batteryStatus: "Unknown" // Charging, Discharging, Full, Not charging
-    property bool onAC: true
+    property alias hasBattery: batteryService.hasBattery
+    property alias batteryLevel: batteryService.batteryLevel
+    property alias batteryStatus: batteryService.batteryStatus
+    property alias onAC: batteryService.onAC
 
     color: {
         if (!hasBattery) return Theme.batteryColor
@@ -54,79 +54,6 @@ Rectangle {
             font.family: "JetBrainsMono Nerd Font"
             color: "#1e1e2e"
         }
-    }
-
-    // --- DETECT BATTERY ---
-    Process {
-        id: detectProc
-        command: ["bash", "-c", "ls /sys/class/power_supply/ 2>/dev/null"]
-        property string output: ""
-        stdout: SplitParser { onRead: data => detectProc.output += data + " " }
-        onExited: {
-            var supplies = detectProc.output.trim().split(/\s+/)
-            var foundBat = false
-            for (var i = 0; i < supplies.length; i++) {
-                if (supplies[i].indexOf("BAT") !== -1) {
-                    foundBat = true
-                    break
-                }
-            }
-            root.hasBattery = foundBat
-            if (foundBat) {
-                readBattery.running = true
-            }
-            detectProc.output = ""
-        }
-    }
-
-    // --- READ BATTERY ---
-    Process {
-        id: readBattery
-        command: ["bash", "-c", "cat /sys/class/power_supply/BAT*/capacity 2>/dev/null; echo '---'; cat /sys/class/power_supply/BAT*/status 2>/dev/null"]
-        property string output: ""
-        stdout: SplitParser { onRead: data => readBattery.output += data + "\n" }
-        onExited: {
-            var parts = readBattery.output.split("---")
-            if (parts.length >= 2) {
-                var cap = parseInt(parts[0].trim())
-                if (!isNaN(cap)) root.batteryLevel = cap
-                var status = parts[1].trim().split("\n")[0].trim()
-                if (status.length > 0) root.batteryStatus = status
-            }
-            readBattery.output = ""
-        }
-    }
-
-    // --- AC STATUS ---
-    Process {
-        id: acProc
-        command: ["bash", "-c", "cat /sys/class/power_supply/AC*/online /sys/class/power_supply/ADP*/online 2>/dev/null || echo 1"]
-        property string output: ""
-        stdout: SplitParser { onRead: data => acProc.output += data }
-        onExited: {
-            root.onAC = acProc.output.trim() === "1"
-            acProc.output = ""
-        }
-    }
-
-    // --- POLLING ---
-    Timer {
-        interval: 30000
-        running: true
-        repeat: true
-        onTriggered: {
-            if (root.hasBattery) {
-                readBattery.output = ""
-                readBattery.running = true
-            }
-            acProc.output = ""
-            acProc.running = true
-        }
-    }
-
-    Component.onCompleted: {
-        detectProc.running = true
-        acProc.running = true
     }
 
     // Tooltip on hover

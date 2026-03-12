@@ -2,81 +2,25 @@ import QtQuick
 import QtQuick.Controls
 import Qt.labs.platform
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 
 ColumnLayout {
     id: root
     spacing: 6
-
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/countdown.json"
+    CountdownService { id: countdownService }
     property date selectedDate: new Date()
-    property int tickCounter: 0
+    property alias tickCounter: countdownService.tickCounter
 
     // Event list model
     ListModel { id: eventModel }
 
-    // --- SAVE/LOAD LOGIC ---
-    Process {
-        id: readProc
-        command: ["cat", root.configPath]
-        property string output: ""
-        stdout: SplitParser { onRead: data => readProc.output += data }
-        onExited: {
-            try {
-                var data = JSON.parse(readProc.output);
-                if (Array.isArray(data)) {
-                    eventModel.clear();
-                    for (var i = 0; i < data.length; i++) {
-                        eventModel.append(data[i]);
-                    }
-                }
-            } catch(e) {}
-        }
-    }
-
-    Process {
-        id: writeProc
-        property string jsonData: ""
-        command: ["bash", "-c", "cat > " + root.configPath + " << 'EOF'\n" + jsonData + "\nEOF"]
-    }
-
-    Process {
-        id: notifyProc
-        property string msg: ""
-        command: ["notify-send", "-u", "critical", "⏰ Countdown", notifyProc.msg]
-    }
-
-    function saveAll() {
-        var arr = [];
-        for (var i = 0; i < eventModel.count; i++) {
-            arr.push(eventModel.get(i));
-        }
-        writeProc.jsonData = JSON.stringify(arr, null, 2);
-        if (writeProc.running) writeProc.running = false;
-        writeProc.running = true;
-    }
-
     function addEvent() {
-        var title = titleInput.text.trim();
-        if (title === "") title = "Event";
-        eventModel.append({
-            title: title,
-            target: root.selectedDate.toISOString(),
-            notified: false
-        });
+        countdownService.addEvent(eventModel, titleInput.text, root.selectedDate);
         titleInput.text = "";
-        saveAll();
     }
 
     function removeEvent(idx) {
-        eventModel.remove(idx);
-        saveAll();
-    }
-
-    Component.onCompleted: {
-        readProc.running = true;
+        countdownService.removeEvent(eventModel, idx);
     }
 
     // --- INPUT SECTION ---
@@ -513,15 +457,12 @@ ColumnLayout {
                 var diff = new Date(ev.target) - now;
                 if (diff <= 0 && !ev.notified) {
                     // Send desktop notification
-                    notifyProc.msg = "\"" + (ev.title || "Event") + "\" time's up!";
-                    notifyProc.running = false;
-                    notifyProc.running = true;
-                    eventModel.setProperty(i, "notified", true);
-                    saveAll();
+                    // handled by service tick processing
                 }
             }
-            // Increment tick counter to force countdown text re-eval
-            root.tickCounter++;
+            countdownService.processTick(eventModel);
         }
     }
+
+    Component.onCompleted: countdownService.loadEvents(eventModel)
 }

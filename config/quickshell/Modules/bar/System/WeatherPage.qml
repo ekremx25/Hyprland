@@ -1,117 +1,21 @@
 import QtQuick
 import Qt.labs.platform
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 
 Item {
     id: weatherPage
+    WeatherSettingsService { id: weatherService }
 
-
-    // ── Config ──
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/weather_config.json"
-
-    property bool weatherEnabled: true
-    property bool useFahrenheit: false
-    property bool autoLocation: false
-    property string customLat: "39.9208"
-    property string customLon: "41.2746"
-    property string cityName: "Erzurum"
-    property string searchText: ""
-    property var searchResults: []
-    property bool searching: false
-
-    // ── Config okuma ──
-    Process {
-        id: readConfigProc
-        command: ["cat", weatherPage.configPath]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { readConfigProc.buf += data; } }
-        onExited: {
-            try {
-                var cfg = JSON.parse(readConfigProc.buf);
-                if (cfg.enabled !== undefined) weatherPage.weatherEnabled = cfg.enabled;
-                if (cfg.fahrenheit !== undefined) weatherPage.useFahrenheit = cfg.fahrenheit;
-                if (cfg.autoLocation !== undefined) weatherPage.autoLocation = cfg.autoLocation;
-                if (cfg.lat) weatherPage.customLat = cfg.lat;
-                if (cfg.lon) weatherPage.customLon = cfg.lon;
-                if (cfg.city) weatherPage.cityName = cfg.city;
-            } catch(e) {}
-            readConfigProc.buf = "";
-        }
-    }
-
-    // ── Config yazma ──
-    Process {
-        id: writeConfigProc
-        property string data: ""
-        command: ["sh", "-c", "echo '" + data + "' > " + weatherPage.configPath]
-    }
-
-    function saveConfig() {
-        var cfg = {
-            enabled: weatherPage.weatherEnabled,
-            fahrenheit: weatherPage.useFahrenheit,
-            autoLocation: weatherPage.autoLocation,
-            lat: weatherPage.customLat,
-            lon: weatherPage.customLon,
-            city: weatherPage.cityName
-        };
-        writeConfigProc.data = JSON.stringify(cfg);
-        writeConfigProc.running = false;
-        writeConfigProc.running = true;
-    }
-
-    // ── Location search via OpenWeatherMap Geo API ──
-    Process {
-        id: geoSearchProc
-        property string buf: ""
-        property string query: ""
-        command: ["curl", "-s", "http://api.openweathermap.org/geo/1.0/direct?q=" + query + "&limit=5&appid=0893defca21907657083a55440bd9f71"]
-        stdout: SplitParser { onRead: (data) => { geoSearchProc.buf += data; } }
-        onExited: {
-            weatherPage.searching = false;
-            try {
-                var results = JSON.parse(geoSearchProc.buf);
-                var list = [];
-                for (var i = 0; i < results.length; i++) {
-                    var r = results[i];
-                    list.push({
-                        name: r.name + (r.state ? ", " + r.state : "") + ", " + (r.country || ""),
-                        lat: r.lat.toFixed(4),
-                        lon: r.lon.toFixed(4)
-                    });
-                }
-                weatherPage.searchResults = list;
-            } catch(e) {
-                weatherPage.searchResults = [];
-            }
-            geoSearchProc.buf = "";
-        }
-    }
-
-    // ── Auto location via IP ──
-    Process {
-        id: autoLocProc
-        property string buf: ""
-        command: ["curl", "-s", "http://ip-api.com/json/?fields=lat,lon,city"]
-        stdout: SplitParser { onRead: (data) => { autoLocProc.buf += data; } }
-        onExited: {
-            try {
-                var r = JSON.parse(autoLocProc.buf);
-                if (r.lat) weatherPage.customLat = r.lat.toFixed(4);
-                if (r.lon) weatherPage.customLon = r.lon.toFixed(4);
-                if (r.city) weatherPage.cityName = r.city;
-                saveConfig();
-            } catch(e) {}
-            autoLocProc.buf = "";
-        }
-    }
-
-    Component.onCompleted: {
-        readConfigProc.running = true;
-    }
+    property alias weatherEnabled: weatherService.weatherEnabled
+    property alias useFahrenheit: weatherService.useFahrenheit
+    property alias autoLocation: weatherService.autoLocation
+    property alias customLat: weatherService.customLat
+    property alias customLon: weatherService.customLon
+    property alias cityName: weatherService.cityName
+    property alias searchText: weatherService.searchText
+    property alias searchResults: weatherService.searchResults
+    property alias searching: weatherService.searching
 
     // ── UI ──
     Flickable {
@@ -136,121 +40,34 @@ Item {
             }
 
             // ═══ ENABLE WEATHER ═══
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Theme.surface
-                radius: 12
-
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 16; spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true; spacing: 2
-                        Text { text: "Show Weather"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
-                        Text { text: "Show weather info on bar and desktop"; color: Theme.subtext; font.pixelSize: 11 }
-                    }
-
-                    // Toggle
-                    Rectangle {
-                        width: 48; height: 26; radius: 13
-                        color: weatherPage.weatherEnabled ? Theme.primary : Qt.rgba(49/255, 50/255, 68/255, 0.8)
-                        Behavior on color { ColorAnimation { duration: 200 } }
-
-                        Rectangle {
-                            width: 20; height: 20; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: weatherPage.weatherEnabled ? parent.width - width - 3 : 3
-                            color: "white"
-                            Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: { weatherPage.weatherEnabled = !weatherPage.weatherEnabled; saveConfig(); }
-                        }
-                    }
+            SettingsToggleCard {
+                title: "Show Weather"
+                description: "Show weather info on bar and desktop"
+                checked: weatherPage.weatherEnabled
+                onToggle: function() {
+                    weatherPage.weatherEnabled = !weatherPage.weatherEnabled;
+                    weatherService.saveConfig();
                 }
             }
 
             // ═══ USE FAHRENHEIT ═══
-            Rectangle {
-                Layout.fillWidth: true
-                height: 70
-                color: Theme.surface
-                radius: 12
-
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 16; spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true; spacing: 2
-                        Text { text: "Use Fahrenheit"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
-                        Text { text: "Show Fahrenheit instead of Celsius"; color: Theme.subtext; font.pixelSize: 11 }
-                    }
-
-                    Rectangle {
-                        width: 48; height: 26; radius: 13
-                        color: weatherPage.useFahrenheit ? Theme.primary : Qt.rgba(49/255, 50/255, 68/255, 0.8)
-                        Behavior on color { ColorAnimation { duration: 200 } }
-
-                        Rectangle {
-                            width: 20; height: 20; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: weatherPage.useFahrenheit ? parent.width - width - 3 : 3
-                            color: "white"
-                            Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: { weatherPage.useFahrenheit = !weatherPage.useFahrenheit; saveConfig(); }
-                        }
-                    }
+            SettingsToggleCard {
+                title: "Use Fahrenheit"
+                description: "Show Fahrenheit instead of Celsius"
+                checked: weatherPage.useFahrenheit
+                onToggle: function() {
+                    weatherPage.useFahrenheit = !weatherPage.useFahrenheit;
+                    weatherService.saveConfig();
                 }
             }
 
             // ═══ AUTO LOCATION ═══
-            Rectangle {
-                Layout.fillWidth: true
-                height: 80
-                color: Theme.surface
-                radius: 12
-
-                RowLayout {
-                    anchors.fill: parent; anchors.margins: 16; spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true; spacing: 2
-                        Text { text: "Auto Location"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
-                        Text { text: "Determine location automatically via IP"; color: Theme.subtext; font.pixelSize: 11 }
-                    }
-
-                    Rectangle {
-                        width: 48; height: 26; radius: 13
-                        color: weatherPage.autoLocation ? Theme.primary : Qt.rgba(49/255, 50/255, 68/255, 0.8)
-                        Behavior on color { ColorAnimation { duration: 200 } }
-
-                        Rectangle {
-                            width: 20; height: 20; radius: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: weatherPage.autoLocation ? parent.width - width - 3 : 3
-                            color: "white"
-                            Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                weatherPage.autoLocation = !weatherPage.autoLocation;
-                                if (weatherPage.autoLocation) {
-                                    autoLocProc.buf = "";
-                                    autoLocProc.running = true;
-                                }
-                                saveConfig();
-                            }
-                        }
-                    }
+            SettingsToggleCard {
+                title: "Auto Location"
+                description: "Determine location automatically via IP"
+                checked: weatherPage.autoLocation
+                onToggle: function() {
+                    weatherService.toggleAutoLocation();
                 }
             }
 
@@ -370,11 +187,11 @@ Item {
                     TextInput {
                         id: searchInput
                         Layout.fillWidth: true
-                        text: weatherPage.searchText
-                        color: Theme.text; font.pixelSize: 13
-                        verticalAlignment: TextInput.AlignVCenter
-                        selectByMouse: true
-                        onTextChanged: weatherPage.searchText = text
+                            text: weatherPage.searchText
+                            color: Theme.text; font.pixelSize: 13
+                            verticalAlignment: TextInput.AlignVCenter
+                            selectByMouse: true
+                            onTextChanged: weatherPage.searchText = text
 
                         Text {
                             anchors.fill: parent
@@ -386,14 +203,7 @@ Item {
                         }
 
                         onAccepted: {
-                            if (weatherPage.searchText.trim() !== "") {
-                                weatherPage.searching = true;
-                                weatherPage.searchResults = [];
-                                geoSearchProc.query = weatherPage.searchText.trim().replace(/ /g, "+");
-                                geoSearchProc.buf = "";
-                                geoSearchProc.running = false;
-                                geoSearchProc.running = true;
-                            }
+                            weatherService.searchCity();
                         }
                     }
 
@@ -405,16 +215,7 @@ Item {
                         Text { anchors.centerIn: parent; text: "Search"; color: "#1e1e2e"; font.pixelSize: 12; font.bold: true }
                         MouseArea {
                             id: searchBtnMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (weatherPage.searchText.trim() !== "") {
-                                    weatherPage.searching = true;
-                                    weatherPage.searchResults = [];
-                                    geoSearchProc.query = weatherPage.searchText.trim().replace(/ /g, "+");
-                                    geoSearchProc.buf = "";
-                                    geoSearchProc.running = false;
-                                    geoSearchProc.running = true;
-                                }
-                            }
+                            onClicked: weatherService.searchCity()
                         }
                     }
                 }
@@ -455,14 +256,7 @@ Item {
                             Text { anchors.centerIn: parent; text: "Select"; color: "#1e1e2e"; font.pixelSize: 11; font.bold: true }
                             MouseArea {
                                 id: selectMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    weatherPage.customLat = modelData.lat;
-                                    weatherPage.customLon = modelData.lon;
-                                    weatherPage.cityName = modelData.name.split(",")[0].trim();
-                                    weatherPage.searchResults = [];
-                                    weatherPage.searchText = "";
-                                    saveConfig();
-                                }
+                                onClicked: weatherService.selectSearchResult(modelData)
                             }
                         }
                     }
@@ -491,7 +285,7 @@ Item {
                     Text { anchors.centerIn: parent; text: "💾  Save & Apply"; color: "#1e1e2e"; font.pixelSize: 13; font.bold: true }
                     MouseArea {
                         id: applyMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: { saveConfig(); }
+                        onClicked: weatherService.saveConfig()
                     }
                 }
             }

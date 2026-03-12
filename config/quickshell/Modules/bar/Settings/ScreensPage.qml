@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 import "../../../Services"
 
@@ -9,6 +8,32 @@ Item {
     id: screensPage
 
     readonly property var componentIds: ["bar", "dock", "workspaces", "notifications", "weather", "toast", "osd", "appdrawer"]
+    readonly property var componentIcons: ({
+        "bar": "󰒍",
+        "dock": "⚓",
+        "workspaces": "󰖲",
+        "notifications": "󰂚",
+        "weather": "󰖕",
+        "toast": "󱅫",
+        "osd": "󰕾",
+        "appdrawer": "󰀻"
+    })
+
+    function toggleScreenSelection(currentPref, screenName) {
+        var current = (currentPref || []).slice();
+        if (current.indexOf("all") !== -1 || current.indexOf("none") !== -1) {
+            current = [];
+        }
+
+        var idx = current.indexOf(screenName);
+        if (idx !== -1) {
+            current.splice(idx, 1);
+        } else {
+            current.push(screenName);
+        }
+
+        return current.length === 0 ? ["all"] : current;
+    }
 
     ColumnLayout {
         anchors.fill: parent
@@ -98,17 +123,7 @@ Item {
                             RowLayout {
                                 spacing: 8
                                 Text {
-                                    text: {
-                                        if (compId === "bar") return "󰒍";
-                                        if (compId === "dock") return "⚓";
-                                        if (compId === "workspaces") return "󰖲";
-                                        if (compId === "notifications") return "󰂚";
-                                        if (compId === "weather") return "󰖕";
-                                        if (compId === "toast") return "󱅫";
-                                        if (compId === "osd") return "󰕾";
-                                        if (compId === "appdrawer") return "󰀻";
-                                        return "?";
-                                    }
+                                    text: screensPage.componentIcons[compId] || "?"
                                     font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary
                                 }
                                 Text {
@@ -174,20 +189,10 @@ Item {
                                         MouseArea {
                                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                             onClicked: {
-                                                var current = JSON.parse(JSON.stringify(currentPref));
-                                                // Remove "all" and "none" if present
-                                                var allIdx = current.indexOf("all");
-                                                var noneIdx = current.indexOf("none");
-                                                if (allIdx !== -1 || noneIdx !== -1) current = [];
-
-                                                var idx = current.indexOf(modelData);
-                                                if (idx !== -1) {
-                                                    current.splice(idx, 1);
-                                                } else {
-                                                    current.push(modelData);
-                                                }
-                                                if (current.length === 0) current = ["all"];
-                                                ScreenManager.setScreenPreference(compId, current);
+                                                ScreenManager.setScreenPreference(
+                                                    compId,
+                                                    screensPage.toggleScreenSelection(currentPref, modelData)
+                                                );
                                             }
                                         }
                                     }

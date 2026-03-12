@@ -1,43 +1,12 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
 
 ColumnLayout {
     id: root
     spacing: 12
-
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/notes.txt"
-
-    // --- SAVE/LOAD LOGIC ---
-    Process {
-        id: readProc
-        command: ["cat", root.configPath]
-        property string output: ""
-        stdout: SplitParser { onRead: data => readProc.output += data }
-        onExited: {
-            textArea.text = readProc.output;
-        }
-    }
-
-    Process {
-        id: writeProc
-        property string fileContent: ""
-        command: ["bash", "-c", "cat > " + root.configPath + " << 'EOF'\n" + fileContent + "\nEOF"]
-    }
-
-    function save() {
-        writeProc.fileContent = textArea.text;
-        // Toggle running to trigger write
-        if (writeProc.running) writeProc.running = false;
-        writeProc.running = true;
-    }
-
-    Component.onCompleted: {
-        readProc.running = true;
-    }
+    CalendarNotesService { id: notesService }
 
     // --- UI ---
     Text {
@@ -57,6 +26,7 @@ ColumnLayout {
         TextArea {
             id: textArea
             placeholderText: "Buraya not al..."
+            text: notesService.text
             color: "#cdd6f4"
             font.pixelSize: 13
             font.family: "JetBrainsMono Nerd Font"
@@ -69,15 +39,7 @@ ColumnLayout {
                 border.width: 1
             }
 
-            onTextChanged: saveTimer.restart()
+            onTextChanged: notesService.queueSave(text)
         }
-    }
-
-    // Debounce save (don't save on every keystroke, wait a bit)
-    Timer {
-        id: saveTimer
-        interval: 1000
-        repeat: false
-        onTriggered: root.save()
     }
 }

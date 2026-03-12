@@ -2,22 +2,24 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import "."
 import "../../../Widgets"
 import "../../../Services" as S
 
 // Popup window showing the list of notifications
 PanelWindow {
     id: root
+    NotificationPopupBackend { id: backend }
 
     // Window Dimensions
     implicitWidth: mainRect.width
     implicitHeight: mainRect.height
 
     anchors {
-        top: notifService.popupPosition === 1 || notifService.popupPosition === 2 || notifService.popupPosition === 3
-        bottom: notifService.popupPosition === 4 || notifService.popupPosition === 5 || notifService.popupPosition === 6
-        left: notifService.popupPosition === 2 || notifService.popupPosition === 6
-        right: notifService.popupPosition === 1 || notifService.popupPosition === 5
+        top: backend.anchorTop
+        bottom: backend.anchorBottom
+        left: backend.anchorLeft
+        right: backend.anchorRight
     }
     margins {
         top: 60
@@ -79,11 +81,7 @@ PanelWindow {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                             // Clear all notifications
-                             // We need a clear function in service or loop remove
-                             // Since service doesn't have clearAll, we can splice the array
-                             notifService.notifications = []
-                             notifService.refreshActiveNotifications()
+                             backend.clearAll()
                         }
                     }
                 }
@@ -119,18 +117,15 @@ PanelWindow {
                             verticalAlignment: TextInput.AlignVCenter
                             horizontalAlignment: TextInput.AlignHCenter
                             
-                            text: (notifService.displayDuration / 1000).toString()
+                            text: backend.displaySeconds.toString()
                             color: Theme.text
                             font.pixelSize: 14
                             
                             validator: IntValidator { bottom: 1; top: 3600 } // 1s to 1h
                             
                             onEditingFinished: {
-                                var val = parseInt(text);
-                                if (!isNaN(val)) {
-                                    notifService.displayDuration = val * 1000;
-                                }
-                                text = (notifService.displayDuration / 1000).toString(); // refresh in case of clamp
+                                backend.setDisplaySeconds(text)
+                                text = backend.displaySeconds.toString()
                             }
                             
                             // Update on Enter as well
@@ -160,8 +155,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (notifService.displayDuration > 60000) notifService.displayDuration -= 60000
-                                else notifService.displayDuration = 5000 
+                                backend.adjustDisplayDuration(-60000)
                             }
                         }
                     }
@@ -176,7 +170,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (notifService.displayDuration > 5000) notifService.displayDuration -= 5000
+                                backend.adjustDisplayDuration(-5000)
                             }
                         }
                     }
@@ -191,7 +185,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (notifService.displayDuration <= 300000) notifService.displayDuration += 5000
+                                backend.adjustDisplayDuration(5000)
                             }
                         }
                     }
@@ -206,7 +200,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (notifService.displayDuration <= 240000) notifService.displayDuration += 60000 // Max 5m
+                                backend.adjustDisplayDuration(60000)
                             }
                         }
                     }
@@ -227,6 +221,7 @@ PanelWindow {
                 delegate: Rectangle {
                     // Notification Item
                     required property var modelData
+                    required property int index
                     property int modelIndex: index
 
                     width: ListView.view.width
@@ -254,7 +249,7 @@ PanelWindow {
                                 anchors.fill: parent
                                 source: modelData.appIcon
                                 fillMode: Image.PreserveAspectCrop
-                                visible: modelData.appIcon !== "" && (modelData.appIcon.startsWith("file://") || modelData.appIcon.startsWith("image://"))
+                                visible: backend.showsImage(modelData.appIcon)
                             }
                             
                             // Fallback Icon
@@ -264,7 +259,7 @@ PanelWindow {
                                 font.family: "JetBrainsMono Nerd Font"
                                 font.pixelSize: 20
                                 color: Theme.text
-                                visible: !(modelData.appIcon !== "" && (modelData.appIcon.startsWith("file://") || modelData.appIcon.startsWith("image://")))
+                                visible: !backend.showsImage(modelData.appIcon)
                             }
                         }
 
@@ -289,7 +284,7 @@ PanelWindow {
                             }
 
                             Text {
-                                text: notifService.privacyMode ? "New notification" : modelData.summary
+                                text: backend.notificationSummary(modelData)
                                 font.bold: true
                                 font.pixelSize: 14
                                 color: Theme.text
@@ -298,7 +293,7 @@ PanelWindow {
                             }
 
                             Text {
-                                text: notifService.privacyMode ? "Content hidden" : modelData.body
+                                text: backend.notificationBody(modelData)
                                 font.pixelSize: 13
                                 color: Theme.subtext
                                 elide: Text.ElideRight

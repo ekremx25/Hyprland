@@ -1,10 +1,10 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Qt.labs.platform
 import "../../../Widgets"
 import "../../../Services"
+import "../../../Services/core/Log.js" as Log
 
 Item {
     id: layoutPage
@@ -24,6 +24,27 @@ Item {
         { key: "unity", name: "Unity", icon: "", desc: "Sol: Launcher, Workspaces, Calendar | Orta: Clock | Sağ: Volume, Tray, Power" },
         { key: "custom", name: "Custom", icon: "", desc: "Your saved custom layout" }
     ]
+
+    FileCopyAction {
+        id: presetCopyAction
+        onFinished: success => {
+            if (!success) return;
+            layoutPage.activePreset = applyPendingPreset;
+            layoutPage.presetApplied();
+            Log.debug("LayoutPage", "Applied preset: " + applyPendingPreset);
+        }
+    }
+
+    FileCopyAction {
+        id: saveCustomAction
+        onFinished: success => {
+            if (!success) return;
+            layoutPage.activePreset = "custom";
+            Log.debug("LayoutPage", "Saved current layout as custom");
+        }
+    }
+
+    property string applyPendingPreset: ""
 
     Flickable {
         anchors.fill: parent
@@ -164,39 +185,13 @@ Item {
     // Apply preset
     function applyPreset(presetKey) {
         layoutPage.activePreset = presetKey; // Optimistic update
-        applyProc.presetKey = presetKey;
-        console.log("[LayoutPage] Applying preset: " + presetKey);
-        applyProc.command = ["bash", "-c", "cp " + presetsDir + presetKey + ".json " + barConfigPath];
-        applyProc.running = true;
-    }
-
-    Process {
-        id: applyProc
-        property string presetKey: ""
-        running: false
-        onExited: (exitCode) => {
-            if (exitCode === 0) {
-                layoutPage.activePreset = applyProc.presetKey;
-                layoutPage.presetApplied();
-                console.log("[LayoutPage] Applied preset: " + applyProc.presetKey);
-            }
-        }
+        applyPendingPreset = presetKey;
+        Log.debug("LayoutPage", "Applying preset: " + presetKey);
+        presetCopyAction.run(presetsDir + presetKey + ".json", barConfigPath);
     }
 
     // Save current config as custom
     function saveCurrentAsCustom() {
-        saveCustomProc.command = ["bash", "-c", "cp " + barConfigPath + " " + presetsDir + "custom.json"];
-        saveCustomProc.running = true;
-    }
-
-    Process {
-        id: saveCustomProc
-        running: false
-        onExited: (exitCode) => {
-            if (exitCode === 0) {
-                layoutPage.activePreset = "custom";
-                console.log("[LayoutPage] Saved current layout as custom");
-            }
-        }
+        saveCustomAction.run(barConfigPath, presetsDir + "custom.json");
     }
 }

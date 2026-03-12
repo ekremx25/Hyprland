@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
+import "."
 import "../../../Widgets"
 
 Rectangle {
@@ -17,10 +17,9 @@ Rectangle {
     property color popupText: Theme.text
     property color accentColor: Theme.calendarColor
 
-    // --- DURUM KONTROLÜ ---
-    // showFullDate: Artık varsayılan olarak TRUE (her zaman tarih ve saat görünsün)
-    property bool showFullDate: true
-    property date currentDate: new Date()
+    CalendarBackend { id: backend }
+    property alias showFullDate: backend.showFullDate
+    property alias currentDate: backend.currentDate
 
     height: 34
     radius: 17
@@ -62,12 +61,6 @@ Rectangle {
             font.family: "JetBrainsMono Nerd Font"
             font.pixelSize: 13 // Matches others roughly
         }
-    }
-
-    // Saat Güncelleyici
-    Timer {
-        interval: 1000; running: true; repeat: true; triggeredOnStart: true
-        onTriggered: dateRoot.currentDate = new Date()
     }
 
     // Popup Kapatma Zamanlayıcısı
@@ -236,13 +229,13 @@ Rectangle {
                                     width: 30; height: 30; radius: 15
                                     color: prevMouse.containsMouse ? "#313244" : "transparent"
                                     Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
-                                    MouseArea { id: prevMouse; anchors.fill: parent; hoverEnabled: true; onClicked: calendar.prevMonth() }
+                                    MouseArea { id: prevMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.prevMonth() }
                                 }
 
                                 Item { Layout.fillWidth: true }
 
                                 Text {
-                                    text: calendar.monthName + " " + calendar.displayYear
+                                    text: backend.monthName + " " + backend.displayYear
                                     color: popupText
                                     font.bold: true; font.pixelSize: 18
                                     font.family: "JetBrainsMono Nerd Font"
@@ -254,7 +247,7 @@ Rectangle {
                                     width: 30; height: 30; radius: 15
                                     color: nextMouse.containsMouse ? "#313244" : "transparent"
                                     Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
-                                    MouseArea { id: nextMouse; anchors.fill: parent; hoverEnabled: true; onClicked: calendar.nextMonth() }
+                                    MouseArea { id: nextMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.nextMonth() }
                                 }
                             }
 
@@ -278,7 +271,7 @@ Rectangle {
                             GridLayout {
                                 columns: 7; columnSpacing: 4; rowSpacing: 4
                                 Repeater {
-                                    model: calendar.days
+                                    model: backend.days
                                     Rectangle {
                                         width: 36; height: 36; radius: 18
                                         color: modelData.isToday ? accentColor : "transparent"
@@ -309,7 +302,7 @@ Rectangle {
         }
         onVisibleChanged: {
             if (visible) {
-                calendar.toToday()
+                backend.toToday()
                 repositionCalendar()
                 calWindow.panelOpacity = 0.0
                 calWindow.panelYOffset = -18
@@ -330,46 +323,4 @@ Rectangle {
     onWidthChanged: if (calWindow.visible) calWindow.repositionCalendar()
     onHeightChanged: if (calWindow.visible) calWindow.repositionCalendar()
 
-    QtObject {
-        id: calendar
-        property var date: new Date()
-        property int displayYear: date.getFullYear()
-        property int displayMonth: date.getMonth()
-        property string monthName: ""
-        property var days: []
-        property var monthNames: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-
-        function toToday() {
-            var now = new Date();
-            displayYear = now.getFullYear(); displayMonth = now.getMonth();
-            rebuild();
-        }
-        function prevMonth() {
-            if (displayMonth === 0) { displayMonth = 11; displayYear--; } else { displayMonth--; }
-            rebuild();
-        }
-        function nextMonth() {
-            if (displayMonth === 11) { displayMonth = 0; displayYear++; } else { displayMonth++; }
-            rebuild();
-        }
-        function rebuild() {
-            monthName = monthNames[displayMonth];
-            var result = [];
-            var firstDay = new Date(displayYear, displayMonth, 1).getDay();
-            if (firstDay === 0) firstDay = 7;
-            var daysInMonth = new Date(displayYear, displayMonth + 1, 0).getDate();
-            var daysInPrevMonth = new Date(displayYear, displayMonth, 0).getDate();
-            var startOffset = firstDay - 1;
-            for (var i = 0; i < startOffset; i++) result.push({ day: daysInPrevMonth - startOffset + i + 1, inMonth: false, isToday: false });
-            var today = new Date();
-            for (var j = 1; j <= daysInMonth; j++) {
-                var isToday = (today.getDate() === j && today.getMonth() === displayMonth && today.getFullYear() === displayYear);
-                result.push({ day: j, inMonth: true, isToday: isToday });
-            }
-            var remaining = 42 - result.length;
-            for (var k = 1; k <= remaining; k++) result.push({ day: k, inMonth: false, isToday: false });
-            days = result;
-        }
-        Component.onCompleted: rebuild()
-    }
 }

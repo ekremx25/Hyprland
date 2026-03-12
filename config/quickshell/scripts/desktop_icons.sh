@@ -1,4 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -o pipefail
+shopt -s nullglob
 # desktop_icons.sh - Generates app_id → icon_name, app_id → exec_command and app_id → desktop_id maps.
 # Same approach as Rofi/Wofi: resolve from .desktop metadata.
 # Output: Three JSON objects separated by newline.
@@ -87,7 +89,7 @@ for dir in $DESKTOP_DIRS; do
 
         # Localized/visible app name → icon/cmd/desktop (helps with odd app_id/class names)
         if [ -n "$app_name" ]; then
-            name_key=$(echo "$app_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9._-]//g')
+            name_key=$(printf '%s' "$app_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[[:space:]]+/-/g; s/[^a-z0-9._-]//g')
             if [ -n "$name_key" ]; then
                 icon_map["$name_key"]="$icon"
                 [ -n "$exec_full" ] && cmd_map["$name_key"]="$exec_full"
@@ -122,7 +124,7 @@ for key in "${!cmd_map[@]}"; do
         echo ","
     fi
     # Escape double quotes in command values
-    value=$(echo "${cmd_map[$key]}" | sed 's/"/\\"/g')
+    value=$(printf '%s' "${cmd_map[$key]}" | sed 's/"/\\"/g')
     printf '"%s":"%s"' "$key" "$value"
 done
 echo ""

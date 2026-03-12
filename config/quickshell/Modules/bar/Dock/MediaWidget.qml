@@ -1,9 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQml
-import Quickshell
 import Quickshell.Services.Mpris
-import Quickshell.Io
 import "../../../Widgets"
 
 Rectangle {
@@ -12,18 +9,58 @@ Rectangle {
     // --- Configuration ---
     required property real dockScale
 
-
     // --- State ---
     property var currentPlayer: null
     property bool hasMedia: currentPlayer !== null
     property bool isPlaying: currentPlayer ? currentPlayer.isPlaying : false
     property bool expanded: true
+    readonly property string currentTitle: currentPlayer ? (currentPlayer.trackTitle || "Unknown") : ""
+    readonly property string currentArtist: currentPlayer ? (currentPlayer.trackArtist || "Unknown") : ""
+    readonly property string trackArtSource: currentPlayer ? currentPlayer.trackArtUrl : ""
     readonly property real bgLuma: (mediaWidget.color.r * 0.299) + (mediaWidget.color.g * 0.587) + (mediaWidget.color.b * 0.114)
     readonly property real primaryLuma: (Theme.primary.r * 0.299) + (Theme.primary.g * 0.587) + (Theme.primary.b * 0.114)
     readonly property bool uiIsLight: bgLuma > 0.55
     readonly property color adaptiveText: uiIsLight ? "#0f172a" : "#e2e8f0"
     readonly property color adaptiveSubtext: uiIsLight ? "#475569" : "#94a3b8"
     readonly property color adaptiveOnPrimary: primaryLuma > 0.62 ? "#0b1220" : "#f8fafc"
+
+    component MediaControlButton: Rectangle {
+        required property string iconText
+        required property var onActivate
+        property bool hoverAccent: false
+        property bool primaryButton: false
+        property bool activeState: false
+        property real buttonSize: 28 * dockScale
+
+        Layout.preferredWidth: buttonSize
+        Layout.preferredHeight: buttonSize
+        radius: buttonSize / 2
+        color: primaryButton
+            ? Theme.primary
+            : hoverAccent
+                ? (buttonMouse.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.2) : Qt.rgba(137/255, 180/255, 250/255, 0.08))
+                : (buttonMouse.containsMouse ? Qt.rgba(255,255,255,0.1) : "transparent")
+
+        Text {
+            anchors.centerIn: parent
+            text: iconText
+            font.family: "JetBrainsMono Nerd Font"
+            font.pixelSize: (primaryButton ? 14 : 12) * dockScale
+            color: primaryButton
+                ? mediaWidget.adaptiveOnPrimary
+                : activeState
+                    ? mediaWidget.adaptiveText
+                    : mediaWidget.adaptiveSubtext
+        }
+
+        MouseArea {
+            id: buttonMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: if (onActivate) onActivate()
+        }
+    }
 
     // --- Instantiator: track Mpris players ---
     Instantiator {
@@ -80,7 +117,6 @@ Rectangle {
         anchors.centerIn: parent
         anchors.margins: 4 * dockScale
         spacing: 6 * dockScale
-
 
         // === Separator ===
         Rectangle {
@@ -143,7 +179,7 @@ Rectangle {
 
                 Image {
                     anchors.fill: parent
-                    source: mediaWidget.currentPlayer ? mediaWidget.currentPlayer.trackArtUrl : ""
+                    source: mediaWidget.trackArtSource
                     fillMode: Image.PreserveAspectCrop
                     visible: source != ""
                 }
@@ -174,7 +210,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: mediaWidget.currentPlayer ? (mediaWidget.currentPlayer.trackTitle || "Unknown") : ""
+                    text: mediaWidget.currentTitle
                     color: mediaWidget.adaptiveText
                     font.bold: true
                     font.pixelSize: 12 * dockScale
@@ -183,7 +219,7 @@ Rectangle {
 
                 Text {
                     Layout.fillWidth: true
-                    text: mediaWidget.currentPlayer ? (mediaWidget.currentPlayer.trackArtist || "Unknown") : ""
+                    text: mediaWidget.currentArtist
                     color: mediaWidget.adaptiveSubtext
                     font.pixelSize: 10 * dockScale
                     elide: Text.ElideRight
@@ -194,98 +230,37 @@ Rectangle {
             RowLayout {
                 spacing: 2 * dockScale
 
-                // Prev
-                Rectangle {
-                    Layout.preferredWidth: 28 * dockScale
-                    Layout.preferredHeight: 28 * dockScale
-                    radius: 14 * dockScale
-                    color: prevMouse.containsMouse ? Qt.rgba(255,255,255,0.1) : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "󰒮"
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 14 * dockScale
-                        color: mediaWidget.adaptiveText
-                    }
-
-                    MouseArea {
-                        id: prevMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.previous()
+                MediaControlButton {
+                    iconText: "󰒮"
+                    activeState: true
+                    onActivate: function() {
+                        if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.previous();
                     }
                 }
 
-                // Play/Pause
-                Rectangle {
-                    Layout.preferredWidth: 32 * dockScale
-                    Layout.preferredHeight: 32 * dockScale
-                    radius: 16 * dockScale
-                    color: Theme.primary
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: mediaWidget.isPlaying ? "⏸" : ""
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 14 * dockScale
-                        color: mediaWidget.adaptiveOnPrimary
-                    }
-
-                    MouseArea {
-                        id: ppMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.togglePlaying()
+                MediaControlButton {
+                    iconText: mediaWidget.isPlaying ? "⏸" : ""
+                    primaryButton: true
+                    buttonSize: 32 * dockScale
+                    onActivate: function() {
+                        if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.togglePlaying();
                     }
                 }
 
-                // Next
-                Rectangle {
-                    Layout.preferredWidth: 28 * dockScale
-                    Layout.preferredHeight: 28 * dockScale
-                    radius: 14 * dockScale
-                    color: nextMouse.containsMouse ? Qt.rgba(255,255,255,0.1) : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "󰒭"
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 14 * dockScale
-                        color: mediaWidget.adaptiveText
-                    }
-
-                    MouseArea {
-                        id: nextMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onClicked: if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.next()
+                MediaControlButton {
+                    iconText: "󰒭"
+                    activeState: true
+                    onActivate: function() {
+                        if (mediaWidget.currentPlayer) mediaWidget.currentPlayer.next();
                     }
                 }
 
-                // Toggle (Expand/Collapse)
-                Rectangle {
-                    Layout.preferredWidth: 28 * dockScale
-                    Layout.preferredHeight: 28 * dockScale
-                    radius: 14 * dockScale
-                    color: toggleMouse.containsMouse
-                        ? Qt.rgba(137/255, 180/255, 250/255, 0.2)
-                        : Qt.rgba(137/255, 180/255, 250/255, 0.08)
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: mediaWidget.expanded ? "󰅁" : "󰅀"
-                        font.family: "JetBrainsMono Nerd Font"
-                        font.pixelSize: 12 * dockScale
-                        color: mediaWidget.expanded ? mediaWidget.adaptiveText : mediaWidget.adaptiveSubtext
-                    }
-
-                    MouseArea {
-                        id: toggleMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: mediaWidget.expanded = !mediaWidget.expanded
+                MediaControlButton {
+                    iconText: mediaWidget.expanded ? "󰅁" : "󰅀"
+                    hoverAccent: true
+                    activeState: mediaWidget.expanded
+                    onActivate: function() {
+                        mediaWidget.expanded = !mediaWidget.expanded;
                     }
                 }
             }

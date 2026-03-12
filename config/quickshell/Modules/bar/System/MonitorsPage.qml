@@ -1,18 +1,25 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
+import "."
 import "../../../Widgets"
 import "../../../Services"
+import "../../../Services/core/Log.js" as Log
 
 Item {
     id: page
 
+    MonitorsBackend {
+        id: backend
+        onRefreshRequested: page.syncSelection()
+    }
 
     // ═══ STATE ═══
-    property var outputs: []          // [{name, desc, res, hz, scale, posX, posY, modes: [{res,hz,current}]}]
-    property int selectedIdx: 0       // Seçili monitör indexi
-    property var selectedOutput: outputs.length > selectedIdx ? outputs[selectedIdx] : null
+    property alias outputs: backend.outputs
+    property alias selectedIdx: backend.selectedIdx
+    property alias selectedOutput: backend.selectedOutput
+    property alias colorModeOptions: backend.colorModeOptions
+    property alias colorModeLabels: backend.colorModeLabels
 
     // Seçim state (uygula denmeden değişmez)
     property string selRes: ""
@@ -33,288 +40,6 @@ Item {
     property int selSdrEotf: 1
     property bool eotfDropdownOpen: false
 
-    // Saved config from monitor_config.json (used to restore VRR/HDR etc.)
-    property var savedConfig: ({})
-
-    // ═══ Load saved config ═══
-    Process {
-        id: configLoadProc
-        command: ["sh", "-c", "cat ~/.config/quickshell/monitor_config.json 2>/dev/null || echo '{}'"]
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { configLoadProc.buf += data; } }
-        onExited: {
-            try {
-                page.savedConfig = JSON.parse(configLoadProc.buf);
-            } catch(e) {
-                page.savedConfig = {};
-            }
-            configLoadProc.buf = "";
-            // Now query compositor
-            randrProc.buf = "";
-            randrProc.running = true;
-        }
-    }
-
-    // ═══ Outputs PARSE ═══
-    Process {
-        id: randrProc
-        command: CompositorService.isHyprland ? ["hyprctl", "monitors", "all", "-j"] : (CompositorService.isMango ? ["wlr-randr"] : ["niri", "msg", "-j", "outputs"])
-        property string buf: ""
-        stdout: SplitParser { onRead: (data) => { randrProc.buf += data + "\n"; } }
-        onExited: { 
-            if (randrProc.buf.trim() !== "") {
-                if (CompositorService.isHyprland) {
-                    page.parseHyprland(randrProc.buf);
-                } else if (CompositorService.isMango) {
-                    page.parseMango(randrProc.buf);
-                } else {
-                    page.parseAll(randrProc.buf); 
-                }
-            }
-            randrProc.buf = ""; 
-        }
-    }
-
-    // Mango tespiti gecikmeli olabilir — tespit tamamlanınca yeniden yükle
-    Connections {
-        target: CompositorService
-        function onCompositorChanged() {
-            if (CompositorService.compositor === "mango") {
-                console.log("[MonitorsPage] Mango detected, refreshing monitors...");
-                refresh();
-            }
-        }
-    }
-
-    function parseHyprland(text) {
-        try {
-            var data = JSON.parse(text);
-            var outs = [];
-            
-            for (var i = 0; i < data.length; i++) {
-                var info = data[i];
-                var outObj = {
-                    name: info.name,
-                    desc: (info.make || "") + " " + (info.model || ""),
-                    res: info.width + "x" + info.height,
-                    hz: info.refreshRate ? info.refreshRate.toFixed(3) : "60.000",
-                    scale: info.scale ? info.scale.toFixed(2) : "1.00",
-                    posX: info.x || 0,
-                    posY: info.y || 0,
-                    hdr: (info.colorManagementPreset === "hdr" || info.colorManagement === "hdr" || info.cm === "hdr") ? true : false,
-                    bitdepth: (info.currentFormat && info.currentFormat.indexOf("2101010") >= 0) ? 10 : (info.bitdepth || 8),
-                    vrr: (info.vrr === true) ? 1 : ((info.vrr === false) ? 0 : (info.vrr || 0)),
-                    sdrLuminance: info.sdrMaxLuminance || info.sdr_max_luminance || 450,
-                    sdrBrightness: info.sdrBrightness || info.sdrbrightness || 1.0,
-                    sdrSaturation: info.sdrSaturation || info.sdrsaturation || 1.0,
-                    colorManagement: info.colorManagementPreset || info.cm || info.colorManagement || "srgb",
-                    sdrEotf: info.sdr_eotf || info.sdreotf || 1,
-                    modes: []
-                };
-
-                if (info.availableModes) {
-                    for (var m = 0; m < info.availableModes.length; m++) {
-                        // e.g. "3840x2160@160.00Hz"
-                        var modeStr = info.availableModes[m];
-                        var parts = modeStr.split("@");
-                        if (parts.length === 2) {
-                            var r = parts[0];
-                            var h = parts[1].replace("Hz", "");
-                            var isCur = (r === outObj.res && Math.abs(parseFloat(h) - parseFloat(outObj.hz)) < 1.0);
-                            var formattedH = parseFloat(h).toFixed(3);
-                            outObj.modes.push({ res: r, hz: formattedH, current: isCur });
-                            if (isCur) {
-                                outObj.hz = formattedH;
-                            }
-                        }
-                    }
-                }
-
-                // Overlay saved config values (VRR, HDR, etc.) since hyprctl doesn't report them accurately
-                var saved = page.savedConfig[outObj.name];
-                if (saved) {
-                    if (saved.vrr !== undefined) outObj.vrr = saved.vrr;
-                    if (saved.hdr !== undefined) outObj.hdr = saved.hdr;
-                    if (saved.bitdepth !== undefined) outObj.bitdepth = saved.bitdepth;
-                    if (saved.sdrLuminance !== undefined) outObj.sdrLuminance = saved.sdrLuminance;
-                    if (saved.sdrBrightness !== undefined) outObj.sdrBrightness = saved.sdrBrightness;
-                    if (saved.sdrSaturation !== undefined) outObj.sdrSaturation = saved.sdrSaturation;
-                    if (saved.colorManagement !== undefined) outObj.colorManagement = saved.colorManagement;
-                    if (saved.sdrEotf !== undefined) outObj.sdrEotf = saved.sdrEotf;
-                }
-                
-                outs.push(outObj);
-            }
-
-            outputs = outs;
-            if (selectedIdx >= outs.length) selectedIdx = 0;
-            syncSelection();
-        } catch (e) {
-            console.log("Hyprland outputs parse error: " + e);
-        }
-    }
-
-    function parseAll(text) {
-        try {
-            var data = JSON.parse(text);
-            var outs = [];
-            
-            var keys = Object.keys(data);
-            for (var i = 0; i < keys.length; i++) {
-                var name = keys[i];
-                var info = data[name];
-                
-                var outObj = {
-                    name: name,
-                    desc: (info.make || "") + " " + (info.model || ""),
-                    res: "",
-                    hz: "",
-                    scale: "1.0",
-                    posX: 0,
-                    posY: 0,
-                    modes: []
-                };
-
-                if (info.logical) {
-                    outObj.posX = info.logical.x;
-                    outObj.posY = info.logical.y;
-                    outObj.scale = info.logical.scale.toFixed(2);
-                }
-
-                // Modes
-                if (info.modes) {
-                    for (var m = 0; m < info.modes.length; m++) {
-                        var mode = info.modes[m];
-                        var r = mode.width + "x" + mode.height;
-                        var h = (mode.refresh_rate / 1000.0).toFixed(3);
-                        var isCur = (m === info.current_mode);
-                        
-                        outObj.modes.push({ res: r, hz: h, current: isCur });
-                        
-                        if (isCur) {
-                            outObj.res = r;
-                            outObj.hz = h;
-                        }
-                    }
-                }
-                
-                outs.push(outObj);
-            }
-
-            outputs = outs;
-            if (selectedIdx >= outs.length) selectedIdx = 0;
-            syncSelection();
-        } catch (e) {
-            console.log("Niri outputs parse error: " + e);
-        }
-    }
-
-    // ═══ Mango wlr-randr PARSE ═══
-    function parseMango(text) {
-        try {
-            var outs = [];
-            var lines = text.split("\n");
-            var current = null;
-            var inModes = false;
-
-            for (var i = 0; i < lines.length; i++) {
-                var line = lines[i];
-                var trimmed = line.trim();
-                if (trimmed === "") continue;
-
-                // New output: line starts at column 0 (no leading whitespace)
-                // e.g. 'DP-2 "ASUSTek COMPUTER INC XG27UCS (DP-2)"'
-                if (line.length > 0 && line[0] !== ' ' && line[0] !== '\t') {
-                    // Save previous output
-                    if (current) outs.push(current);
-
-                    var nameEnd = trimmed.indexOf(' ');
-                    var outName = nameEnd > 0 ? trimmed.substring(0, nameEnd) : trimmed;
-                    var descPart = nameEnd > 0 ? trimmed.substring(nameEnd + 1) : "";
-                    // Remove surrounding quotes
-                    descPart = descPart.replace(/^"|"$/g, "").trim();
-                    // Remove trailing "(DP-x)" part for cleaner desc
-                    descPart = descPart.replace(/\s*\([^)]*\)\s*$/, "").trim();
-
-                    current = {
-                        name: outName,
-                        desc: descPart || outName,
-                        res: "",
-                        hz: "",
-                        scale: "1.00",
-                        posX: 0,
-                        posY: 0,
-                        modes: []
-                    };
-                    inModes = false;
-                    continue;
-                }
-
-                if (!current) continue;
-
-                if (trimmed === "Modes:") {
-                    inModes = true;
-                    continue;
-                }
-
-                // Parse mode lines: "3840x2160 px, 160.000000 Hz (preferred, current)"
-                if (inModes && trimmed.indexOf("px,") > 0) {
-                    var modeMatch = trimmed.match(/(\d+)x(\d+)\s+px,\s+([\d.]+)\s+Hz(.*)/);
-                    if (modeMatch) {
-                        var mw = modeMatch[1];
-                        var mh = modeMatch[2];
-                        var mhz = parseFloat(modeMatch[3]).toFixed(3);
-                        var flags = modeMatch[4] || "";
-                        var isCurrent = flags.indexOf("current") >= 0;
-                        var r = mw + "x" + mh;
-
-                        current.modes.push({ res: r, hz: mhz, current: isCurrent });
-
-                        if (isCurrent) {
-                            current.res = r;
-                            current.hz = mhz;
-                        }
-                    }
-                    continue;
-                }
-
-                // Position: "Position: 0,0"
-                if (trimmed.startsWith("Position:")) {
-                    inModes = false;
-                    var posStr = trimmed.substring("Position:".length).trim();
-                    var posParts = posStr.split(",");
-                    if (posParts.length >= 2) {
-                        current.posX = parseInt(posParts[0]) || 0;
-                        current.posY = parseInt(posParts[1]) || 0;
-                    }
-                    continue;
-                }
-
-                // Scale: "Scale: 1.250000"
-                if (trimmed.startsWith("Scale:")) {
-                    inModes = false;
-                    var scaleVal = parseFloat(trimmed.substring("Scale:".length).trim());
-                    if (!isNaN(scaleVal)) current.scale = scaleVal.toFixed(2);
-                    continue;
-                }
-
-                // Other known fields stop mode parsing
-                if (trimmed.startsWith("Enabled:") || trimmed.startsWith("Transform:") || trimmed.startsWith("Physical size:")) {
-                    inModes = false;
-                }
-            }
-
-            // Push last output
-            if (current) outs.push(current);
-
-            outputs = outs;
-            if (selectedIdx >= outs.length) selectedIdx = 0;
-            syncSelection();
-        } catch (e) {
-            console.log("Mango wlr-randr parse error: " + e);
-        }
-    }
-
     function syncSelection() {
         if (!selectedOutput) return;
         selRes = selectedOutput.res;
@@ -330,214 +55,32 @@ Item {
         selSdrEotf = (selectedOutput.sdrEotf !== undefined) ? selectedOutput.sdrEotf : 1;
     }
 
-    // Tüm monitörlerin pozisyonlarını efektif çözünürlüğe göre yeniden hesapla
-    function recalcPositions() {
-        if (outputs.length === 0) return;
+    function isHdrColorMode(mode) {
+        return backend.isHdrColorMode(mode);
+    }
 
-        // Seçili monitörün scale/res değerlerini güncelle (tüm property'leri koru)
-        var updated = [];
-        for (var i = 0; i < outputs.length; i++) {
-            var isSel = (outputs[i].name === selectedOutput.name);
-            var o = {
-                name: outputs[i].name,
-                desc: outputs[i].desc,
-                res: isSel ? selRes : outputs[i].res,
-                hz: isSel ? selHz : outputs[i].hz,
-                scale: isSel ? selScale : parseFloat(outputs[i].scale),
-                posX: outputs[i].posX,
-                posY: outputs[i].posY,
-                hdr: isSel ? selHdr : (outputs[i].hdr || false),
-                bitdepth: isSel ? selBitdepth : (outputs[i].bitdepth || 8),
-                vrr: isSel ? selVrr : ((outputs[i].vrr !== undefined) ? outputs[i].vrr : 0),
-                sdrLuminance: isSel ? selSdrLuminance : (outputs[i].sdrLuminance || 450),
-                sdrBrightness: isSel ? selSdrBrightness : (outputs[i].sdrBrightness || 1.0),
-                sdrSaturation: isSel ? selSdrSaturation : (outputs[i].sdrSaturation || 1.0),
-                colorManagement: isSel ? selColorManagement : (outputs[i].colorManagement || "srgb"),
-                sdrEotf: isSel ? selSdrEotf : ((outputs[i].sdrEotf !== undefined) ? outputs[i].sdrEotf : 1),
-                modes: outputs[i].modes
-            };
-            updated.push(o);
-        }
-
-        // posX'e göre sırala (soldan sağa)
-        updated.sort(function(a, b) { return a.posX - b.posX; });
-
-        // Pozisyonları yeniden hesapla
-        var currentX = 0;
-        for (var j = 0; j < updated.length; j++) {
-            var parts = updated[j].res.split("x");
-            var w = parseInt(parts[0]);
-            var sc = parseFloat(updated[j].scale);
-            updated[j].posX = currentX;
-            updated[j].posY = 0;
-            currentX += Math.round(w / sc);
-        }
-
-        outputs = updated;
+    function isRiskyColorMode(mode) {
+        return backend.isRiskyColorMode(mode);
     }
 
     function getUniqueRes() {
-        if (!selectedOutput) return [];
-        var seen = {};
-        var result = [];
-        for (var i = 0; i < selectedOutput.modes.length; i++) {
-            if (!seen[selectedOutput.modes[i].res]) {
-                seen[selectedOutput.modes[i].res] = true;
-                result.push(selectedOutput.modes[i].res);
-            }
-        }
-        return result;
+        return backend.getUniqueRes(selectedOutput);
     }
 
     function getRefreshRates() {
-        if (!selectedOutput) return [];
-        var rates = [];
-        for (var i = 0; i < selectedOutput.modes.length; i++) {
-            if (selectedOutput.modes[i].res === selRes) {
-                rates.push({ hz: selectedOutput.modes[i].hz, current: selectedOutput.modes[i].current });
-            }
-        }
-        rates.sort(function(a, b) { return parseFloat(b.hz) - parseFloat(a.hz); });
-        // Deduplicate
-        var unique = [];
-        var seen = {};
-        for (var j = 0; j < rates.length; j++) {
-            var key = parseFloat(rates[j].hz).toFixed(2);
-            if (!seen[key]) { seen[key] = true; unique.push(rates[j]); }
-        }
-        return unique;
-    }
-
-    // ═══ APPLY ═══
-    Process {
-        id: applyProc
-        command: []
-        running: false
-        stdout: SplitParser { onRead: (data) => console.log("[wlr-randr stdout]: " + data) }
-        stderr: SplitParser { onRead: (data) => console.log("[wlr-randr stderr]: " + data) }
-        onExited: {
-            console.log("wlr-randr exited with code: " + exitCode);
-            // Give it a moment for the compositor to settle, then refresh
-            refreshTimer.start();
-        }
-    }
-
-    Timer {
-        id: refreshTimer
-        interval: 500
-        repeat: false
-        onTriggered: refresh()
+        return backend.getRefreshRates(selectedOutput, selRes);
     }
 
     function applySettings() {
         if (!selectedOutput) return;
-        
         if (!selRes || !selHz) {
-            console.log("Cannot apply: Resolution or Hz missing");
+            Log.warn("MonitorsPage", "Cannot apply settings without resolution and refresh rate");
             return;
         }
-
-        // Scale veya çözünürlük değişince pozisyonları yeniden hesapla
-        recalcPositions();
-        applyProc.running = false;
-        var cmds = [];
-        var saveCmds = [];
-
-        saveCmds.push("mkdir -p ~/.config/quickshell && ([ -s ~/.config/quickshell/monitor_config.json ] || echo '{}' > ~/.config/quickshell/monitor_config.json)");
-        
-        for (var i = 0; i < outputs.length; i++) {
-            var mon = outputs[i];
-            var isSelected = (mon.name === selectedOutput.name);
-            var monRes = isSelected ? selRes : mon.res;
-            var monHz = isSelected ? parseFloat(selHz).toFixed(2) : parseFloat(mon.hz).toFixed(2);
-            var monScaleRaw = isSelected ? selScale : parseFloat(mon.scale);
-            var monScale = String(parseFloat(monScaleRaw));
-            var monPosX = Math.round(mon.posX);
-            var monPosY = Math.round(mon.posY);
-
-            if (CompositorService.isHyprland) {
-                var monCmd = "hyprctl keyword monitor " + mon.name + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale;
-                // HDR parameters for selected monitor
-                var monHdr = isSelected ? page.selHdr : (mon.hdr || false);
-                var monBitdepth = isSelected ? page.selBitdepth : (mon.bitdepth || 8);
-                var monVrr = isSelected ? page.selVrr : (mon.vrr || 0);
-                var monSdrLum = isSelected ? page.selSdrLuminance : (mon.sdrLuminance || 450);
-                var monSdrBri = isSelected ? page.selSdrBrightness : (mon.sdrBrightness || 1.0);
-                var monSdrSat = isSelected ? page.selSdrSaturation : (mon.sdrSaturation || 1.0);
-                var monCm = isSelected ? page.selColorManagement : (mon.colorManagement || "srgb");
-                var monEotf = isSelected ? page.selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
-                
-                if (monHdr || monCm === "hdr" || monCm === "hdredid") {
-                    // Ensure the applied cm string is valid for HDR. If monHdr is toggled manually, default cm to "hdr" if it's not "hdredid"
-                    var appliedCm = (monCm === "hdr" || monCm === "hdredid") ? monCm : "hdr";
-                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
-                } else if (monCm === "default") {
-                    // "default" is not a valid Hyprland cm value; omit cm param to let Hyprland use its built-in default
-                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr;
-                } else {
-                    // srgb, dcip3, dp3, adobe, wide, edid
-                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + monCm;
-                }
-                cmds.push(monCmd);
-            } else if (CompositorService.isMango) {
-                // Mango: wlr-randr geçersiz Hz ile çökebiliyor, o yüzden sadece config.conf + reload kullanıyoruz.
-
-                // config.conf'a monitorrule olarak da yaz (kalıcılık)
-                var resParts = monRes.split("x");
-                var monW = resParts[0];
-                var monH = resParts[1];
-                var monRefresh = Math.round(parseFloat(monHz));
-                var ruleStr = "monitorrule=name:" + mon.name + ",width:" + monW + ",height:" + monH + ",refresh:" + monRefresh + ",x:" + monPosX + ",y:" + monPosY + ",scale:" + monScale;
-                // sed ile mevcut monitorrule satırını güncelle veya ekle
-                cmds.push("sed -i '/^monitorrule=name:" + mon.name + "/d' ~/.config/mango/config.conf && "
-                    + "sed -i '/^# Monitor Rules$/a " + ruleStr + "' ~/.config/mango/config.conf");
-            } else {
-                var applyHz6 = isSelected ? parseFloat(selHz).toFixed(6) : parseFloat(mon.hz).toFixed(6);
-                var niriConf = "$HOME/.config/niri/config.kdl";
-                var newMode = monRes + "@" + applyHz6;
-                cmds.push("python3 -c \"\n"
-                    + "import re, os\n"
-                    + "conf = os.path.expanduser('" + niriConf + "')\n"
-                    + "with open(conf) as f: text = f.read()\n"
-                    + "pattern = r'(output\\\\s+\\\"" + mon.name + "\\\"\\\\s*\\\\{)[^}]*(\\\\})'\n"
-                    + "replacement = r'\\\\1\\n    mode \\\"" + newMode + "\\\"\\n    position x=" + monPosX + " y=" + monPosY + "\\n    scale " + monScale + "\\n\\\\2'\n"
-                    + "if re.search(pattern, text):\n"
-                    + "    new_text = re.sub(pattern, replacement, text, flags=re.DOTALL)\n"
-                    + "else:\n"
-                    + "    new_text = text.rstrip() + '\\n\\noutput \\\"" + mon.name + "\\\" {\\n    mode \\\"" + newMode + "\\\"\\n    position x=" + monPosX + " y=" + monPosY + "\\n    scale " + monScale + "\\n}\\n'\n"
-                    + "with open(conf, 'w') as f: f.write(new_text)\n"
-                    + "print('Updated ' + conf)\n"
-                    + "\"");
-            }
-
-            // Her monitörün config'ini kaydet
-            var monHdrSave = isSelected ? page.selHdr : (mon.hdr || false);
-            var monBdSave = isSelected ? page.selBitdepth : (mon.bitdepth || 8);
-            var monVrrSave = isSelected ? page.selVrr : (mon.vrr || 0);
-            var monLumSave = isSelected ? page.selSdrLuminance : (mon.sdrLuminance || 450);
-            var monBriSave = isSelected ? page.selSdrBrightness : (mon.sdrBrightness || 1.0);
-            var monSatSave = isSelected ? page.selSdrSaturation : (mon.sdrSaturation || 1.0);
-            var monCmSave = isSelected ? page.selColorManagement : (mon.colorManagement || "srgb");
-            var monEotfSave = isSelected ? page.selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
-            saveCmds.push("jq '.\"" + mon.name + "\" = {\"res\": \"" + monRes + "\", \"hz\": \"" + monHz + "\", \"scale\": \"" + monScale + "\", \"posX\": \"" + monPosX + "\", \"posY\": \"" + monPosY + "\", \"hdr\": " + (monHdrSave ? "true" : "false") + ", \"bitdepth\": " + monBdSave + ", \"vrr\": " + monVrrSave + ", \"sdrLuminance\": " + monLumSave + ", \"sdrBrightness\": " + monBriSave.toFixed(1) + ", \"sdrSaturation\": " + monSatSave.toFixed(1) + ", \"colorManagement\": \"" + monCmSave + "\", \"sdrEotf\": " + monEotfSave + "}' "
-                + "~/.config/quickshell/monitor_config.json > ~/.config/quickshell/monitor_config.tmp && mv ~/.config/quickshell/monitor_config.tmp ~/.config/quickshell/monitor_config.json");
-        }
-
-        var fullCmd = cmds.join(" && ") + " && " + saveCmds.join(" && ");
-
-        // Mango için config reload ekle
-        if (CompositorService.isMango) {
-            fullCmd += " && mmsg -d reload_config";
-        }
-            
-        console.log("Running: " + fullCmd);
-        applyProc.command = ["sh", "-c", fullCmd];
-        applyProc.running = true;
+        backend.applySettings(outputs, selectedOutput.name, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf);
     }
 
-    Component.onCompleted: configLoadProc.running = true;
-
-    function refresh() { configLoadProc.buf = ""; configLoadProc.running = false; configLoadProc.running = true; }
+    function refresh() { backend.refresh(); }
 
     onSelectedOutputChanged: syncSelection()
 
@@ -951,7 +494,7 @@ Item {
                                 // Sync color management when toggling HDR
                                 if (page.selHdr) {
                                     page.selColorManagement = "hdr";
-                                } else if (page.selColorManagement === "hdr") {
+                                } else if (page.isHdrColorMode(page.selColorManagement) && page.selColorManagement !== "hdredid") {
                                     page.selColorManagement = "srgb";
                                 }
                             }
@@ -1218,18 +761,7 @@ Item {
                                 spacing: 6
                                 Text {
                                     text: {
-                                        var labels = { 
-                                            "default": "Default", 
-                                            "srgb": "sRGB", 
-                                            "dcip3": "DCI P3",
-                                            "dp3": "Apple P3",
-                                            "adobe": "Adobe RGB",
-                                            "wide": "Wide Color (BT2020)",
-                                            "edid": "EDID (Inaccurate)",
-                                            "hdr": "HDR",
-                                            "hdredid": "HDR (EDID)"
-                                        };
-                                        return labels[page.selColorManagement] || page.selColorManagement;
+                                        return page.colorModeLabels[page.selColorManagement] || page.selColorManagement;
                                     }
                                     color: Theme.text; font.pixelSize: 12; font.bold: true
                                     font.family: "JetBrainsMono Nerd Font"
@@ -1271,17 +803,7 @@ Item {
                             spacing: 2
 
                             Repeater {
-                                model: [
-                                    { value: "default", label: "Default" },
-                                    { value: "srgb",   label: "sRGB" },
-                                    { value: "dcip3",  label: "DCI P3" },
-                                    { value: "dp3",    label: "Apple P3" },
-                                    { value: "adobe",  label: "Adobe RGB" },
-                                    { value: "wide",   label: "Wide Color" },
-                                    { value: "edid",   label: "EDID" },
-                                    { value: "hdr",    label: "HDR" },
-                                    { value: "hdredid", label: "HDR (EDID)" }
-                                ]
+                                model: page.colorModeOptions
 
                                 Rectangle {
                                     required property var modelData
@@ -1316,9 +838,9 @@ Item {
                                         onClicked: {
                                             page.selColorManagement = modelData.value;
                                             // HDR seçilince selHdr'yi de senkronize et
-                                            if (modelData.value === "hdr" || modelData.value === "hdredid") {
+                                            if (page.isHdrColorMode(modelData.value)) {
                                                 page.selHdr = true;
-                                            } else if (page.selHdr && modelData.value !== "hdr" && modelData.value !== "hdredid") {
+                                            } else if (page.selHdr && !page.isHdrColorMode(modelData.value)) {
                                                 page.selHdr = false;
                                             }
                                             page.colorDropdownOpen = false;
@@ -1329,10 +851,13 @@ Item {
                         }
                     }
 
-                    // SDR EOTF dropdown
+                    // SDR EOTF dropdown is hidden for now.
+                    // We don't pass this setting to Hyprland yet, so exposing it only causes
+                    // unnecessary monitor re-apply churn and fullscreen instability.
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 12
+                        visible: false
                         Text { text: "SDR EOTF"; color: Theme.subtext; font.pixelSize: 12; font.bold: true; Layout.preferredWidth: 140 }
                         Item { Layout.fillWidth: true }
 
@@ -1382,7 +907,7 @@ Item {
                         Layout.maximumWidth: 220
                         Layout.leftMargin: parent.width - 220
                         implicitHeight: eotfOptionsCol.implicitHeight + 8
-                        visible: page.eotfDropdownOpen
+                        visible: false
                         color: Qt.rgba(49/255, 50/255, 68/255, 0.95)
                         radius: 10
                         border.color: Qt.rgba(255,255,255,0.08)

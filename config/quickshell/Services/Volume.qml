@@ -8,95 +8,134 @@ import Quickshell.Io
 Singleton {
     id: root
 
-    // Keep tracking objects when available.
+    signal osdPulse()
+
     PwObjectTracker {
-        objects: [Pipewire.defaultAudioSink, Pipewire.defaultAudioSource]
+        objects: [Pipewire.defaultAudioSink]
     }
 
-    // Headphone hint from current default sink description.
     property bool isHeadphone: {
         if (!Pipewire.defaultAudioSink) return false
         const desc = (Pipewire.defaultAudioSink.description || "").toLowerCase()
         return desc.includes("headphone")
     }
 
-    // Stable values consumed by OSD/UI.
     property bool sinkMuted: false
     property real sinkVolume: 0.0
-    property string lastRaw: ""
+    property string controlSinkName: ""
+    property string targetSinkName: ""
+    property string lastSnapshot: ""
+    property int refreshSerial: 0
+    property bool pendingOsdPulse: false
 
     function clamp(v, minV, maxV) {
         return Math.max(minV, Math.min(maxV, v))
     }
 
-    function applyPipewireSnapshot() {
-        if (!Pipewire.defaultAudioSink) return
-        var m = Pipewire.defaultAudioSink.audio.isMuted
-        var v = Pipewire.defaultAudioSink.audio.volume
-        root.sinkMuted = (m === true)
-        if (v !== undefined && v !== null) {
-            root.sinkVolume = root.clamp(v, 0.0, 1.5)
-        }
+    function requestOsdAfterRefresh() {
+        root.pendingOsdPulse = true
+        root.refresh()
     }
 
-    function parsePactl(text) {
+    function parseSnapshot(text) {
         if (!text || text.trim() === "") return
-        if (text === root.lastRaw) return
-        root.lastRaw = text
 
-        // Expected lines:
-        // VOL=NN
-        // MUTE=yes|no
-        var vm = text.match(/VOL=(\d+)/)
-        if (vm && vm.length > 1) {
-            root.sinkVolume = root.clamp(parseInt(vm[1]) / 100.0, 0.0, 1.5)
+        var sinkMatch = text.match(/SINK=(.+)/)
+        var volumeMatch = text.match(/VOL=(\d+)/)
+        var muteMatch = text.match(/MUTE=(yes|no)/)
+
+        if (sinkMatch && sinkMatch.length > 1) {
+            const sinkName = sinkMatch[1].trim()
+            root.controlSinkName = sinkName
+            root.targetSinkName = sinkName
         }
-        var mm = text.match(/MUTE=(yes|no)/)
-        if (mm && mm.length > 1) {
-            root.sinkMuted = (mm[1] === "yes")
+        if (volumeMatch && volumeMatch.length > 1) {
+            root.sinkVolume = root.clamp(parseInt(volumeMatch[1]) / 100.0, 0.0, 1.5)
+        }
+        if (muteMatch && muteMatch.length > 1) {
+            root.sinkMuted = (muteMatch[1] === "yes")
+        }
+
+        if (text !== root.lastSnapshot) {
+            root.lastSnapshot = text
+            root.refreshSerial = root.refreshSerial + 1
+        }
+
+        if (root.pendingOsdPulse) {
+            root.pendingOsdPulse = false
+            root.osdPulse()
         }
     }
 
     Process {
-        id: readPactlProc
-        command: ["/bin/bash", "-lc", "S=$(/usr/bin/pactl info | /usr/bin/sed -n \"s/^Default Sink: //p\" | /usr/bin/head -n1); [ -z \"$S\" ] && S='@DEFAULT_SINK@'; V=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n \"s/.* \\([0-9]\\+\\)%.*/\\1/p\" | /usr/bin/head -n1); M=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}'); [ -z \"$V\" ] && V=0; [ -z \"$M\" ] && M=no; echo \"VOL=$V\"; echo \"MUTE=$M\""]
+        id: snapshotProc
+        command: ["/bin/bash", "-lc", "STATE_FILE=\"${XDG_STATE_HOME:-$HOME/.local/state}/quickshell/eq_filter_chain.state\"; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/sed -n \"s/^Default Sink: //p\" | /usr/bin/head -n1); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; CONTROL=\"$DEFAULT_SINK\"; TARGET=\"$DEFAULT_SINK\"; if [ -z \"$DEFAULT_SINK\" ]; then CONTROL='@DEFAULT_SINK@'; fi; if [ -z \"$TARGET\" ] || [ \"$TARGET\" = \"effect_input.eq\" ]; then if [ -n \"$RUNNING_SINK\" ]; then TARGET=\"$RUNNING_SINK\"; elif [ -n \"$STATE_SINK\" ]; then TARGET=\"$STATE_SINK\"; else TARGET='@DEFAULT_SINK@'; fi; fi; if [ -z \"$CONTROL\" ]; then CONTROL=\"$TARGET\"; fi; VOL=$(/usr/bin/pactl get-sink-volume \"$CONTROL\" 2>/dev/null | /usr/bin/sed -n \"s/.* \\([0-9]\\+\\)%.*/\\1/p\" | /usr/bin/head -n1); MUTE=$(/usr/bin/pactl get-sink-mute \"$CONTROL\" 2>/dev/null | /usr/bin/awk '{print $2}'); [ -z \"$VOL\" ] && VOL=0; [ -z \"$MUTE\" ] && MUTE=no; echo \"SINK=$CONTROL\"; echo \"VOL=$VOL\"; echo \"MUTE=$MUTE\""]
         running: false
         property string out: ""
-        stdout: SplitParser { onRead: data => { readPactlProc.out += data + "\n" } }
+        stdout: SplitParser { onRead: data => { snapshotProc.out += data + "\n" } }
         onExited: {
-            root.parsePactl(readPactlProc.out.trim())
-            readPactlProc.out = ""
+            root.parseSnapshot(snapshotProc.out.trim())
+            snapshotProc.out = ""
         }
     }
 
-    function refresh() {
-        // Prefer live PipeWire object when available.
-        root.applyPipewireSnapshot()
-        // Also poll pactl default sink so state survives node restarts/default sink switches.
-        if (!readPactlProc.running) {
-            readPactlProc.out = ""
-            readPactlProc.running = true
+    Process {
+        id: subscribeProc
+        command: ["/usr/bin/pactl", "subscribe"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                if (data.indexOf("sink") !== -1 || data.indexOf("server") !== -1) {
+                    refreshDebounce.restart()
+                }
+            }
+        }
+        onExited: {
+            subscribeRestartTimer.restart()
         }
     }
 
     Timer {
-        interval: 400
-        running: true
-        repeat: true
+        id: refreshDebounce
+        interval: 120
+        repeat: false
         onTriggered: root.refresh()
     }
 
-    Component.onCompleted: refresh()
+    Timer {
+        id: subscribeRestartTimer
+        interval: 1200
+        repeat: false
+        onTriggered: {
+            if (!subscribeProc.running) {
+                subscribeProc.running = true
+            }
+            root.refresh()
+        }
+    }
+
+    function refresh() {
+        if (snapshotProc.running) return
+        snapshotProc.out = ""
+        snapshotProc.running = true
+    }
+
+    Component.onCompleted: root.refresh()
 
     function toggleSinkMute() {
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle"])
-        refresh()
+        const sinkArg = root.controlSinkName.length > 0 ? root.controlSinkName : "@DEFAULT_SINK@"
+        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-mute", sinkArg, "toggle"])
+        root.requestOsdAfterRefresh()
     }
 
     function setSinkVolume(volume: real) {
-        let safeVol = clamp(volume, 0.0, 1.5)
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-volume", "@DEFAULT_SINK@", String(Math.round(safeVol * 100)) + "%"])
-        sinkVolume = safeVol
-        refresh()
+        const safeVol = root.clamp(volume, 0.0, 1.5)
+        const sinkArg = root.controlSinkName.length > 0 ? root.controlSinkName : "@DEFAULT_SINK@"
+        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-volume", sinkArg, String(Math.round(safeVol * 100)) + "%"])
+        root.requestOsdAfterRefresh()
+    }
+
+    function pulseOsd() {
+        root.requestOsdAfterRefresh()
     }
 }

@@ -2,8 +2,8 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
-import Quickshell.Io
 import "../../../Widgets"
+import "../../../Services/core/Log.js" as Log
 
 Item {
     id: root
@@ -38,48 +38,43 @@ Item {
     property color colorPrimary:    "#cba6f7"
     property color colorBackground: "#1e1e2e"
 
-    // ─── read ────────────────────────────────────────────────────
-    Process {
-        id: dockReadProc
-        command: ["cat", settingsPopup.dockConfigPath]
-        property string buf: ""
-        stdout: SplitParser { onRead: (d) => dockReadProc.buf += d }
-        onExited: {
-            var raw = dockReadProc.buf.trim()
-            dockReadProc.buf = ""
+    JsonFileStore {
+        id: dockConfigStore
+        path: settingsPopup ? settingsPopup.dockConfigPath : ""
+
+        function getValue(obj, key, fallback) {
+            return obj[key] !== undefined ? obj[key] : fallback;
+        }
+
+        onLoaded: function(text) {
+            var raw = text.trim();
             if (raw !== "") {
                 try {
-                    var p = JSON.parse(raw)
-                    function g(k, d) { return p[k] !== undefined ? p[k] : d }
-                    root.cfg_showDock            = g("showDock", true)
-                    root.cfg_autoHide            = g("autoHide", false)
-                    root.cfg_intelligentAutoHide = g("intelligentAutoHide", false)
-                    root.cfg_showBackground      = g("showBackground", true)
-                    root.cfg_dockTransparency    = g("dockTransparency", 0.85)
-                    root.cfg_showBorder          = g("showBorder", true)
-                    root.cfg_dockScale           = g("dockScale", 1.0)
-                    root.cfg_iconSize            = g("iconSize", 28)
-                    root.cfg_dockPadding         = g("dockPadding", 8)
-                    root.cfg_itemSpacing         = g("itemSpacing", 2)
-                    root.cfg_bottomMargin        = g("bottomMargin", 5)
-                    root.cfg_indicatorStyle      = g("indicatorStyle", "circle")
-                    root.cfg_showLauncher        = g("showLauncher", true)
-                    root.cfg_dockPosition        = g("dockPosition", "bottom")
-                    root.cfg_dockAlignment       = g("dockAlignment", "center")
-                    root.cfg_pinned              = g("pinned", [])
-                    root.cfg_leftModules         = g("leftModules", [])
-                    root.cfg_rightModules        = g("rightModules", [])
-                } catch(e) { console.log("DockPage parse: " + e) }
+                    var p = JSON.parse(raw);
+                    root.cfg_showDock            = dockConfigStore.getValue(p, "showDock", true);
+                    root.cfg_autoHide            = dockConfigStore.getValue(p, "autoHide", false);
+                    root.cfg_intelligentAutoHide = dockConfigStore.getValue(p, "intelligentAutoHide", false);
+                    root.cfg_showBackground      = dockConfigStore.getValue(p, "showBackground", true);
+                    root.cfg_dockTransparency    = dockConfigStore.getValue(p, "dockTransparency", 0.85);
+                    root.cfg_showBorder          = dockConfigStore.getValue(p, "showBorder", true);
+                    root.cfg_dockScale           = dockConfigStore.getValue(p, "dockScale", 1.0);
+                    root.cfg_iconSize            = dockConfigStore.getValue(p, "iconSize", 28);
+                    root.cfg_dockPadding         = dockConfigStore.getValue(p, "dockPadding", 8);
+                    root.cfg_itemSpacing         = dockConfigStore.getValue(p, "itemSpacing", 2);
+                    root.cfg_bottomMargin        = dockConfigStore.getValue(p, "bottomMargin", 5);
+                    root.cfg_indicatorStyle      = dockConfigStore.getValue(p, "indicatorStyle", "circle");
+                    root.cfg_showLauncher        = dockConfigStore.getValue(p, "showLauncher", true);
+                    root.cfg_dockPosition        = dockConfigStore.getValue(p, "dockPosition", "bottom");
+                    root.cfg_dockAlignment       = dockConfigStore.getValue(p, "dockAlignment", "center");
+                    root.cfg_pinned              = dockConfigStore.getValue(p, "pinned", []);
+                    root.cfg_leftModules         = dockConfigStore.getValue(p, "leftModules", []);
+                    root.cfg_rightModules        = dockConfigStore.getValue(p, "rightModules", []);
+                } catch (e) {
+                    Log.warn("DockPage", "Config parse error: " + e);
+                }
             }
-            root.isLoaded = true
+            root.isLoaded = true;
         }
-    }
-
-    // ─── write ───────────────────────────────────────────────────
-    Process {
-        id: dockWriteProc
-        command: []
-        running: false
     }
 
     function save() {
@@ -100,16 +95,12 @@ Item {
             pinned: root.cfg_pinned, leftModules: root.cfg_leftModules, rightModules: root.cfg_rightModules
         }
         var js = JSON.stringify(obj, null, 2)
-        dockWriteProc.running = false
-        dockWriteProc.command = ["sh", "-c", "printf '%s' '" + js.replace(/'/g,"'\\''") + "' > " + settingsPopup.dockConfigPath]
-        dockWriteProc.running = true
+        dockConfigStore.write(js)
     }
 
     function loadConfig() {
         root.isLoaded = false
-        dockReadProc.buf = ""
-        dockReadProc.running = false
-        dockReadProc.running = true
+        dockConfigStore.read()
     }
 
     Component.onCompleted: loadConfig()

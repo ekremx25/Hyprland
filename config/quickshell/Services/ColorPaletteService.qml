@@ -3,6 +3,8 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Qt.labs.platform
+import "./core" as Core
+import "./core/Log.js" as Log
 
 Singleton {
     id: root
@@ -69,7 +71,6 @@ Singleton {
             if (exitCode === 0) {
                 root.binPath = "matugen";
                 root.available = true;
-                console.log("[ColorPaletteService] matugen found in PATH");
             } else {
                 // Not in PATH? Check cargo bin
                 cargoBinCheck.running = true;
@@ -85,40 +86,15 @@ Singleton {
             if (exitCode === 0) {
                 root.binPath = "$HOME/.cargo/bin/matugen";
                 root.available = true;
-                console.log("[ColorPaletteService] matugen found in ~/.cargo/bin");
             } else {
                 root.available = false;
-                console.log("[ColorPaletteService] matugen not found — Material You disabled");
             }
         }
     }
 
     // Config load/save
     function loadConfig() {
-        readConfigProc.output = "";
-        readConfigProc.running = true;
-    }
-
-    Process {
-        id: readConfigProc
-        command: ["cat", root.configPath]
-        property string output: ""
-        stdout: SplitParser { onRead: data => { readConfigProc.output += data; } }
-        onExited: {
-            try {
-                var cfg = JSON.parse(readConfigProc.output);
-                root.enabled = cfg.materialYou || false;
-                root.wallpaperPath = cfg.wallpaperPath || "";
-                root.mode = cfg.mode || "dark";
-                root.matugenType = cfg.matugenType || "scheme-tonal-spot";
-                root.applyToKitty = cfg.applyToKitty !== undefined ? cfg.applyToKitty : true;
-                root.applyToGtk = cfg.applyToGtk !== undefined ? cfg.applyToGtk : false;
-                root.liveUpdate = cfg.liveUpdate !== undefined ? cfg.liveUpdate : false;
-            } catch(e) {
-                console.log("[ColorPaletteService] Config parse error: " + e);
-            }
-            readConfigProc.output = "";
-        }
+        configStore.load();
     }
 
     function saveConfig() {
@@ -131,15 +107,7 @@ Singleton {
             applyToGtk: root.applyToGtk,
             liveUpdate: root.liveUpdate
         };
-        writeConfigProc.jsonData = JSON.stringify(cfg, null, 2);
-        writeConfigProc.running = false;
-        writeConfigProc.running = true;
-    }
-
-    Process {
-        id: writeConfigProc
-        property string jsonData: ""
-        command: ["bash", "-c", "cat > " + root.configPath + " << 'ENDOFJSON'\n" + jsonData + "\nENDOFJSON"]
+        configStore.save(cfg);
     }
 
     // Generate colors from wallpaper
@@ -218,7 +186,7 @@ Singleton {
         var cols = palette && palette.colors ? palette.colors : null;
         
         if (!cols) {
-            console.log("[ColorPaletteService] No colors found in palette");
+            Log.warn("ColorPaletteService", "No colors found in palette");
             return;
         }
 
@@ -332,5 +300,31 @@ Singleton {
         running: root.enabled && root.liveUpdate
         repeat: true
         onTriggered: root.detectCurrentWallpaper()
+    }
+
+    Core.JsonDataStore {
+        id: configStore
+        path: root.configPath
+        defaultValue: ({
+            materialYou: false,
+            wallpaperPath: "",
+            mode: "dark",
+            matugenType: "scheme-tonal-spot",
+            applyToKitty: true,
+            applyToGtk: false,
+            liveUpdate: false
+        })
+        onLoadedValue: function(cfg) {
+            root.enabled = cfg.materialYou || false;
+            root.wallpaperPath = cfg.wallpaperPath || "";
+            root.mode = cfg.mode || "dark";
+            root.matugenType = cfg.matugenType || "scheme-tonal-spot";
+            root.applyToKitty = cfg.applyToKitty !== undefined ? cfg.applyToKitty : true;
+            root.applyToGtk = cfg.applyToGtk !== undefined ? cfg.applyToGtk : false;
+            root.liveUpdate = cfg.liveUpdate !== undefined ? cfg.liveUpdate : false;
+        }
+        onFailed: function(phase, exitCode, details) {
+            if (phase === "parse") Log.warn("ColorPaletteService", "Config parse error: " + details);
+        }
     }
 }

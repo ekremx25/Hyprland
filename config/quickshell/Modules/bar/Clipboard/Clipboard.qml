@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Io
 import Quickshell.Wayland
+import "."
 import "../../../Widgets"
 
 Rectangle {
@@ -17,76 +17,16 @@ Rectangle {
     
     Behavior on color { ColorAnimation { duration: 200 } }
     
-    property bool hasActive: clipboardModel.count > 0
-    property string currentClip: ""
-    
-    // Config
-    property int maxHistory: 20
-    
-    // ── Logic: Poll Clipboard ──
-    Process {
-        id: clipProc
-        command: ["wl-paste", "--type", "text/plain", "--no-newline"] // Force text only
-        property string output: ""
-        stdout: SplitParser {
-            onRead: data => { clipProc.output += data; }
-        }
-        onExited: {
-            var text = clipProc.output.trim();
-            clipProc.output = "";
-            
-            if (text !== "" && text !== root.currentClip) {
-                root.currentClip = text;
-                addToHistory(text);
-            }
-        }
-    }
-    
-    Timer {
-        interval: 1500
-        running: true
-        repeat: true
-        onTriggered: {
-            clipProc.running = false
-            clipProc.running = true
-        }
-    }
-    
-    function addToHistory(text) {
-        // Remove if exists to move to top
-        for (var i = 0; i < clipboardModel.count; i++) {
-            if (clipboardModel.get(i).text === text) {
-                clipboardModel.remove(i);
-                break;
-            }
-        }
-        
-        clipboardModel.insert(0, {text: text});
-        
-        if (clipboardModel.count > root.maxHistory) {
-            clipboardModel.remove(root.maxHistory, clipboardModel.count - root.maxHistory);
-        }
-    }
-    
+    ClipboardBackend { id: backend }
+    property alias hasActive: backend.hasActive
+    property alias currentClip: backend.currentClip
+    property alias maxHistory: backend.maxHistory
+    property alias clipboardModel: backend.historyModel
+
     function copyToClipboard(text) {
-        // Safe copy using printf to avoid shell interpretation issues
-        var safeText = text.replace(/'/g, "'\\''");
-        copyProc.command = ["sh", "-c", "printf '%s' '" + safeText + "' | wl-copy"];
-        copyProc.running = false;
-        copyProc.running = true;
-        
-        // Also update local tracking so we don't duplicate
-        root.currentClip = text;
-        addToHistory(text);
+        backend.copyToClipboard(text);
         popup.visible = false;
     }
-    
-    Process {
-        id: copyProc
-        command: []
-    }
-    
-    ListModel { id: clipboardModel }
 
     // ── UI ──
     RowLayout {
@@ -163,11 +103,7 @@ Rectangle {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                clipboardModel.clear();
-                                root.currentClip = "";
-                                copyProc.command = ["wl-copy", "--clear"];
-                                copyProc.running = false;
-                                copyProc.running = true;
+                                backend.clearHistory();
                             }
                         }
                     }
@@ -231,7 +167,7 @@ Rectangle {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: clipboardModel.remove(index)
+                                    onClicked: backend.removeAt(index)
                                 }
                             }
                         }

@@ -2,8 +2,8 @@
   "left": [
     "Launcher",
     "Calendar",
-    "SysInfoGroup",
-    "RamModule"
+    "RamModule",
+    "SysInfoGroup"
   ],
   "center": [
     "Workspaces",
@@ -13,7 +13,6 @@
   "right": [
     "Clipboard",
     "Equalizer",
-    "Tray",
     "Volume"
   ],
   "inactive": [
