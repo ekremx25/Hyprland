@@ -81,16 +81,13 @@ Item {
                     backend.currentSourceName = src;
                     backend.sourceDisplayName = backend.formatSourceLabel(src);
                 }
-            } else if (l.indexOf("SINKVOL=") === 0) {
-                backend.sinkVolumePercent = parseInt(l.substring(8)) || 0;
-            } else if (l.indexOf("SINKMUTE=") === 0) {
-                backend.sinkMuted = (l.substring(9).trim() === "yes");
             } else if (l.indexOf("SOURCEVOL=") === 0) {
                 backend.sourceVolumePercent = parseInt(l.substring(10)) || 0;
             } else if (l.indexOf("SOURCEMUTE=") === 0) {
                 backend.sourceMuted = (l.substring(11).trim() === "yes");
             }
         }
+        backend.syncSinkControlsFromVolume();
     }
 
     function parseSinkList(text) {
@@ -360,16 +357,14 @@ Item {
         startManagedProcess(readEqProc);
     }
 
-    function physicalSinkArg() {
-        if (currentSinkName.length > 0 && currentSinkName !== "effect_input.eq") return currentSinkName;
-        if (pendingAutoTargetSink.length > 0 && pendingAutoTargetSink !== "effect_input.eq") return pendingAutoTargetSink;
-        if (lastAppliedTargetSink.length > 0 && lastAppliedTargetSink !== "effect_input.eq") return lastAppliedTargetSink;
-        return "@DEFAULT_SINK@";
+    function syncSinkControlsFromVolume() {
+        sinkVolumePercent = Math.max(0, Math.min(150, Math.round((Volume.sinkVolume || 0) * 100)));
+        sinkMuted = Volume.sinkMuted;
     }
 
     function setSinkVolumePercent(percent) {
         var p = Math.max(0, Math.min(150, Math.round(percent)));
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-volume", physicalSinkArg(), String(p) + "%"]);
+        Volume.setSinkVolume(p / 100.0);
         sinkVolumePercent = p;
         scheduleRefresh(100);
     }
@@ -383,7 +378,7 @@ Item {
     }
 
     function toggleSinkMute() {
-        Quickshell.execDetached(["/usr/bin/pactl", "set-sink-mute", physicalSinkArg(), "toggle"]);
+        Volume.toggleSinkMute();
         scheduleRefresh(100);
     }
 
@@ -397,11 +392,21 @@ Item {
         target: Volume
 
         function onRefreshSerialChanged() {
+            backend.syncSinkControlsFromVolume();
             backend.scheduleRefresh(80);
+        }
+
+        function onSinkVolumeChanged() {
+            backend.syncSinkControlsFromVolume();
+        }
+
+        function onSinkMutedChanged() {
+            backend.syncSinkControlsFromVolume();
         }
     }
 
     Component.onCompleted: {
+        syncSinkControlsFromVolume();
         loadEqStateFromFile();
         scheduleRefresh(0);
         startupEqCheckProc.running = true;
