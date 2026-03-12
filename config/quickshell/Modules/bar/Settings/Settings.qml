@@ -143,6 +143,8 @@ PanelWindow {
         if (visible) loadConfig();
     }
 
+    Component.onCompleted: loadConfig()
+
     // ── Background dim + click-to-close ──
     Rectangle {
         id: bgDim

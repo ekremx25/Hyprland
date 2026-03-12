@@ -19,6 +19,11 @@ ShellRoot {
 
     Loader {
         active: true
+        source: "Services/EqBootstrap.qml"
+    }
+
+    Loader {
+        active: true
         source: "Services/MouseBootstrap.qml"
     }
 

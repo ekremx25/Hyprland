@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Widgets
 import Quickshell.Wayland
 import "."
+import "BarDefaults.js" as BarDefaults
 
 import "Launcher"
 import "./Workspaces"
@@ -28,34 +29,32 @@ import "../../Services" as S
 Variants {
     id: root
     model: S.ScreenManager.getFilteredScreens("bar")
-    BarBackend { id: backend }
+    readonly property var initialBarConfig: BarDefaults.createBarConfig()
     property var barLayout: ({
-        left: ["Launcher", "Calendar"],
-        center: ["Workspaces", "Notifications"],
-        right: ["Clipboard", "Weather", "Volume", "Tray", "Power"],
-        workspaces: {
-            format: "arabic",
-            style: "fill",
-            transparent: false
-        }
+        left: initialBarConfig.left.slice(),
+        center: initialBarConfig.center.slice(),
+        right: initialBarConfig.right.slice(),
+        workspaces: BarDefaults.clone(initialBarConfig.workspaces)
     })
     property string barPosition: "top"
     property bool isVertical: false
-    property var workspacesConfig: ({ format: "arabic", style: "fill", transparent: false })
+    property var workspacesConfig: BarDefaults.createWorkspacesConfig()
 
-    function syncFromBackend() {
-        root.barLayout = backend.barLayout;
-        root.barPosition = backend.barPosition;
-        root.isVertical = backend.isVertical;
-        root.workspacesConfig = backend.workspacesConfig;
+    function syncFromBackend(dataBackend) {
+        if (!dataBackend) return;
+        root.barLayout = dataBackend.barLayout || root.barLayout;
+        root.barPosition = dataBackend.barPosition || "top";
+        root.isVertical = !!dataBackend.isVertical;
+        root.workspacesConfig = dataBackend.workspacesConfig || root.workspacesConfig;
     }
 
-    Connections {
-        target: backend
-        function onBarLayoutChanged() { root.syncFromBackend(); }
-        function onBarPositionChanged() { root.syncFromBackend(); }
-        function onIsVerticalChanged() { root.syncFromBackend(); }
-        function onWorkspacesConfigChanged() { root.syncFromBackend(); }
+    BarBackend {
+        id: backend
+        Component.onCompleted: root.syncFromBackend(backend)
+        onBarLayoutChanged: root.syncFromBackend(backend)
+        onBarPositionChanged: root.syncFromBackend(backend)
+        onIsVerticalChanged: root.syncFromBackend(backend)
+        onWorkspacesConfigChanged: root.syncFromBackend(backend)
     }
 
 
@@ -134,10 +133,12 @@ Variants {
                     id: settingsMenu
                     screen: modelData
                     onConfigSaved: (newConfig) => {
-                        root.barLayout = newConfig;
-                        root.workspacesConfig = newConfig.workspaces || { format: "arabic", style: "fill", transparent: false };
-                        if (newConfig.barPosition) root.barPosition = newConfig.barPosition;
-                        root.isVertical = root.barPosition === "left" || root.barPosition === "right";
+                        root.syncFromBackend({
+                            barLayout: newConfig,
+                            barPosition: newConfig.barPosition || root.barPosition,
+                            isVertical: (newConfig.barPosition || root.barPosition) === "left" || (newConfig.barPosition || root.barPosition) === "right",
+                            workspacesConfig: newConfig.workspaces || root.workspacesConfig
+                        });
                     }
                 }
 

@@ -1,12 +1,15 @@
 import QtQuick
 import Qt.labs.platform
 import "."
+import "../BarDefaults.js" as BarDefaults
 import "../../../Services/core/Log.js" as Log
 
 Item {
     id: backend
 
-    property var barConfig: ({ left: [], center: [], right: [] })
+    readonly property var initialBarConfig: BarDefaults.createBarConfig()
+
+    property var barConfig: BarDefaults.clone(initialBarConfig)
     property var dockConfig: ({})
     property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
     property string dockConfigPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
@@ -49,7 +52,7 @@ Item {
         id: barConfigStore
         path: backend.configPath
         onLoaded: function(text) {
-            backend.applyBarConfig(backend.parseJsonObject(text, { left: [], center: [], right: [], inactive: [] }));
+            backend.applyBarConfig(backend.parseJsonObject(text, BarDefaults.clone(backend.initialBarConfig)));
         }
     }
 
@@ -101,13 +104,27 @@ Item {
     }
 
     function normalizeBarConfig(cfg) {
-        var normalized = cfg || {};
-        if (!normalized.left) normalized.left = [];
-        if (!normalized.center) normalized.center = [];
-        if (!normalized.right) normalized.right = [];
-        if (!normalized.inactive) normalized.inactive = [];
+        var normalized = BarDefaults.clone(cfg || initialBarConfig);
+        if (!Array.isArray(normalized.left)) normalized.left = [];
+        if (!Array.isArray(normalized.center)) normalized.center = [];
+        if (!Array.isArray(normalized.right)) normalized.right = [];
+        if (!Array.isArray(normalized.inactive)) normalized.inactive = [];
+        if (!normalized.workspaces) normalized.workspaces = BarDefaults.createWorkspacesConfig();
+        if (!normalized.barPosition) normalized.barPosition = initialBarConfig.barPosition || "top";
 
         var allDockMods = dockLeftModulesList.concat(dockRightModulesList);
+        var filterDockModules = function(list) {
+            var out = [];
+            for (var i = 0; i < list.length; ++i) {
+                if (allDockMods.indexOf(list[i]) === -1) out.push(list[i]);
+            }
+            return out;
+        };
+
+        normalized.left = filterDockModules(normalized.left);
+        normalized.center = filterDockModules(normalized.center);
+        normalized.right = filterDockModules(normalized.right);
+
         var cleanInactive = [];
         for (var k = 0; k < normalized.inactive.length; ++k) {
             if (allDockMods.indexOf(normalized.inactive[k]) === -1) cleanInactive.push(normalized.inactive[k]);

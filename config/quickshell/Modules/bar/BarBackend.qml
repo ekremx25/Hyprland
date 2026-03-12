@@ -1,6 +1,7 @@
 import QtQuick
 import Qt.labs.platform
 import Quickshell
+import "BarDefaults.js" as BarDefaults
 import "../../Services" as S
 import "../../Services/core" as Core
 import "../../Services/core/Log.js" as Log
@@ -8,28 +9,29 @@ import "../../Services/core/Log.js" as Log
 Item {
     id: backend
 
+    readonly property var initialBarConfig: BarDefaults.createBarConfig()
+
     property var barLayout: ({
-        left: ["Launcher", "Calendar"],
-        center: ["Workspaces", "Notifications"],
-        right: ["Clipboard", "Weather", "Volume", "Tray", "Power"],
-        workspaces: {
-            format: "arabic",
-            style: "fill",
-            transparent: false
-        }
+        left: initialBarConfig.left.slice(),
+        center: initialBarConfig.center.slice(),
+        right: initialBarConfig.right.slice(),
+        workspaces: BarDefaults.clone(initialBarConfig.workspaces)
     })
-    property string barPosition: "top"
+    property string barPosition: initialBarConfig.barPosition || "top"
     property bool isVertical: barPosition === "left" || barPosition === "right"
-    property var workspacesConfig: barLayout.workspaces || { format: "arabic", style: "fill", transparent: false }
+    property var workspacesConfig: barLayout.workspaces || BarDefaults.createWorkspacesConfig()
     property bool configLoaded: false
     readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
     property string lastConfigContent: ""
 
     function normalizeLayout(cfg) {
-        if (!cfg.workspaces) {
-            cfg.workspaces = { format: "arabic", style: "fill", transparent: false };
-        }
-        return cfg;
+        var normalized = BarDefaults.clone(cfg || initialBarConfig);
+        if (!Array.isArray(normalized.left)) normalized.left = initialBarConfig.left.slice();
+        if (!Array.isArray(normalized.center)) normalized.center = initialBarConfig.center.slice();
+        if (!Array.isArray(normalized.right)) normalized.right = initialBarConfig.right.slice();
+        if (!normalized.workspaces) normalized.workspaces = BarDefaults.createWorkspacesConfig();
+        if (!normalized.barPosition) normalized.barPosition = initialBarConfig.barPosition || "top";
+        return normalized;
     }
 
     function applyConfig(cfg) {
@@ -54,7 +56,7 @@ Item {
     Core.JsonDataStore {
         id: configStore
         path: backend.configPath
-        defaultValue: backend.barLayout
+        defaultValue: backend.initialBarConfig
         onLoadedValue: function(cfg, rawText) {
             var content = rawText.trim();
             if (content.length === 0) return;
