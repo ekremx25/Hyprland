@@ -70,7 +70,6 @@ blueman-applet &
 nm-applet --indicator &
 
 # cursor & touchpad gestures
-hyprctl setcursor Sweet-cursors 24 &
 libinput-gestures-setup start &
 
 # clipboard
