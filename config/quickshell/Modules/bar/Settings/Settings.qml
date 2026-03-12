@@ -145,7 +145,7 @@ PanelWindow {
 
     Component.onCompleted: loadConfig()
 
-    // ── Background dim + click-to-close ──
+    // ── Background dim ──
     Rectangle {
         id: bgDim
         anchors.fill: parent
@@ -153,7 +153,7 @@ PanelWindow {
 
         MouseArea {
             anchors.fill: parent
-            onClicked: settingsPopup.closeSettings()
+            onClicked: function(mouse) { mouse.accepted = true }
         }
     }
 
@@ -613,6 +613,7 @@ PanelWindow {
                 Sys.DiskPage {
                     anchors.fill: parent
                     visible: settingsPopup.currentPage === "disks"
+                    settingsPopup: settingsPopup
                 }
 
                 Sys.WeatherPage {

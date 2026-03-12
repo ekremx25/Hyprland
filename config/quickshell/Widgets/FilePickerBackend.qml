@@ -13,6 +13,7 @@ Item {
     property string currentPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "")
     property var extensions: []
     property var directoryEntries: []
+    property string actionStatus: ""
 
     function refresh() {
         if (lsProcess.running) return;
@@ -66,6 +67,17 @@ Item {
         refresh();
     }
 
+    function createFolder(name) {
+        var folderName = String(name || "").trim();
+        if (folderName.length === 0) {
+            actionStatus = "Folder name is empty";
+            return;
+        }
+        mkdirProcess.command = ["mkdir", "-p", backend.currentPath + "/" + folderName];
+        mkdirProcess.running = false;
+        mkdirProcess.running = true;
+    }
+
     Process {
         id: lsProcess
         command: []
@@ -78,6 +90,23 @@ Item {
                 Log.warn("FilePickerBackend", "Directory parse error: " + e);
             }
             lsProcess.buf = "";
+        }
+    }
+
+    Process {
+        id: mkdirProcess
+        command: []
+        property string err: ""
+        stderr: SplitParser { onRead: data => { mkdirProcess.err += data + "\n"; } }
+        onExited: exitCode => {
+            if (exitCode === 0) {
+                actionStatus = "Folder created";
+                refresh();
+            } else {
+                actionStatus = mkdirProcess.err.trim().length > 0 ? mkdirProcess.err.trim() : "Failed to create folder";
+                Log.warn("FilePickerBackend", actionStatus);
+            }
+            mkdirProcess.err = "";
         }
     }
 
