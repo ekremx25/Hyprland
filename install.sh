@@ -10,7 +10,6 @@ ICON_DIR="$LOCAL_SHARE_DIR/icons"
 WALLPAPER_DIR="$HOME/Pictures/wallpapers"
 BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-setup"
 DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
-QUICKSHELL_REPO_URL="https://github.com/ekremx25/quickshell.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive)
 
@@ -324,13 +323,9 @@ install_wallpapers() {
 }
 
 install_quickshell_config() {
-  log "Installing quickshell config from GitHub"
-  mkdir -p "$BUILD_DIR"
-  rm -rf "$BUILD_DIR/quickshell"
-  git clone --depth 1 "$QUICKSHELL_REPO_URL" "$BUILD_DIR/quickshell"
+  log "Installing quickshell config from repository"
   backup_path "$CONFIG_DIR/quickshell"
-  cp -a "$BUILD_DIR/quickshell" "$CONFIG_DIR/quickshell"
-  rm -rf "$CONFIG_DIR/quickshell/.git"
+  cp -a "$REPO_DIR/config/quickshell" "$CONFIG_DIR/quickshell"
 }
 
 fix_xdg_menu() {
