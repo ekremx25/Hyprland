@@ -81,6 +81,7 @@ PanelWindow {
             title: "HARDWARE",
             items: [
                 { key: "monitors",   icon: "󰍹", label: "Monitors" },
+                { key: "lockscreen", icon: "󰌾", label: "Lock Screen" },
                 { key: "mouse",      icon: "🖱", label: "Mouse" },
                 { key: "screens",    icon: "󰹑", label: "Screen Prefs" },
                 { key: "sound",      icon: "󰕾", label: "Sound" },
@@ -608,6 +609,11 @@ PanelWindow {
                 Sys.SystemInfoPage {
                     anchors.fill: parent
                     visible: settingsPopup.currentPage === "sysinfo"
+                }
+
+                Sys.LockPage {
+                    anchors.fill: parent
+                    visible: settingsPopup.currentPage === "lockscreen"
                 }
 
                 Sys.DiskPage {
