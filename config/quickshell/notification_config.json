@@ -6,5 +6,6 @@
   "compactMode": false,
   "popupShadowEnabled": true,
   "privacyMode": false,
-  "animationSpeed": 2
+  "animationSpeed": 2,
+  "historyRetentionMs": 300000
 }

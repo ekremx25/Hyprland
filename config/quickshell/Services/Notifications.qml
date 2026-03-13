@@ -10,183 +10,181 @@ import "./core/Log.js" as Log
 Singleton {
     id: root
 
-    // Bildirim Listesi
+    readonly property int maxStoredNotifications: 100
+    readonly property int duplicateWindowMs: 2000
+    readonly property int cleanupCheckIntervalMs: 5000
+    readonly property var knownAppIcons: ({
+        "telegram-desktop": "telegram",
+        "telegram": "telegram",
+        "whatsapp": "whatsapp",
+        "whatsapp-desktop": "whatsapp",
+        "whatsapp-for-linux": "whatsapp",
+        "zapzap": "whatsapp",
+        "firefox": "firefox",
+        "firefox-esr": "firefox-esr",
+        "firefox-developer-edition": "firefox-developer-edition",
+        "brave-browser": "brave",
+        "brave": "brave",
+        "google-chrome": "google-chrome",
+        "google-chrome-stable": "google-chrome",
+        "chromium": "chromium",
+        "chromium-browser": "chromium-browser"
+    })
+
     property var notifications: []
     property var activeNotifications: []
-    
-    // PENCERE KONTROLÜ
     property bool historyVisible: false
     function toggleHistory() { historyVisible = !historyVisible }
-
-    // Display Duration (ms)
     property int displayDuration: 5000
-
-    // DO NOT DISTURB
     property bool dnd: false
-    
-    // NEW ADVANCED SETTINGS
     property int popupPosition: 1 // 1: Top Right, 2: Top Left, 3: Top Center, 4: Bottom Center, 5: Bottom Right, 6: Bottom Left
     property bool overlayEnabled: false
     property bool compactMode: false
     property bool popupShadowEnabled: true
     property bool privacyMode: false
     property int animationSpeed: 1 // 0: None, 1: Short, 2: Medium, 3: Long, 4: Custom
-    property int historyRetentionMs: 3600000
+    property int historyRetentionMs: 300000
+    property bool notificationServerEnabled: false
 
-    // --- HTML TEMİZLEYİCİ ---
     function stripHtml(html) {
         if (!html) return ""
-            return html.replace(/<[^>]*>/g, "")
+        return html.replace(/<[^>]*>/g, "")
     }
 
-    // Bildirim Sunucusu
-    property NotificationServer server: NotificationServer {
-        bodySupported: true
-        bodyMarkupSupported: true
-        actionsSupported: true
-        actionIconsSupported: true
-        onNotification: notif => root.addNotification(notif)
+    function normalizeNotificationContent(notif) {
+        var appName = notif.appName || "Sistem"
+        var summary = stripHtml(notif.summary || "")
+        var body = stripHtml(notif.body || "")
+
+        if (body.trim() === "" && summary !== "") {
+            body = summary
+            summary = appName
+        }
+        if (summary === "") summary = "Yeni Bildirim"
+        if (body === "") body = "İçerik yok."
+
+        return {
+            appName: appName,
+            summary: summary,
+            body: body
+        }
+    }
+
+    function resolveIconSource(rawIconValue) {
+        var raw = String(rawIconValue || "").trim()
+        if (raw === "") return ""
+        if (raw.startsWith("image://icon//")) return "file://" + raw.substring("image://icon/".length)
+        if (raw.startsWith("file://") || raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("image://")) return raw
+        if (raw.startsWith("~/")) {
+            return "file://" + StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + raw.substring(1)
+        }
+        if (raw.startsWith("/") || raw.indexOf("/") !== -1) return "file://" + raw
+        return "image://icon/" + raw.toLowerCase().replace(/\s+/g, "-")
+    }
+
+    function resolveNotificationIcon(appName, notif) {
+        var appLower = String(appName || "").toLowerCase().replace(/\s+/g, "-")
+        if (root.knownAppIcons[appLower]) return "image://icon/" + root.knownAppIcons[appLower]
+        return resolveIconSource(notif.image || notif.appIcon || notif.icon || "")
+    }
+
+    function isDuplicateNotification(normalized, notifId, now) {
+        for (var i = 0; i < root.notifications.length && i < 5; i++) {
+            var existing = root.notifications[i]
+            if (existing.id === notifId) return true
+            if (existing.summary === normalized.summary && existing.body === normalized.body) {
+                var age = now - existing.timestamp
+                if (age < root.duplicateWindowMs) return true
+            }
+        }
+        return false
+    }
+
+    function applyNotifications(list) {
+        root.notifications = list
+        root.activeNotifications = list.filter(function(n) { return !n.closed })
+    }
+
+    function pruneNotifications(now) {
+        var changed = false
+        var pruned = []
+        for (var i = 0; i < root.notifications.length; i++) {
+            var item = root.notifications[i]
+            if ((now - item.timestamp) < root.historyRetentionMs) {
+                pruned.push(item)
+            } else {
+                changed = true
+            }
+        }
+        if (changed) root.applyNotifications(pruned)
+    }
+
+    property Loader serverLoader: Loader {
+        active: root.notificationServerEnabled
+        sourceComponent: notificationServerComponent
+    }
+
+    property Component notificationServerComponent: Component {
+        NotificationServer {
+            bodySupported: true
+            bodyMarkupSupported: true
+            actionsSupported: true
+            actionIconsSupported: true
+            onNotification: notif => root.addNotification(notif)
+        }
     }
 
     function addNotification(notif) {
-        // Gereksizleri at (Spotify vb.)
-        if (notif.appName === "Spotify") return;
+        if (notif.appName === "Spotify") return
 
-        // 1. İÇERİK HAZIRLIĞI (Firefox Düzeltmesi)
-        var rawSummary = stripHtml(notif.summary || "")
-        var rawBody = stripHtml(notif.body || "")
-        var rawAppName = notif.appName || "Sistem"
+        var now = new Date()
+        var normalized = normalizeNotificationContent(notif)
+        if (isDuplicateNotification(normalized, notif.id, now)) return
 
-        if (rawBody.trim() === "" && rawSummary !== "") {
-            rawBody = rawSummary;
-            rawSummary = rawAppName;
-        }
-        if (rawSummary === "") rawSummary = "Yeni Bildirim";
-        if (rawBody === "") rawBody = "İçerik yok.";
-
-        // 2. ÇİFT MESAJ ENGELLEME (ID veya içerik+zaman bazlı)
-        var now = new Date();
-        for (var d = 0; d < root.notifications.length && d < 5; d++) {
-            var existing = root.notifications[d];
-            // Aynı ID varsa güncelleme olabilir, tekrar ekleme
-            if (existing.id === notif.id) return;
-            // Aynı içerik 2 saniye içinde geldiyse engelle
-            if (existing.summary === rawSummary && existing.body === rawBody) {
-                var age = now - existing.timestamp;
-                if (age < 2000) return;
-            }
-        }
-
-        // İkon Çözücü (image://icon/ — rofi/wofi tarzı)
-        var finalIcon = "";
-
-        var appLower = rawAppName.toLowerCase().replace(/\s+/g, "-");
-        var knownAppIcons = {
-            "telegram-desktop": "telegram",
-            "telegram": "telegram",
-            "whatsapp": "whatsapp",
-            "whatsapp-desktop": "whatsapp",
-            "whatsapp-for-linux": "whatsapp",
-            "zapzap": "whatsapp",
-            "firefox": "firefox",
-            "firefox-esr": "firefox-esr",
-            "firefox-developer-edition": "firefox-developer-edition",
-            "brave-browser": "brave",
-            "brave": "brave",
-            "google-chrome": "google-chrome",
-            "google-chrome-stable": "google-chrome",
-            "chromium": "chromium",
-            "chromium-browser": "chromium-browser"
-        };
-
-        function resolveIconSource(rawIconValue) {
-            var raw = String(rawIconValue || "").trim();
-            if (raw === "") return "";
-            if (raw.startsWith("image://icon//")) return "file://" + raw.substring("image://icon/".length);
-            if (raw.startsWith("file://") || raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("image://")) return raw;
-            if (raw.startsWith("~/")) return "file://" + StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + raw.substring(1);
-            if (raw.startsWith("/") || raw.indexOf("/") !== -1) return "file://" + raw;
-            return "image://icon/" + raw.toLowerCase().replace(/\s+/g, "-");
-        }
-
-        if (knownAppIcons[appLower]) {
-            finalIcon = "image://icon/" + knownAppIcons[appLower];
-        } else {
-            // 2. Genel ikon çözümlemesi
-            let rawIcon = String(notif.image || notif.appIcon || notif.icon || "").trim();
-            if (rawIcon !== "") {
-                finalIcon = resolveIconSource(rawIcon);
-            }
-        }
-
-        // Yeni Bildirim Objesi
         var newNotif = {
             id: notif.id,
-            summary: rawSummary,
-            body: rawBody,
-            appName: rawAppName,
-            appIcon: finalIcon,
+            summary: normalized.summary,
+            body: normalized.body,
+            appName: normalized.appName,
+            appIcon: resolveNotificationIcon(normalized.appName, notif),
             urgency: notif.urgency,
-            timestamp: new Date(),
+            timestamp: now,
             closed: false
-        };
-
-        // Listeyi Güncelle (En başa ekle, max 100 tut)
-        var newList = [newNotif];
-        for(var i=0; i<root.notifications.length; i++) {
-            if(i < 99) newList.push(root.notifications[i]);
         }
-        root.notifications = newList;
-        root.refreshActiveNotifications();
+
+        var next = [newNotif]
+        for (var i = 0; i < root.notifications.length && i < (root.maxStoredNotifications - 1); i++) {
+            next.push(root.notifications[i])
+        }
+        root.applyNotifications(next)
     }
 
     function removeNotification(index) {
-        var list = root.notifications;
-        // Listeden sil
-        list.splice(index, 1);
-        // Tetiklemek için tekrar ata
-        root.notifications = list;
-        root.refreshActiveNotifications();
+        var next = root.notifications.slice()
+        next.splice(index, 1)
+        root.applyNotifications(next)
     }
 
     function refreshActiveNotifications() {
-        // Sadece kapatılmamış olanları filtrele
-        root.activeNotifications = root.notifications.filter(n => !n.closed);
+        root.applyNotifications(root.notifications.slice())
     }
 
-    // 1 dakika sonra bildirimleri otomatik temizle
     Timer {
         id: cleanupTimer
-        interval: 5000 // Her 5 saniyede kontrol et
+        interval: root.cleanupCheckIntervalMs
         repeat: true
         running: true
-        onTriggered: {
-            var now = new Date();
-            var changed = false;
-            var newList = [];
-            for (var i = 0; i < root.notifications.length; i++) {
-                var age = now - root.notifications[i].timestamp;
-                if (age < root.historyRetentionMs) {
-                    newList.push(root.notifications[i]);
-                } else {
-                    changed = true;
-                }
-            }
-            if (changed) {
-                root.notifications = newList;
-                root.refreshActiveNotifications();
-            }
-        }
+        onTriggered: root.pruneNotifications(new Date())
     }
 
     function closeNotification(id) {
-        // ID'ye göre bul ve kapatıldı işaretle
-        for(var i=0; i<root.notifications.length; i++) {
-            if (root.notifications[i].id === id) {
-                root.notifications[i].closed = true;
+        var next = root.notifications.slice()
+        for (var i = 0; i < next.length; i++) {
+            if (next[i].id === id) {
+                next[i].closed = true
             }
         }
-        root.refreshActiveNotifications();
+        root.applyNotifications(next)
     }
 
     function focusApp(appName) {
@@ -206,7 +204,8 @@ Singleton {
             compactMode: root.compactMode,
             popupShadowEnabled: root.popupShadowEnabled,
             privacyMode: root.privacyMode,
-            animationSpeed: root.animationSpeed
+            animationSpeed: root.animationSpeed,
+            historyRetentionMs: root.historyRetentionMs
         };
         configStore.save(obj);
     }
@@ -214,6 +213,7 @@ Singleton {
     // Load on start
     Component.onCompleted: {
         configStore.load();
+        notificationServerStartTimer.start();
     }
 
     // Save on change
@@ -225,6 +225,7 @@ Singleton {
     onPopupShadowEnabledChanged: saveConfigTimer.restart()
     onPrivacyModeChanged: saveConfigTimer.restart()
     onAnimationSpeedChanged: saveConfigTimer.restart()
+    onHistoryRetentionMsChanged: saveConfigTimer.restart()
 
     // Debounce save
     Timer {
@@ -232,6 +233,13 @@ Singleton {
         interval: 1000
         repeat: false
         onTriggered: root.saveConfig()
+    }
+
+    Timer {
+        id: notificationServerStartTimer
+        interval: 1200
+        repeat: false
+        onTriggered: root.notificationServerEnabled = true
     }
 
     Core.JsonDataStore {
@@ -245,7 +253,8 @@ Singleton {
             compactMode: false,
             popupShadowEnabled: true,
             privacyMode: false,
-            animationSpeed: 1
+            animationSpeed: 1,
+            historyRetentionMs: 300000
         })
         onLoadedValue: function(cfg) {
             root.displayDuration = cfg.displayDuration || 5000;
@@ -256,6 +265,7 @@ Singleton {
             root.popupShadowEnabled = cfg.popupShadowEnabled !== undefined ? cfg.popupShadowEnabled : true;
             root.privacyMode = cfg.privacyMode !== undefined ? cfg.privacyMode : false;
             root.animationSpeed = cfg.animationSpeed !== undefined ? cfg.animationSpeed : 1;
+            root.historyRetentionMs = cfg.historyRetentionMs !== undefined ? cfg.historyRetentionMs : 300000;
         }
         onFailed: function(phase, exitCode, details) {
             if (phase === "parse") Log.warn("Notifications", "Config parse error: " + details);
