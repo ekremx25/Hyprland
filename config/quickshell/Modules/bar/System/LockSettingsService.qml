@@ -266,9 +266,19 @@ Item {
             "bash",
             "-lc",
             "BG=$(sed -n 's/^[[:space:]]*path = //p' " + "'" + service.hyprlockConfigPath.replace(/'/g, "'\\''") + "'" + " 2>/dev/null | head -n1); " +
-            "mapfile -t TIMES < <(sed -n 's/^[[:space:]]*timeout = \\([0-9]\\+\\)$/\\1/p' " + "'" + service.hypridleConfigPath.replace(/'/g, "'\\''") + "'" + " 2>/dev/null); " +
-            "DIM=${TIMES[0]:-1200}; LOCK=${TIMES[1]:-1320}; OFF=${TIMES[2]:-1500}; SUSPEND=${TIMES[3]:-1980}; " +
-            "printf '{\"backgroundPath\":\"%s\",\"dimTimeoutMinutes\":%s,\"lockTimeoutMinutes\":%s,\"screenOffTimeoutMinutes\":%s,\"suspendTimeoutMinutes\":%s}\\n' \"$BG\" \"$((DIM/60))\" \"$((LOCK/60))\" \"$((OFF/60))\" \"$((SUSPEND/60))\""
+            "awk 'BEGIN { RS=\"listener[[:space:]]*\\\\{\"; FS=\"\\n\"; dim=1200; lock=1320; off=1500; suspend=1980; ignore=\"true\" } " +
+            "NR > 1 { timeout=\"\"; onTimeout=\"\"; ignoreValue=\"\"; " +
+            "for (i = 1; i <= NF; ++i) { line=$i; gsub(/^[[:space:]]+|[[:space:]]+$/, \"\", line); " +
+            "if (line ~ /^timeout = /) { sub(/^timeout = /, \"\", line); timeout=line } " +
+            "else if (line ~ /^on-timeout = /) { sub(/^on-timeout = /, \"\", line); onTimeout=line } " +
+            "else if (line ~ /^ignore_inhibit = /) { sub(/^ignore_inhibit = /, \"\", line); ignoreValue=line } } " +
+            "if (onTimeout ~ /^brightnessctl /) dim=timeout; " +
+            "else if (onTimeout ~ /^hyprctl dispatch dpms off$/) off=timeout; " +
+            "else if (onTimeout ~ /^systemctl suspend$/) suspend=timeout; " +
+            "else if (onTimeout ~ /hyprlock/ || onTimeout ~ /^loginctl lock-session$/) { lock=timeout; if (ignoreValue != \"\") ignore=ignoreValue } } " +
+            "END { printf \"{\\\"dimTimeoutMinutes\\\":%d,\\\"lockTimeoutMinutes\\\":%d,\\\"screenOffTimeoutMinutes\\\":%d,\\\"suspendTimeoutMinutes\\\":%d,\\\"ignoreMediaInhibit\\\":%s}\\n\", dim / 60, lock / 60, off / 60, suspend / 60, ignore }' " +
+            "'" + service.hypridleConfigPath.replace(/'/g, "'\\''") + "'" +
+            " | { read -r JSON || JSON='{}'; printf '{\"backgroundPath\":\"%s\",%s\\n' \"$BG\" \"${JSON#\\{}\"; }"
         ]
         running: false
         property string output: ""
