@@ -68,7 +68,9 @@ var NORMALIZED_IDS = {
 
 var SPECIAL_ICON_NAMES = {
     "net.lutris.lutris": "lutris",
-    "codex": "application-x-executable"
+    "codex": "application-x-executable",
+    "kittyfloat": "kitty",
+    "hyprpolkitagent": "application-x-executable"
 };
 
 function firstMatchingValue(rules, value) {

@@ -1,0 +1,8 @@
+{
+  "backgroundPath": "/home/ekrem/Pictures/wallpapers/Linux-user-Room.png",
+  "dimTimeoutMinutes": 36,
+  "lockTimeoutMinutes": 30,
+  "screenOffTimeoutMinutes": 31,
+  "suspendTimeoutMinutes": 37,
+  "ignoreMediaInhibit": true
+}
