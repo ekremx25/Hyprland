@@ -33,6 +33,8 @@ Singleton {
 
     property var notifications: []
     property var activeNotifications: []
+    signal newNotificationReceived(var notif)
+    
     property bool historyVisible: false
     function toggleHistory() { historyVisible = !historyVisible }
     property int displayDuration: 5000
@@ -88,18 +90,6 @@ Singleton {
         return resolveIconSource(notif.image || notif.appIcon || notif.icon || "")
     }
 
-    function isDuplicateNotification(normalized, notifId, now) {
-        for (var i = 0; i < root.notifications.length && i < 5; i++) {
-            var existing = root.notifications[i]
-            if (existing.id === notifId) return true
-            if (existing.summary === normalized.summary && existing.body === normalized.body) {
-                var age = now - existing.timestamp
-                if (age < root.duplicateWindowMs) return true
-            }
-        }
-        return false
-    }
-
     function applyNotifications(list) {
         root.notifications = list
         root.activeNotifications = list.filter(function(n) { return !n.closed })
@@ -139,10 +129,29 @@ Singleton {
 
         var now = new Date()
         var normalized = normalizeNotificationContent(notif)
-        if (isDuplicateNotification(normalized, notif.id, now)) return
+        
+        var existingIndex = -1;
+        // Check if updating an existing notification by ID
+        for (var i = 0; i < root.notifications.length; i++) {
+            if (root.notifications[i].id === notif.id && notif.id !== undefined) {
+                existingIndex = i;
+                break;
+            }
+        }
+        
+        // Ignore exact duplicates within the duplicate window
+        if (existingIndex === -1) {
+            for (var j = 0; j < root.notifications.length && j < 5; j++) {
+                var existing = root.notifications[j]
+                if (existing.summary === normalized.summary && existing.body === normalized.body) {
+                    var age = now - existing.timestamp
+                    if (age < root.duplicateWindowMs) return
+                }
+            }
+        }
 
         var newNotif = {
-            id: notif.id,
+            id: notif.id !== undefined ? notif.id : Date.now(),
             summary: normalized.summary,
             body: normalized.body,
             appName: normalized.appName,
@@ -153,10 +162,14 @@ Singleton {
         }
 
         var next = [newNotif]
-        for (var i = 0; i < root.notifications.length && i < (root.maxStoredNotifications - 1); i++) {
-            next.push(root.notifications[i])
+        for (var k = 0; k < root.notifications.length && next.length < root.maxStoredNotifications; k++) {
+            if (k !== existingIndex) {
+                next.push(root.notifications[k])
+            }
         }
+        
         root.applyNotifications(next)
+        root.newNotificationReceived(newNotif)
     }
 
     function removeNotification(index) {
