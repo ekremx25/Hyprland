@@ -1,14 +1,115 @@
 # Hyprland Dotfiles Installer
 
-Arch Linux icin tek komutla paketleri, `yay`, AUR temalarini, fontlari, icon temasini ve config dosyalarini kurar. `quickshell` ayari repo icinden degil, dogrudan GitHub'daki `ekremx25/quickshell` reposundan cekilir.
+This repository provides an opinionated one-command installer for my Arch Linux Hyprland setup. It installs the packages I use, prepares the desktop environment, copies my dotfiles, wallpapers, fonts, and icons, and applies a few post-install system tweaks.
 
-## Kurulum
+It is meant for Arch Linux and is designed around my personal workflow, software choices, and visual setup.
+
+## What This Installer Does
+
+The `install.sh` script will:
+
+- install required official Arch packages with `pacman`
+- install `yay` automatically if it is missing
+- install selected AUR packages with `yay`
+- install and configure `oh-my-zsh` and Zsh plugins
+- install bundled icons, fonts, wallpapers, and configuration files from this repository
+- configure GRUB kernel parameters for my AMD setup
+- configure `libvirt` and enable the service
+- enable `sddm`
+- back up existing files before replacing them
+
+## Included Configuration
+
+The installer copies these configs into `~/.config`:
+
+- `fastfetch`
+- `gtk-3.0`
+- `gtk-4.0`
+- `hypr`
+- `kitty`
+- `Kvantum`
+- `nwg-look`
+- `quickshell`
+- `qt6ct`
+- `rofi`
+- `waypaper`
+- `xsettingsd`
+
+It also installs:
+
+- `~/.zshrc`
+- `~/Pictures/wallpapers`
+- `brave-flags.conf`
+- `dolphinrc`
+- `kdeglobals`
+- `user-dirs.dirs`
+- `user-dirs.locale`
+
+## Packages Installed
+
+### Official Arch packages
+
+The script installs a full desktop and utility stack, including:
+
+- Hyprland components: `hyprland`, `hypridle`, `hyprlock`, `hyprpolkitagent`, `hyprshot`, `xdg-desktop-portal-hyprland`
+- shell and desktop tools: `kitty`, `rofi`, `quickshell`, `swww`, `wl-clipboard`, `fastfetch` config support, `qt5ct`, `qt5-wayland`
+- file and media apps: `dolphin`, `ark`, `gwenview`, `mpv`, `ffmpegthumbs`, `kwrite`, `unzip`, `unarchiver`
+- audio and desktop integration: `pipewire-pulse`, `pipewire-jack`, `wireplumber`, `playerctl`, `pavucontrol`, `network-manager-applet`
+- virtualization tools: `qemu-full`, `virt-manager`, `virt-viewer`, `libvirt`, `libguestfs`, `dnsmasq`, `vde2`, `openbsd-netcat`, `nftables`
+- extra desktop apps: `discord`, `telegram-desktop`, `obs-studio`, `keepassxc`, `rclone`
+- fonts and theme support: `ttf-roboto`, `kvantum`
+- build and kernel-related tools: `base-devel`, `bc`, `bison`, `cpio`, `flex`, `git`, `github-cli`, `kmod`, `libelf`, `linux-headers`, `pahole`, `perl`, `tar`, `xmlto`, `xz`, `zstd`
+
+### AUR packages
+
+The script also installs:
+
+- `antigravity`
+- `brave-bin`
+- `cargo`
+- `catppuccin-cursors-mocha`
+- `catppuccin-gtk-theme-latte`
+- `codex-desktop-bin`
+- `fastfetch`
+- `goverlay`
+- `lact`
+- `libxcrypt-compat`
+- `mangohud`
+- `matugen-bin`
+- `noto-fonts`
+- `nwg-look`
+- `qt6ct-kde`
+- `ttf-hack`
+- `ttf-jetbrains-mono-nerd`
+- `waypaper`
+- `zsh`
+- `zsh-autosuggestions`
+- `zsh-syntax-highlighting`
+- `iriunwebcam-bin`
+
+### Additional setup steps
+
+The installer also:
+
+- installs `opencl-amd` from a pinned AUR commit
+- runs `cargo install matugen`
+- installs `oh-my-zsh`
+- installs these Zsh plugins:
+  - `zsh-autosuggestions`
+  - `zsh-syntax-highlighting`
+  - `fast-syntax-highlighting`
+  - `zsh-autocomplete`
+- optionally runs `gh auth login` if GitHub CLI is installed and the script is running in an interactive terminal
+
+## Installation
+
+Run the installer directly:
 
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/ekremx25/Hyprland/main/install.sh)
 ```
 
-Alternatif:
+Or clone the repository and run it locally:
 
 ```bash
 git clone https://github.com/ekremx25/Hyprland.git
@@ -16,56 +117,25 @@ cd Hyprland
 ./install.sh
 ```
 
-## Ne Yapar
+## Backups
 
-- Gerekli Arch paketlerini `pacman` ile kurar.
-- `archlinux-xdg-menu` paketini de kurar.
-- `git` ve `base-devel` kurar.
-- `discord`, `telegram-desktop`, `kwrite`, `obs-studio`, `keepassxc`, `dolphin`, `ark`, `unzip`, `unarchiver`, `feh`, `gwenview`, `mpv`, `sddm`, `qemu-full`, `virt-manager`, `virt-viewer`, `libvirt`, `dnsmasq`, `vde2`, `openbsd-netcat`, `nftables`, `libguestfs`, `pipewire-jack`, `qt6-multimedia-ffmpeg`, `ttf-roboto` ve `gvfs-gphoto2` gibi repo paketlerini kurar.
-- `yay` kurulu degilse AUR'dan derleyip kurar.
-- `catppuccin-gtk-theme-latte`, `catppuccin-cursors-mocha`, `nwg-look`, `qt6ct-kde`, `codex-desktop-bin`, `antigravity`, `libxcrypt-compat`, `brave-bin`, `iriunwebcam-bin`, `cargo` ve `matugen-bin` paketlerini `yay` ile kurar.
-- `zsh`, `zsh-autosuggestions` ve `zsh-syntax-highlighting` paketlerini `yay` ile kurar.
-- `opencl-amd` paketini AUR reposundan cekip `42c9eb7` commit'ine sabitleyerek derler ve kurar.
-- `oh-my-zsh` kurar.
-- `zsh-autosuggestions`, `zsh-syntax-highlighting`, `fast-syntax-highlighting` ve `zsh-autocomplete` pluginlerini `git clone` ile kurar veya gunceller.
-- `cargo install matugen` calistirir.
-- Gerekli aktif fontlari `yay` ile kurar: `ttf-jetbrains-mono-nerd`, `ttf-hack`, `noto-fonts`.
-- Repo icindeki bundled sistem fontlarini `/usr/share/fonts` altina kopyalar ve `sudo fc-cache` calistirir.
-- `assets/icons/Ars-Light-Icons` temasini `~/.local/share/icons` altina kurar ve rofi/Qt tarafinda bunu kullanir.
-- `config/` altindaki senin masaustu ayarlarini `~/.config` altina kopyalar.
-- `~/.config/quickshell` klasorunu `https://github.com/ekremx25/quickshell` reposundan clone eder.
-- `home/.zshrc` dosyasini dogrudan `~/.zshrc` olarak kurar.
-- `Pictures/wallpapers` klasorunu dogrudan `~/Pictures/wallpapers` olarak kurar.
-- `sudo update-desktop-database` calistirir ve varsa `/etc/xdg/menus/arch-applications.menu` dosyasini `applications.menu` olarak yeniden adlandirir.
-- `/etc/libvirt/libvirtd.conf` icinde `unix_sock_group` ve `unix_sock_rw_perms` ayarlarini yapar, kullaniciyi `libvirt` grubuna ekler ve `libvirtd` servisini aktif eder.
-- `/etc/default/grub` icinde `amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive` kernel parametrelerini `GRUB_CMDLINE_LINUX_DEFAULT` satirina ekler.
-- `sddm.service` bir sonraki acilista giris ekraninin gelmesi icin aktif edilir.
-- Eski config varsa zaman damgali `.bak.YYYYMMDD-HHMMSS` yedegi olusturur.
+If a target file or directory already exists, the installer renames it to:
 
-## Dahil Olanlar
+```bash
+name.bak.YYYYMMDD-HHMMSS
+```
 
-- `hypr`
-- `rofi`
-- `kitty`
-- `quickshell`
-- `qt6ct`
-- `Kvantum`
-- `waypaper`
-- `gtk-3.0`
-- `gtk-4.0`
-- `xsettingsd`
-- `nwg-look`
-- `fastfetch`
-- `dolphinrc`
-- `brave-flags.conf`
-- `kdeglobals`
-- `user-dirs.*`
-- `Pictures/wallpapers`
+This makes it easier to restore your previous setup if needed.
 
-## Notlar
+## Important Notes
 
-- Script su an `Arch Linux` icin yazildi.
-- `install.sh` `sudo` ister; `pacman` ve `yay` kurulumu sirasinda parola sorar.
-- Aktif configte gereken fontlar paket yoneticisi ile kurulur; bundled font kopyalama yoktur.
-- Kernel config dosyalari repo icinde saklanir; installer stock Arch kernel ile kurulumu tamamlar.
-- Kurulumdan sonra oturumu kapatip yeniden Hyprland oturumu acman gerekir.
+- This script is intended for `Arch Linux` only.
+- It requires `sudo`.
+- It makes system-level changes, including GRUB and `libvirt` configuration.
+- It enables `sddm.service`.
+- It is opinionated and may install more software than a minimal setup needs.
+- After installation, log out and select the Hyprland session.
+
+## Disclaimer
+
+This is my personal setup shared publicly. Feel free to use it as a base, but you should review `install.sh` before running it on your own system.
