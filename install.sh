@@ -17,12 +17,16 @@ PACMAN_PACKAGES=(
   archlinux-xdg-menu
   ark
   base-devel
+  bc
+  bison
+  cpio
   cpupower
   discord
   dolphin
   dnsmasq
   ffmpegthumbs
   feh
+  flex
   git
   gwenview
   gvfs-gphoto2
@@ -32,10 +36,14 @@ PACMAN_PACKAGES=(
   hyprpolkitagent
   hyprshot
   keepassxc
+  kmod
   kitty
   kvantum
+  libelf
   linux-headers
   kwrite
+  pahole
+  perl
   libpulse
   libvirt
   libguestfs
@@ -57,6 +65,7 @@ PACMAN_PACKAGES=(
   rofi
   sddm
   swww
+  tar
   telegram-desktop
   ttf-roboto
   unarchiver
@@ -67,6 +76,9 @@ PACMAN_PACKAGES=(
   wl-clipboard
   wireplumber
   xdg-desktop-portal-hyprland
+  xmlto
+  xz
+  zstd
 )
 
 YAY_PACKAGES=(
