@@ -35,6 +35,87 @@ The installer copies these configs into `~/.config`:
 - `waypaper`
 - `xsettingsd`
 
+## Quickshell Overview
+
+This setup includes an active Quickshell configuration from [`config/quickshell`](./config/quickshell) and uses it as a core part of the desktop experience.
+
+The current shell layout includes:
+
+- a top bar
+- a bottom dock
+- desktop weather
+- notification toasts
+- volume OSD on supported screens
+- startup helpers for monitor layout, mouse settings, and EQ bootstrap
+
+### Current bar layout
+
+The live bar layout from [`bar_config.json`](./config/quickshell/bar_config.json) is:
+
+- left: `Launcher`, `Calendar`, `RamModule`, `SysInfoGroup`
+- center: `Workspaces`, `Notifications`, `Notepad`
+- right: `Clipboard`, `Equalizer`, `Volume`
+
+Workspace behavior:
+
+- Roman numeral workspace format
+- underline style
+- scroll switching enabled
+- application icons shown and grouped
+
+### Current dock setup
+
+The dock is enabled and centered at the bottom with background and border enabled. The pinned apps from [`dock_config.json`](./config/quickshell/dock_config.json) are:
+
+- Brave
+- Dolphin
+- antigravity
+- Telegram
+- Lutris
+- Virt Manager
+- Discord
+- IriunWebcam
+- VS Code / Codex
+- OBS Studio
+
+The dock also exposes extra modules for:
+
+- Weather
+- Power
+- Media
+- Tray
+
+### Theme and behavior
+
+From [`theme_config.json`](./config/quickshell/theme_config.json), the shell currently uses:
+
+- Material You color generation enabled
+- light mode
+- `scheme-tokyo-night` matugen preset
+- live wallpaper-based theme updates
+- Kitty theme syncing enabled
+
+From [`notification_config.json`](./config/quickshell/notification_config.json), notifications currently use:
+
+- 7 second display duration
+- top-center popup position
+- compact mode disabled
+- do not disturb disabled
+- popup shadow enabled
+- 5 minute history retention
+
+### Quickshell internals in this repo
+
+This Quickshell setup is more than a simple bar theme. It includes custom modules and services such as:
+
+- dynamic bar loading and screen-aware placement
+- notification history and toast handling
+- clipboard integration
+- audio controls and equalizer support
+- system info widgets
+- wallpaper-aware theming
+- monitor bootstrap via `scripts/apply_monitors.sh`
+
 It also installs:
 
 - `~/.zshrc`
