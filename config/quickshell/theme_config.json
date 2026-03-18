@@ -1,0 +1,9 @@
+{
+  "materialYou": true,
+  "wallpaperPath": "/home/ekrem/Pictures/wallpapers/Linux-user-Room.png",
+  "mode": "light",
+  "matugenType": "scheme-tokyo-night",
+  "applyToKitty": true,
+  "applyToGtk": false,
+  "liveUpdate": true
+}
