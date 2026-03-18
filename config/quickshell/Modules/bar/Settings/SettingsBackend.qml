@@ -44,18 +44,24 @@ Item {
         "Media": { icon: "♫", label: "Media", color: "#f5c2e7" }
     })
 
-    readonly property var barModuleNames: [
+    readonly property var barPlacementNames: [
         "Launcher", "Calendar", "Notepad",
-        "Workspaces", "Notifications",
-        "Volume", "Equalizer", "Clipboard",
+        "Workspaces", "Notifications", "Weather",
+        "Volume", "Equalizer", "Tray", "Clipboard", "Power",
         "PowerGroup", "SysInfoGroup", "RamModule"
     ]
 
-    readonly property var dockModuleNames: [
-        "Weather", "Power", "Media", "Tray"
+    readonly property var dockPlacementNames: [
+        "Launcher", "Weather", "Volume", "Tray",
+        "Notepad", "Power", "Clipboard", "Media"
     ]
 
-    readonly property var allModuleNames: barModuleNames.concat(dockModuleNames)
+    readonly property var allModuleNames: [
+        "Launcher", "Calendar", "Notepad",
+        "Workspaces", "Notifications", "Weather",
+        "Volume", "Equalizer", "Tray", "Clipboard",
+        "Power", "PowerGroup", "SysInfoGroup", "RamModule", "Media"
+    ]
 
     JsonFileStore {
         id: barConfigStore
@@ -121,10 +127,11 @@ Item {
 
     function canAssignToGroup(name, groupName) {
         if (!name || !groupName) return false;
+        if (groupName === "inactive") return allModuleNames.indexOf(name) !== -1;
         if (groupName === "dockLeft" || groupName === "dockRight") {
-            return dockModuleNames.indexOf(name) !== -1;
+            return dockPlacementNames.indexOf(name) !== -1;
         }
-        return barModuleNames.indexOf(name) !== -1;
+        return barPlacementNames.indexOf(name) !== -1;
     }
 
     function indexOfName(model, name) {
@@ -237,8 +244,8 @@ Item {
         if (!Array.isArray(normalized.rightModules)) normalized.rightModules = [];
 
         var seen = {};
-        normalized.leftModules = collectUniqueNames(normalized.leftModules, dockModuleNames, seen);
-        normalized.rightModules = collectUniqueNames(normalized.rightModules, dockModuleNames, seen);
+        normalized.leftModules = collectUniqueNames(normalized.leftModules, dockPlacementNames, seen);
+        normalized.rightModules = collectUniqueNames(normalized.rightModules, dockPlacementNames, seen);
         delete normalized.modules;
         return normalized;
     }
@@ -252,15 +259,27 @@ Item {
         if (!normalized.workspaces) normalized.workspaces = BarDefaults.createWorkspacesConfig();
         if (!normalized.barPosition) normalized.barPosition = initialBarConfig.barPosition || "top";
 
-        var seen = {};
-        normalized.left = collectUniqueNames(normalized.left, barModuleNames, seen);
-        normalized.center = collectUniqueNames(normalized.center, barModuleNames, seen);
-        normalized.right = collectUniqueNames(normalized.right, barModuleNames, seen);
-        normalized.inactive = collectUniqueNames(normalized.inactive, barModuleNames, seen);
+        var dockSeen = {};
+        collectUniqueNames(dockLeftModulesList.concat(dockRightModulesList), allModuleNames, dockSeen);
 
-        for (var i = 0; i < barModuleNames.length; ++i) {
-            var moduleName = barModuleNames[i];
-            if (!seen[moduleName]) normalized.inactive.push(moduleName);
+        var seen = {};
+        normalized.left = collectUniqueNames(normalized.left, barPlacementNames, seen);
+        normalized.center = collectUniqueNames(normalized.center, barPlacementNames, seen);
+        normalized.right = collectUniqueNames(normalized.right, barPlacementNames, seen);
+
+        var inactiveNames = [];
+        for (var j = 0; j < normalized.inactive.length; ++j) {
+            var inactiveName = normalized.inactive[j];
+            if (allModuleNames.indexOf(inactiveName) === -1) continue;
+            if (seen[inactiveName] || dockSeen[inactiveName]) continue;
+            seen[inactiveName] = true;
+            inactiveNames.push(inactiveName);
+        }
+        normalized.inactive = inactiveNames;
+
+        for (var i = 0; i < allModuleNames.length; ++i) {
+            var moduleName = allModuleNames[i];
+            if (!seen[moduleName] && !dockSeen[moduleName]) normalized.inactive.push(moduleName);
         }
         return normalized;
     }
