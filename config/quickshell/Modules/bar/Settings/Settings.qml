@@ -41,14 +41,8 @@ PanelWindow {
     // Aktif sayfa
     property string currentPage: "bar"
 
-    // Sürükleme durumu
-    property string dragSourceGroup: ""
-    property int dragSourceIndex: -1
-    property string dragModuleName: ""
-
     // Modül bilgileri
     readonly property alias moduleInfo: backend.moduleInfo
-    readonly property alias allModuleNames: backend.allModuleNames
 
     // Sidebar menü kategorileri
     readonly property var menuCategories: [
@@ -98,40 +92,6 @@ PanelWindow {
     }
 
 
-
-    function getModelByName(groupName) {
-        if (groupName === "left") return leftModel;
-        if (groupName === "center") return centerModel;
-        if (groupName === "right") return rightModel;
-        if (groupName === "inactive") return inactiveModel;
-        if (groupName === "dockLeft") return dockLeftModel;
-        if (groupName === "dockRight") return dockRightModel;
-        return null;
-    }
-
-    function handleDrop(targetGroup, targetIndex) {
-        if (dragSourceGroup === "" || dragModuleName === "") return;
-        var srcModel = getModelByName(dragSourceGroup);
-        var dstModel = getModelByName(targetGroup);
-        if (!srcModel || !dstModel) return;
-
-        if (dragSourceGroup === targetGroup) {
-            if (dragSourceIndex !== targetIndex && targetIndex >= 0 && targetIndex < srcModel.count) {
-                srcModel.move(dragSourceIndex, targetIndex, 1);
-            }
-        } else {
-            var name = dragModuleName;
-            srcModel.remove(dragSourceIndex);
-            if (targetIndex >= 0 && targetIndex <= dstModel.count) {
-                dstModel.insert(targetIndex, {name: name});
-            } else {
-                dstModel.append({name: name});
-            }
-        }
-        dragSourceGroup = "";
-        dragSourceIndex = -1;
-        dragModuleName = "";
-    }
 
     ListModel { id: leftModel }
     ListModel { id: centerModel }
@@ -412,175 +372,23 @@ PanelWindow {
                 Layout.fillHeight: true
                 clip: true
 
-                // ── BAR AYARLARI ──
-                Item {
+                BarSettingsPage {
                     anchors.fill: parent
                     anchors.margins: 16
                     visible: settingsPopup.currentPage === "bar"
-
-                    ColumnLayout {
-                        anchors.fill: parent
-                        spacing: 8
-
-                        // Başlık
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text { text: "󰒍"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                            Text { text: "Bar Settings"; font.bold: true; font.pixelSize: 18; color: Theme.text }
-                        }
-
-                        Item { height: 4 }
-
-                        // ── Bar Pozisyonu Seçici ──
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Text {
-                                text: "Position:"
-                                color: Theme.subtext
-                                font.pixelSize: 12
-                            }
-
-                            Repeater {
-                                model: [
-                                    { key: "top",    label: "▲ Top" },
-                                    { key: "bottom", label: "▼ Bottom" },
-                                    { key: "left",   label: "◀ Left" },
-                                    { key: "right",  label: "▶ Right" }
-                                ]
-
-                                Rectangle {
-                                    width: 80; height: 30; radius: 8
-                                    color: {
-                                        var pos = settingsPopup.barConfig.barPosition || "top";
-                                        if (pos === modelData.key) return Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.3);
-                                        if (posMA.containsMouse) return Qt.rgba(255,255,255,0.08);
-                                        return Qt.rgba(255,255,255,0.04);
-                                    }
-                                    border.color: {
-                                        var pos = settingsPopup.barConfig.barPosition || "top";
-                                        return pos === modelData.key ? Theme.primary : Qt.rgba(255,255,255,0.1);
-                                    }
-                                    border.width: 1
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: modelData.label
-                                        color: {
-                                            var pos = settingsPopup.barConfig.barPosition || "top";
-                                            return pos === modelData.key ? Theme.primary : Theme.subtext;
-                                        }
-                                        font.pixelSize: 11
-                                        font.bold: (settingsPopup.barConfig.barPosition || "top") === modelData.key
-                                    }
-
-                                    MouseArea {
-                                        id: posMA
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            var cfg = JSON.parse(JSON.stringify(settingsPopup.barConfig));
-                                            cfg.barPosition = modelData.key;
-                                            settingsPopup.barConfig = cfg;
-                                        }
-                                    }
-                                }
-                            }
-
-                            Item { Layout.fillWidth: true }
-                        }
-
-                        Item { height: 4 }
-
-                        Text {
-                            text: "Drag and drop modules to reorder"
-                            color: Theme.overlay2
-                            font.pixelSize: 11
-                        }
-
-                        // 3 Aktif Sütun
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            spacing: 8
-
-                            DropGroup {
-                                groupName: "left"
-                                title: "◀ Left"
-                                groupModel: leftModel
-                                groupColor: "#a6e3a1"
-                            }
-
-                            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
-
-                            DropGroup {
-                                groupName: "center"
-                                title: "● Center"
-                                groupModel: centerModel
-                                groupColor: "#cba6f7"
-                            }
-
-                            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
-
-                            DropGroup {
-                                groupName: "right"
-                                title: "▶ Right"
-                                groupModel: rightModel
-                                groupColor: "#89b4fa"
-                            }
-
-                            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
-
-                            // Kullanılmayan modüller
-                            DropGroup {
-                                groupName: "inactive"
-                                title: "⊘ Inactive"
-                                groupModel: inactiveModel
-                                groupColor: "#6c7086"
-                            }
-
-                            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
-
-                            // Dock Sol Modüller
-                            DropGroup {
-                                groupName: "dockLeft"
-                                title: "◀ Dock L"
-                                groupModel: dockLeftModel
-                                groupColor: "#fab387"
-                            }
-
-                            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
-
-                            // Dock Sağ Modüller
-                            DropGroup {
-                                groupName: "dockRight"
-                                title: "▶ Dock R"
-                                groupModel: dockRightModel
-                                groupColor: "#f9e2af"
-                            }
-                        }
-
-                        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
-
-                        // Kaydet butonu
-                        RowLayout {
-                            Layout.fillWidth: true
-                            Text { text: "Drag modules to move"; color: Theme.overlay; font.pixelSize: 11 }
-                            Item { Layout.fillWidth: true }
-                            Rectangle {
-                                width: 140; height: 38; radius: 10
-                                color: saveMA.containsMouse ? Qt.lighter(Theme.primary, 1.2) : Theme.primary
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Text { anchors.centerIn: parent; text: "💾  Save"; color: "#1e1e2e"; font.pixelSize: 14; font.bold: true }
-                                MouseArea {
-                                    id: saveMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: { saveConfig(); settingsPopup.closeSettings(); }
-                                }
-                            }
-                        }
+                    backend: backend
+                    barConfig: settingsPopup.barConfig
+                    leftModel: leftModel
+                    centerModel: centerModel
+                    rightModel: rightModel
+                    inactiveModel: inactiveModel
+                    dockLeftModel: dockLeftModel
+                    dockRightModel: dockRightModel
+                    dragLayer: settingsContent
+                    onBarConfigEdited: settingsPopup.barConfig = cfg
+                    onSaveRequested: {
+                        saveConfig();
+                        settingsPopup.closeSettings();
                     }
                 }
 
@@ -831,127 +639,6 @@ PanelWindow {
             onPressed: (mouse) => settingsContent.startResize(this, mouse)
             onPositionChanged: (mouse) => settingsContent.updateResize(this, mouse, true, true, true, true)
             onReleased: settingsContent.endResize()
-        }
-    }
-
-    // ═══ SÜRÜKLE-BIRAK GRUP BİLEŞENİ ═══
-    component DropGroup : ColumnLayout {
-        property string groupName
-        property string title
-        property ListModel groupModel
-        property color groupColor
-
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        spacing: 6
-
-        Text {
-            text: title
-            color: groupColor
-            font.pixelSize: 13
-            font.bold: true
-            Layout.alignment: Qt.AlignHCenter
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            radius: 10
-            color: groupDropArea.containsDrag ? Qt.rgba(groupColor.r, groupColor.g, groupColor.b, 0.1) : "transparent"
-            border.color: groupDropArea.containsDrag ? Qt.rgba(groupColor.r, groupColor.g, groupColor.b, 0.3) : "transparent"
-            border.width: 2
-
-            Behavior on color { ColorAnimation { duration: 200 } }
-
-            DropArea {
-                id: groupDropArea
-                anchors.fill: parent
-                onDropped: { settingsPopup.handleDrop(groupName, groupModel.count); }
-            }
-
-            ListView {
-                id: listView
-                anchors.fill: parent
-                anchors.margins: 4
-                model: groupModel
-                spacing: 4
-                clip: true
-
-                delegate: Item {
-                    id: delegateRoot
-                    width: listView.width
-                    height: 48
-
-                    property var info: settingsPopup.moduleInfo[model.name] || { icon: "?", label: model.name, color: "#cdd6f4" }
-
-                    DropArea {
-                        anchors.fill: parent
-                        onDropped: { settingsPopup.handleDrop(groupName, index); }
-                    }
-
-                    Rectangle {
-                        id: dragRect
-                        width: delegateRoot.width
-                        height: delegateRoot.height
-                        radius: 10
-                        color: dragMA.containsMouse
-                            ? Qt.rgba(49/255, 50/255, 68/255, 0.9)
-                            : Qt.rgba(49/255, 50/255, 68/255, 0.4)
-                        border.color: dragMA.drag.active ? groupColor : "transparent"
-                        border.width: dragMA.drag.active ? 2 : 0
-
-                        Behavior on color { ColorAnimation { duration: 100 } }
-
-                        Drag.active: dragMA.drag.active
-                        Drag.hotSpot.x: width / 2
-                        Drag.hotSpot.y: height / 2
-
-                        states: State {
-                            when: dragMA.drag.active
-                            ParentChange { target: dragRect; parent: settingsContent }
-                            AnchorChanges {
-                                target: dragRect
-                                anchors.left: undefined
-                                anchors.right: undefined
-                            }
-                        }
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.leftMargin: 12
-                            anchors.rightMargin: 12
-                            spacing: 10
-
-                            Text { text: "⠿"; color: Theme.overlay; font.pixelSize: 16 }
-                            Text { text: info.icon; color: info.color; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font" }
-                            Text { text: info.label; color: Theme.text; font.pixelSize: 12; font.bold: true; Layout.fillWidth: true; elide: Text.ElideRight }
-                        }
-
-                        MouseArea {
-                            id: dragMA
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            drag.target: dragRect
-
-                            onPressed: {
-                                settingsPopup.dragSourceGroup = groupName;
-                                settingsPopup.dragSourceIndex = index;
-                                settingsPopup.dragModuleName = model.name;
-                            }
-
-                            onReleased: {
-                                dragRect.Drag.drop();
-                                dragRect.x = 0;
-                                dragRect.y = 0;
-                                if (dragRect.parent !== delegateRoot) {
-                                    dragRect.parent = delegateRoot;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

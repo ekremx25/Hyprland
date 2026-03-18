@@ -44,12 +44,18 @@ Item {
         "Media": { icon: "♫", label: "Media", color: "#f5c2e7" }
     })
 
-    readonly property var allModuleNames: [
+    readonly property var barModuleNames: [
         "Launcher", "Calendar", "Notepad",
-        "Workspaces", "Notifications", "Weather", "Volume", "Equalizer",
-        "Tray", "Clipboard", "Power",
-        "PowerGroup", "SysInfoGroup", "RamModule", "Media"
+        "Workspaces", "Notifications",
+        "Volume", "Equalizer", "Clipboard",
+        "PowerGroup", "SysInfoGroup", "RamModule"
     ]
+
+    readonly property var dockModuleNames: [
+        "Weather", "Power", "Media", "Tray"
+    ]
+
+    readonly property var allModuleNames: barModuleNames.concat(dockModuleNames)
 
     JsonFileStore {
         id: barConfigStore
@@ -99,6 +105,80 @@ Item {
         }
     }
 
+    function cloneValue(value) {
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    function getModelForGroup(groupName) {
+        if (groupName === "left") return leftModel;
+        if (groupName === "center") return centerModel;
+        if (groupName === "right") return rightModel;
+        if (groupName === "inactive") return inactiveModel;
+        if (groupName === "dockLeft") return dockLeftModel;
+        if (groupName === "dockRight") return dockRightModel;
+        return null;
+    }
+
+    function canAssignToGroup(name, groupName) {
+        if (!name || !groupName) return false;
+        if (groupName === "dockLeft" || groupName === "dockRight") {
+            return dockModuleNames.indexOf(name) !== -1;
+        }
+        return barModuleNames.indexOf(name) !== -1;
+    }
+
+    function indexOfName(model, name) {
+        if (!model) return -1;
+        for (var i = 0; i < model.count; ++i) {
+            if (model.get(i).name === name) return i;
+        }
+        return -1;
+    }
+
+    function moveModule(sourceGroup, sourceIndex, targetGroup, targetIndex, name) {
+        var sourceModel = getModelForGroup(sourceGroup);
+        var targetModel = getModelForGroup(targetGroup);
+        if (!sourceModel || !targetModel || sourceIndex < 0 || sourceIndex >= sourceModel.count) return false;
+        if (!canAssignToGroup(name, targetGroup)) return false;
+
+        if (sourceGroup === targetGroup) {
+            var boundedIndex = Math.max(0, Math.min(targetIndex, sourceModel.count - 1));
+            if (boundedIndex !== sourceIndex) {
+                sourceModel.move(sourceIndex, boundedIndex, 1);
+            }
+            return true;
+        }
+
+        sourceModel.remove(sourceIndex);
+
+        var duplicateIndex = indexOfName(targetModel, name);
+        if (duplicateIndex !== -1) {
+            targetModel.remove(duplicateIndex);
+            if (duplicateIndex < targetIndex) targetIndex -= 1;
+        }
+
+        var boundedTargetIndex = Math.max(0, Math.min(targetIndex, targetModel.count));
+        if (boundedTargetIndex < targetModel.count) {
+            targetModel.insert(boundedTargetIndex, { name: name });
+        } else {
+            targetModel.append({ name: name });
+        }
+        return true;
+    }
+
+    function collectUniqueNames(list, supportedNames, seen) {
+        var output = [];
+        var safeSeen = seen || ({});
+        for (var i = 0; i < list.length; ++i) {
+            var name = list[i];
+            if (supportedNames.indexOf(name) === -1) continue;
+            if (safeSeen[name]) continue;
+            safeSeen[name] = true;
+            output.push(name);
+        }
+        return output;
+    }
+
     function renderBarDefaults(cfg) {
         var normalized = normalizeBarConfig(cfg);
         var workspaces = normalized.workspaces || BarDefaults.createWorkspacesConfig();
@@ -143,13 +223,24 @@ Item {
     }
 
     function applyDockModuleLists(cfg) {
-        var leftModules = cfg.leftModules || [];
-        var rightModules = cfg.rightModules || [];
-        syncListModel(dockLeftModel, leftModules);
-        syncListModel(dockRightModel, rightModules);
-        dockLeftModulesList = leftModules.slice();
-        dockRightModulesList = rightModules.slice();
-        dockConfig = cfg;
+        var normalized = normalizeDockConfig(cfg);
+        syncListModel(dockLeftModel, normalized.leftModules);
+        syncListModel(dockRightModel, normalized.rightModules);
+        dockLeftModulesList = normalized.leftModules.slice();
+        dockRightModulesList = normalized.rightModules.slice();
+        dockConfig = normalized;
+    }
+
+    function normalizeDockConfig(cfg) {
+        var normalized = cloneValue(cfg || {});
+        if (!Array.isArray(normalized.leftModules)) normalized.leftModules = [];
+        if (!Array.isArray(normalized.rightModules)) normalized.rightModules = [];
+
+        var seen = {};
+        normalized.leftModules = collectUniqueNames(normalized.leftModules, dockModuleNames, seen);
+        normalized.rightModules = collectUniqueNames(normalized.rightModules, dockModuleNames, seen);
+        delete normalized.modules;
+        return normalized;
     }
 
     function normalizeBarConfig(cfg) {
@@ -161,29 +252,15 @@ Item {
         if (!normalized.workspaces) normalized.workspaces = BarDefaults.createWorkspacesConfig();
         if (!normalized.barPosition) normalized.barPosition = initialBarConfig.barPosition || "top";
 
-        var allDockMods = dockLeftModulesList.concat(dockRightModulesList);
-        var filterDockModules = function(list) {
-            var out = [];
-            for (var i = 0; i < list.length; ++i) {
-                if (allDockMods.indexOf(list[i]) === -1) out.push(list[i]);
-            }
-            return out;
-        };
+        var seen = {};
+        normalized.left = collectUniqueNames(normalized.left, barModuleNames, seen);
+        normalized.center = collectUniqueNames(normalized.center, barModuleNames, seen);
+        normalized.right = collectUniqueNames(normalized.right, barModuleNames, seen);
+        normalized.inactive = collectUniqueNames(normalized.inactive, barModuleNames, seen);
 
-        normalized.left = filterDockModules(normalized.left);
-        normalized.center = filterDockModules(normalized.center);
-        normalized.right = filterDockModules(normalized.right);
-
-        var cleanInactive = [];
-        for (var k = 0; k < normalized.inactive.length; ++k) {
-            if (allDockMods.indexOf(normalized.inactive[k]) === -1) cleanInactive.push(normalized.inactive[k]);
-        }
-        normalized.inactive = cleanInactive;
-
-        var activeModules = normalized.left.concat(normalized.center).concat(normalized.right).concat(normalized.inactive).concat(allDockMods);
-        for (var i = 0; i < allModuleNames.length; ++i) {
-            var moduleName = allModuleNames[i];
-            if (activeModules.indexOf(moduleName) === -1) normalized.inactive.push(moduleName);
+        for (var i = 0; i < barModuleNames.length; ++i) {
+            var moduleName = barModuleNames[i];
+            if (!seen[moduleName]) normalized.inactive.push(moduleName);
         }
         return normalized;
     }
@@ -198,20 +275,19 @@ Item {
     }
 
     function buildBarConfigFromModels() {
-        var cfg = JSON.parse(JSON.stringify(barConfig));
+        var cfg = cloneValue(barConfig);
         cfg.left = getModelNames(leftModel);
         cfg.center = getModelNames(centerModel);
         cfg.right = getModelNames(rightModel);
         cfg.inactive = getModelNames(inactiveModel);
-        return cfg;
+        return normalizeBarConfig(cfg);
     }
 
     function buildDockConfigFromModels() {
-        var cfg = JSON.parse(JSON.stringify(dockConfig || {}));
+        var cfg = cloneValue(dockConfig || {});
         cfg.leftModules = getModelNames(dockLeftModel);
         cfg.rightModules = getModelNames(dockRightModel);
-        delete cfg.modules;
-        return cfg;
+        return normalizeDockConfig(cfg);
     }
 
     function loadConfig() {
