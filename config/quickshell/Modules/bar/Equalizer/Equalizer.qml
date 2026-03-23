@@ -63,6 +63,17 @@ Rectangle {
     readonly property color adaptiveOnPrimary: primaryLuma > 0.62 ? "#0b1220" : "#f8fafc"
     readonly property color sinkAccent: uiIsLight ? "#0f766e" : "#a6e3a1"
     readonly property color sourceAccent: uiIsLight ? "#0369a1" : "#94e2d5"
+    readonly property color glassPanel: Qt.rgba(28/255, 41/255, 56/255, 0.82)
+    readonly property color glassCard: Qt.rgba(164/255, 226/255, 255/255, 0.09)
+    readonly property color glassCardStrong: Qt.rgba(184/255, 239/255, 255/255, 0.14)
+    readonly property color glassStroke: Qt.rgba(113/255, 229/255, 255/255, 0.24)
+    readonly property color softText: "#eef6ff"
+    readonly property color dimText: "#c5d8e8"
+    readonly property color trackColor: Qt.rgba(210/255, 242/255, 255/255, 0.20)
+    readonly property color waveGlowColor: Qt.rgba(153/255, 244/255, 255/255, 0.24)
+    readonly property color waveLineColor: Qt.rgba(226/255, 255/255, 255/255, 0.86)
+    readonly property color waveFillColor: Qt.rgba(130/255, 236/255, 255/255, 0.08)
+    property real wavePhase: 0
     PwObjectTracker { objects: [ root.defaultSink, root.defaultSource ] }
     onDefaultSinkChanged: backend.scheduleRefresh(80)
     onDefaultSourceChanged: backend.scheduleRefresh(80)
@@ -112,6 +123,14 @@ Rectangle {
     function toggleSinkMute() { backend.toggleSinkMute(); }
     function toggleSourceMute() { backend.toggleSourceMute(); }
     function selectOutputSink(sinkName) { backend.selectOutputSink(sinkName); }
+
+    Timer {
+        id: waveMotionTimer
+        interval: 38
+        repeat: true
+        running: popupWindow.visible
+        onTriggered: root.wavePhase += 0.18
+    }
 
     RowLayout {
         id: row
@@ -172,179 +191,258 @@ Rectangle {
 
         Rectangle {
             id: panel
-            width: 480
-            height: 1080
-            radius: 16
+            width: 430
+            height: Math.min(930, Screen.height - 72)
+            radius: 24
             opacity: 0
             scale: 1.0
             transformOrigin: Item.TopRight
             transform: Translate { y: popupWindow.panelTopOffset }
-            color: Theme.background
+            color: root.glassPanel
             border.width: 1
-            border.color: Theme.surface
+            border.color: Qt.rgba(115/255, 235/255, 255/255, 0.55)
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.topMargin: 62
-            anchors.rightMargin: 14
+            anchors.rightMargin: 18
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: parent.radius - 1
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(133/255, 224/255, 255/255, 0.12) }
+                    GradientStop { position: 0.35; color: Qt.rgba(82/255, 146/255, 173/255, 0.10) }
+                    GradientStop { position: 1.0; color: Qt.rgba(37/255, 61/255, 85/255, 0.08) }
+                }
+            }
 
             MouseArea {
                 anchors.fill: parent
                 onClicked: (mouse) => mouse.accepted = true
             }
 
-            ColumnLayout {
-                id: contentColumn
+            Flickable {
+                id: panelFlick
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 10
-                opacity: 0
-                y: 10
+                anchors.margins: 16
+                clip: true
+                contentWidth: width
+                contentHeight: contentColumn.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    Text { text: "Audio Control"; color: root.adaptiveText; font.bold: true; font.pixelSize: 18 }
-                    Item { Layout.fillWidth: true }
-                    Rectangle {
-                        width: 26
-                        height: 26
-                        radius: 13
-                        color: Qt.rgba(255,255,255,0.08)
-                        Text { anchors.centerIn: parent; text: "✕"; color: root.adaptiveText; font.pixelSize: 12 }
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (!closeAnim.running) {
-                                    openAnim.stop()
-                                    closeAnim.start()
+                ColumnLayout {
+                    id: contentColumn
+                    width: panelFlick.width
+                    spacing: 12
+                    opacity: 0
+                    y: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        Rectangle {
+                            width: 30
+                            height: 30
+                            radius: 15
+                            color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.18)
+                            border.width: 1
+                            border.color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.40)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "EQ"
+                                color: root.softText
+                                font.pixelSize: 10
+                                font.bold: true
+                            }
+                        }
+
+                        ColumnLayout {
+                            spacing: 1
+
+                            Text { text: "Sound Tuning"; color: root.softText; font.bold: true; font.pixelSize: 17 }
+                            Text { text: root.selectedPreset + " profile"; color: root.dimText; font.pixelSize: 11 }
+                        }
+
+                        Item { Layout.fillWidth: true }
+                        Rectangle {
+                            width: 30
+                            height: 30
+                            radius: 15
+                            color: Qt.rgba(255,255,255,0.08)
+                            border.width: 1
+                            border.color: root.glassStroke
+                            Text { anchors.centerIn: parent; text: "✕"; color: root.softText; font.pixelSize: 12 }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (!closeAnim.running) {
+                                        openAnim.stop()
+                                        closeAnim.start()
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 145
-                    radius: 12
-                    color: Theme.surface
-                    border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.06)
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 158
+                        radius: 18
+                        color: root.glassCard
+                        border.width: 1
+                        border.color: root.glassStroke
 
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
                             spacing: 10
 
-                            Rectangle {
-                                width: 52
-                                height: 52
-                                radius: 10
-                                color: root.eqAccentSoft
-                                clip: true
-
-                                Image {
-                                    anchors.fill: parent
-                                    source: root.currentPlayer ? root.currentPlayer.trackArtUrl : ""
-                                    fillMode: Image.PreserveAspectCrop
-                                    visible: source !== ""
-                                }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    visible: !parent.children[0].visible
-                                    text: "󰎆"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 18
-                                    color: root.adaptiveAccentText
-                                }
-                            }
-
-                            ColumnLayout {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                spacing: 2
+                                spacing: 10
 
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: root.currentPlayer ? (root.currentPlayer.trackTitle || "Unknown Track") : "No media playing"
-                                    color: root.adaptiveText
-                                    font.bold: true
-                                    font.pixelSize: 15
-                                    elide: Text.ElideRight
+                                Rectangle {
+                                    width: 62
+                                    height: 62
+                                    radius: 16
+                                    color: root.glassCardStrong
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    clip: true
+
+                                    Image {
+                                        anchors.fill: parent
+                                        source: root.currentPlayer ? root.currentPlayer.trackArtUrl : ""
+                                        fillMode: Image.PreserveAspectCrop
+                                        visible: source !== ""
+                                    }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        visible: !parent.children[0].visible
+                                        text: "󰎆"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 20
+                                        color: root.softText
+                                    }
                                 }
 
-                                Text {
+                                ColumnLayout {
                                     Layout.fillWidth: true
-                                    text: root.currentPlayer ? (root.currentPlayer.trackArtist || "Unknown Artist") : "Open Spotify / Browser / Player"
-                                    color: root.adaptiveSubtext
-                                    font.pixelSize: 12
-                                    elide: Text.ElideRight
+                                    spacing: 2
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.currentPlayer ? (root.currentPlayer.trackTitle || "Unknown Track") : "No media playing"
+                                        color: root.softText
+                                        font.bold: true
+                                        font.pixelSize: 15
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.currentPlayer ? (root.currentPlayer.trackArtist || "Unknown Artist") : "Open Spotify / Browser / Player"
+                                        color: root.dimText
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Text {
+                                        Layout.fillWidth: true
+                                        text: root.sinkDisplayName
+                                        color: Qt.rgba(216/255, 225/255, 238/255, 0.72)
+                                        font.pixelSize: 10
+                                        elide: Text.ElideRight
+                                    }
                                 }
                             }
-                        }
 
-                        RowLayout {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: 14
+                            RowLayout {
+                                Layout.alignment: Qt.AlignHCenter
+                                spacing: 12
 
-                            Rectangle {
-                                width: 32; height: 32; radius: 16
-                                color: prevMA.containsMouse ? Qt.rgba(255,255,255,0.10) : "transparent"
-                                Text { anchors.centerIn: parent; text: "󰒮"; font.family: "JetBrainsMono Nerd Font"; color: root.adaptiveText; font.pixelSize: 13 }
-                                MouseArea { id: prevMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.previous() }
-                            }
+                                Rectangle {
+                                    width: 36; height: 36; radius: 18
+                                    color: prevMA.containsMouse ? Qt.rgba(255,255,255,0.12) : Qt.rgba(255,255,255,0.05)
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    Text { anchors.centerIn: parent; text: "󰒮"; font.family: "JetBrainsMono Nerd Font"; color: root.softText; font.pixelSize: 13 }
+                                    MouseArea { id: prevMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.previous() }
+                                }
 
-                            Rectangle {
-                                width: 44; height: 44; radius: 22
-                                color: root.eqAccent
-                                Text { anchors.centerIn: parent; text: root.isPlaying ? "⏸" : "⏵"; color: root.adaptiveOnPrimary; font.pixelSize: 16; font.bold: true }
-                                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.togglePlaying() }
-                            }
+                                Rectangle {
+                                    width: 52; height: 52; radius: 26
+                                    color: root.eqAccent
+                                    border.width: 1
+                                    border.color: Qt.rgba(255,255,255,0.18)
+                                    Text { anchors.centerIn: parent; text: root.isPlaying ? "⏸" : "⏵"; color: root.adaptiveOnPrimary; font.pixelSize: 18; font.bold: true }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.togglePlaying() }
+                                }
 
-                            Rectangle {
-                                width: 32; height: 32; radius: 16
-                                color: nextMA.containsMouse ? Qt.rgba(255,255,255,0.10) : "transparent"
-                                Text { anchors.centerIn: parent; text: "󰒭"; font.family: "JetBrainsMono Nerd Font"; color: root.adaptiveText; font.pixelSize: 13 }
-                                MouseArea { id: nextMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.next() }
+                                Rectangle {
+                                    width: 36; height: 36; radius: 18
+                                    color: nextMA.containsMouse ? Qt.rgba(255,255,255,0.12) : Qt.rgba(255,255,255,0.05)
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    Text { anchors.centerIn: parent; text: "󰒭"; font.family: "JetBrainsMono Nerd Font"; color: root.softText; font.pixelSize: 13 }
+                                    MouseArea { id: nextMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.next() }
+                                }
+
+                                Rectangle {
+                                    radius: 12
+                                    color: Qt.rgba(255,255,255,0.06)
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    implicitWidth: 88
+                                    implicitHeight: 30
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: root.sinkVolumePercent + "%"
+                                        color: root.softText
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                    }
+                                }
                             }
                         }
                     }
-                }
-
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 290
-                    radius: 12
-                    color: Theme.surface
+                    height: 282
+                    radius: 18
+                    color: root.glassCard
                     border.width: 1
-                    border.color: Qt.rgba(255,255,255,0.06)
+                    border.color: root.glassStroke
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                        anchors.margins: 14
+                        spacing: 10
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Equalizer"; color: root.adaptiveText; font.bold: true; font.pixelSize: 15 }
+                            Text { text: "Equalizer"; color: root.softText; font.bold: true; font.pixelSize: 15 }
+                            Text { text: "10-band"; color: root.dimText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
                             Rectangle {
-                                radius: 8
-                                color: root.eqAccentDim
-                                border.color: root.eqAccent
+                                radius: 10
+                                color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.18)
+                                border.color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.40)
                                 border.width: 1
-                                implicitWidth: presetLabel.implicitWidth + 14
-                                implicitHeight: 28
+                                implicitWidth: presetLabel.implicitWidth + 16
+                                implicitHeight: 30
                                 Text {
                                     id: presetLabel
                                     anchors.centerIn: parent
                                     text: root.selectedPreset
-                                    color: root.adaptiveAccentText
-                                    font.pixelSize: 12
+                                    color: root.softText
+                                    font.pixelSize: 11
                                     font.bold: true
                                 }
                             }
@@ -352,41 +450,159 @@ Rectangle {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 130
-                            spacing: 8
+                            Layout.preferredHeight: 132
+                            spacing: 6
+
+                            Canvas {
+                                id: eqWaveCanvas
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                anchors.topMargin: 8
+                                anchors.bottomMargin: 28
+                                z: 0
+
+                                onPaint: {
+                                    var ctx = getContext("2d");
+                                    ctx.reset();
+                                    if (!root.eqBands || root.eqBands.length === 0) return;
+
+                                    var anchors = [];
+                                    for (var i = 0; i < root.eqBands.length; i++) {
+                                        var anchorX = (width / Math.max(1, root.eqBands.length - 1)) * i;
+                                        var anchorRatio = (root.eqBands[i] + 12) / 24.0;
+                                        var anchorY = (1 - anchorRatio) * (height - 12) + 6;
+                                        anchors.push({ x: anchorX, y: anchorY });
+                                    }
+
+                                    if (anchors.length < 2) return;
+
+                                    var backSamples = [];
+                                    var frontSamples = [];
+                                    var sampleCount = Math.max(48, Math.floor(width / 6));
+                                    for (var s = 0; s <= sampleCount; s++) {
+                                        var t = s / sampleCount;
+                                        var fx = t * width;
+                                        var scaled = t * (anchors.length - 1);
+                                        var left = Math.floor(scaled);
+                                        var right = Math.min(anchors.length - 1, left + 1);
+                                        var blend = scaled - left;
+                                        var baseY = anchors[left].y * (1 - blend) + anchors[right].y * blend;
+                                        var ampA = 1.15 + (Math.abs(root.eqBands[left]) * 0.22);
+                                        var ampB = 1.15 + (Math.abs(root.eqBands[right]) * 0.22);
+                                        var amp = ampA * (1 - blend) + ampB * blend;
+
+                                        var backRipple = Math.sin((t * 7.0) + (root.wavePhase * 0.75)) * (amp * 0.95);
+                                        backRipple += Math.sin((t * 17.0) - (root.wavePhase * 1.05)) * (amp * 0.18);
+                                        backSamples.push({ x: fx, y: baseY + backRipple + 0.8 });
+
+                                        var frontRipple = Math.sin((t * 8.4) + (root.wavePhase * 1.05)) * (amp * 0.88);
+                                        frontRipple += Math.sin((t * 22.0) - (root.wavePhase * 1.55)) * (amp * 0.14);
+                                        frontSamples.push({ x: fx, y: baseY + frontRipple });
+                                    }
+
+                                    var mist = ctx.createLinearGradient(0, height * 0.30, width, height * 0.68);
+                                    mist.addColorStop(0.0, "rgba(180, 245, 245, 0.01)");
+                                    mist.addColorStop(0.5, "rgba(180, 245, 245, 0.06)");
+                                    mist.addColorStop(1.0, "rgba(180, 245, 245, 0.01)");
+                                    ctx.fillStyle = mist;
+                                    ctx.fillRect(0, height * 0.30, width, height * 0.30);
+
+                                    ctx.beginPath();
+                                    ctx.moveTo(backSamples[0].x, backSamples[0].y);
+                                    for (var p = 1; p < backSamples.length; p++) {
+                                        ctx.lineTo(backSamples[p].x, backSamples[p].y);
+                                    }
+                                    ctx.lineWidth = 6.5;
+                                    ctx.strokeStyle = Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.10);
+                                    ctx.stroke();
+
+                                    ctx.beginPath();
+                                    ctx.moveTo(frontSamples[0].x, frontSamples[0].y);
+                                    for (var j = 1; j < frontSamples.length; j++) {
+                                        ctx.lineTo(frontSamples[j].x, frontSamples[j].y);
+                                    }
+                                    ctx.lineWidth = 4.2;
+                                    ctx.strokeStyle = root.waveGlowColor;
+                                    ctx.stroke();
+
+                                    ctx.beginPath();
+                                    ctx.moveTo(frontSamples[0].x, frontSamples[0].y);
+                                    for (var k = 1; k < frontSamples.length; k++) {
+                                        ctx.lineTo(frontSamples[k].x, frontSamples[k].y);
+                                    }
+                                    ctx.lineWidth = 1.35;
+                                    ctx.strokeStyle = root.waveLineColor;
+                                    ctx.stroke();
+
+                                    for (var a = 0; a < anchors.length; a++) {
+                                        var softGrad = ctx.createRadialGradient(anchors[a].x, anchors[a].y, 0, anchors[a].x, anchors[a].y, 18);
+                                        softGrad.addColorStop(0.0, "rgba(213, 255, 255, 0.08)");
+                                        softGrad.addColorStop(1.0, "rgba(213, 255, 255, 0.00)");
+                                        ctx.fillStyle = softGrad;
+                                        ctx.beginPath();
+                                        ctx.arc(anchors[a].x, anchors[a].y, 18, 0, Math.PI * 2);
+                                        ctx.fill();
+                                    }
+                                }
+
+                                Connections {
+                                    target: root
+                                    function onEqBandsChanged() { eqWaveCanvas.requestPaint(); }
+                                    function onWavePhaseChanged() { eqWaveCanvas.requestPaint(); }
+                                }
+
+                                Component.onCompleted: requestPaint()
+                            }
 
                             Repeater {
                                 model: root.eqFrequencies
                                 delegate: ColumnLayout {
                                     Layout.fillWidth: true
-                                    spacing: 4
+                                    spacing: 5
+                                    z: 1
 
                                     Item {
                                         Layout.alignment: Qt.AlignHCenter
-                                        width: 22
-                                        height: 104
+                                        width: 24
+                                        height: 100
 
                                         Rectangle {
                                             anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 6
+                                            width: 4
                                             height: parent.height
-                                            radius: 3
-                                            color: Qt.rgba(255, 255, 255, 0.09)
+                                            radius: 2
+                                            color: root.trackColor
                                         }
 
                                         Rectangle {
-                                            width: 20
-                                            height: 20
-                                            radius: 10
-                                            color: root.sourceAccent
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            width: 16
+                                            height: 36
+                                            radius: 8
+                                            color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.92)
                                             y: {
                                                 var db = root.eqBands[index];
                                                 var ratio = (db + 12) / 24.0;
                                                 return (1 - ratio) * (parent.height - height);
                                             }
-                                            anchors.horizontalCenter: parent.horizontalCenter
                                             border.width: 1
-                                            border.color: Qt.rgba(255,255,255,0.3)
+                                            border.color: Qt.rgba(255,255,255,0.35)
+                                        }
+
+                                        Rectangle {
+                                            anchors.horizontalCenter: parent.horizontalCenter
+                                            width: 20
+                                            height: 20
+                                            radius: 10
+                                            y: {
+                                                var db2 = root.eqBands[index];
+                                                var ratio2 = (db2 + 12) / 24.0;
+                                                return (1 - ratio2) * (parent.height - height);
+                                            }
+                                            color: "#dff8ff"
+                                            border.width: 1
+                                            border.color: Qt.rgba(255,255,255,0.35)
                                         }
 
                                         MouseArea {
@@ -400,8 +616,8 @@ Rectangle {
                                     Text {
                                         Layout.alignment: Qt.AlignHCenter
                                         text: modelData
-                                        color: root.adaptiveSubtext
-                                        font.pixelSize: 11
+                                        color: root.dimText
+                                        font.pixelSize: 10
                                         font.bold: true
                                     }
                                 }
@@ -410,25 +626,25 @@ Rectangle {
 
                         GridLayout {
                             Layout.fillWidth: true
-                            columns: 4
-                            rowSpacing: 8
-                            columnSpacing: 8
+                            columns: 5
+                            rowSpacing: 6
+                            columnSpacing: 6
 
                             Repeater {
                                 model: root.presetNames
                                 delegate: Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 30
-                                    radius: 9
-                                    color: root.selectedPreset === modelData ? root.eqAccentDim : Qt.rgba(255,255,255,0.05)
+                                    Layout.preferredHeight: 28
+                                    radius: 8
+                                    color: root.selectedPreset === modelData ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.20) : Qt.rgba(255,255,255,0.04)
                                     border.width: 1
-                                    border.color: root.selectedPreset === modelData ? root.eqAccent : Qt.rgba(255,255,255,0.05)
+                                    border.color: root.selectedPreset === modelData ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.42) : Qt.rgba(255,255,255,0.05)
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData
-                                        color: root.selectedPreset === modelData ? root.adaptiveAccentText : root.adaptiveText
-                                        font.pixelSize: 12
+                                        color: root.selectedPreset === modelData ? root.softText : root.dimText
+                                        font.pixelSize: 10
                                         font.bold: root.selectedPreset === modelData
                                     }
 
@@ -446,186 +662,184 @@ Rectangle {
                             spacing: 8
 
                             Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 34
-                                radius: 9
-                                color: root.eqAccentButton
+                                Layout.preferredWidth: 92
+                                Layout.preferredHeight: 36
+                                radius: 10
+                                color: Qt.rgba(243/255,139/255,168/255,0.14)
                                 border.width: 1
-                                border.color: root.eqAccent
-                                Text { anchors.centerIn: parent; text: backend.isBusy ? "Applying..." : "Apply EQ"; color: root.adaptiveAccentText; font.bold: true; font.pixelSize: 12 }
-                                MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.applyToPipeWire() }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredHeight: 34
-                                radius: 9
-                                color: Qt.rgba(243/255,139/255,168/255,0.2)
-                                border.width: 1
-                                border.color: Theme.red
-                                Text { anchors.centerIn: parent; text: "Disable"; color: Theme.red; font.bold: true; font.pixelSize: 12 }
+                                border.color: Qt.rgba(243/255,139/255,168/255,0.30)
+                                Text { anchors.centerIn: parent; text: "Disable"; color: "#f7b4c5"; font.bold: true; font.pixelSize: 12 }
                                 MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.disablePipeWireEq() }
                             }
                         }
 
                         Text {
-                            text: "Status: " + root.applyStatus
-                            color: root.adaptiveSubtext
-                            font.pixelSize: 11
+                            text: backend.isBusy ? "Applying automatically..." : ("Auto apply on drag and preset change" + (root.applyStatus.length > 0 ? " • " + root.applyStatus : ""))
+                            color: root.dimText
+                            font.pixelSize: 10
                         }
                     }
                 }
 
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    height: 88
-                    radius: 10
-                    color: Theme.surface
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 8
+                    spacing: 10
 
-                        RowLayout {
-                            Layout.fillWidth: true
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 88
+                        radius: 16
+                        color: root.glassCard
+                        border.width: 1
+                        border.color: root.glassStroke
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
                             spacing: 8
-                            Text { text: "󰓃"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: root.sinkAccent }
-                            Text {
+
+                            RowLayout {
                                 Layout.fillWidth: true
-                                text: root.sinkDisplayName
-                                color: root.adaptiveText
-                                font.bold: true
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                text: root.sinkVolumePercent + "%"
-                                color: root.adaptiveAccentText
-                                font.bold: true
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Rectangle {
-                                width: 28
-                                height: 28
-                                radius: 8
-                                color: root.sinkMuted ? Qt.rgba(243/255,139/255,168/255,0.2) : Qt.rgba(166/255,227/255,161/255,0.14)
+                                spacing: 8
+                                Text { text: "󰓃"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: root.sinkAccent }
                                 Text {
-                                    anchors.centerIn: parent
-                                    text: root.sinkMuted ? "󰝟" : "󰕾"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 13
-                                    color: root.sinkMuted ? "#f38ba8" : root.sinkAccent
+                                    Layout.fillWidth: true
+                                    text: root.sinkDisplayName
+                                    color: root.softText
+                                    font.bold: true
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
                                 }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggleSinkMute()
-                                }
-                            }
-
-                            Rectangle {
-                                Layout.fillWidth: true
-                                height: 6
-                                radius: 3
-                                color: Qt.rgba(49/255, 50/255, 68/255, 0.8)
-                                Rectangle {
-                                    width: parent.width * (Math.max(0, Math.min(root.sinkVolumePercent, 150)) / 150)
-                                    height: parent.height
-                                    radius: 3
-                                    color: root.sinkAccent
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    function setVol(mouse) {
-                                        if (width <= 0) return;
-                                        var p = (mouse.x / width) * 150.0;
-                                        root.setSinkVolumePercent(p);
-                                    }
-                                    onPressed: (mouse) => setVol(mouse)
-                                    onPositionChanged: (mouse) => { if (pressed) setVol(mouse); }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 88
-                    radius: 10
-                    color: Theme.surface
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 10
-                        spacing: 8
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-                            Text { text: "󰍬"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 16; color: root.sourceAccent }
-                            Text {
-                                Layout.fillWidth: true
-                                text: root.sourceDisplayName
-                                color: root.adaptiveText
-                                font.bold: true
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                text: root.sourceVolumePercent + "%"
-                                color: root.sourceAccent
-                                font.bold: true
-                            }
-                        }
-
-                        RowLayout {
-                            Layout.fillWidth: true
-                            spacing: 8
-
-                            Rectangle {
-                                width: 28
-                                height: 28
-                                radius: 8
-                                color: root.sourceMuted ? Qt.rgba(243/255,139/255,168/255,0.2) : Qt.rgba(148/255,226/255,213/255,0.14)
                                 Text {
-                                    anchors.centerIn: parent
-                                    text: root.sourceMuted ? "󰍭" : "󰍬"
-                                    font.family: "JetBrainsMono Nerd Font"
-                                    font.pixelSize: 13
-                                    color: root.sourceMuted ? "#f38ba8" : root.sourceAccent
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.toggleSourceMute()
+                                    text: root.sinkVolumePercent + "%"
+                                    color: root.softText
+                                    font.bold: true
+                                    font.pixelSize: 11
                                 }
                             }
 
-                            Rectangle {
+                            RowLayout {
                                 Layout.fillWidth: true
-                                height: 6
-                                radius: 3
-                                color: Qt.rgba(49/255, 50/255, 68/255, 0.8)
+                                spacing: 8
+
                                 Rectangle {
-                                    width: parent.width * (Math.max(0, Math.min(root.sourceVolumePercent, 100)) / 100)
-                                    height: parent.height
-                                    radius: 3
-                                    color: root.sourceAccent
-                                }
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    function setMic(mouse) {
-                                        if (width <= 0) return;
-                                        var p = (mouse.x / width) * 100.0;
-                                        root.setSourceVolumePercent(p);
+                                    width: 28
+                                    height: 28
+                                    radius: 8
+                                    color: root.sinkMuted ? Qt.rgba(243/255,139/255,168/255,0.18) : Qt.rgba(166/255,227/255,161/255,0.12)
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: root.sinkMuted ? "󰝟" : "󰕾"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+                                        color: root.sinkMuted ? "#f38ba8" : root.sinkAccent
                                     }
-                                    onPressed: (mouse) => setMic(mouse)
-                                    onPositionChanged: (mouse) => { if (pressed) setMic(mouse); }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleSinkMute() }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 6
+                                    radius: 3
+                                    color: root.trackColor
+                                    Rectangle {
+                                        width: parent.width * (Math.max(0, Math.min(root.sinkVolumePercent, 150)) / 150)
+                                        height: parent.height
+                                        radius: 3
+                                        color: root.sinkAccent
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        function setVol(mouse) {
+                                            if (width <= 0) return;
+                                            var p = (mouse.x / width) * 150.0;
+                                            root.setSinkVolumePercent(p);
+                                        }
+                                        onPressed: function(mouse) { setVol(mouse); }
+                                        onPositionChanged: function(mouse) { if (pressed) setVol(mouse); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 88
+                        radius: 16
+                        color: root.glassCard
+                        border.width: 1
+                        border.color: root.glassStroke
+                        ColumnLayout {
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 8
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                Text { text: "󰍬"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: root.sourceAccent }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: root.sourceDisplayName
+                                    color: root.softText
+                                    font.bold: true
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+                                Text {
+                                    text: root.sourceVolumePercent + "%"
+                                    color: root.softText
+                                    font.bold: true
+                                    font.pixelSize: 11
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+
+                                Rectangle {
+                                    width: 28
+                                    height: 28
+                                    radius: 8
+                                    color: root.sourceMuted ? Qt.rgba(243/255,139/255,168/255,0.18) : Qt.rgba(148/255,226/255,213/255,0.12)
+                                    border.width: 1
+                                    border.color: root.glassStroke
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: root.sourceMuted ? "󰍭" : "󰍬"
+                                        font.family: "JetBrainsMono Nerd Font"
+                                        font.pixelSize: 13
+                                        color: root.sourceMuted ? "#f38ba8" : root.sourceAccent
+                                    }
+                                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.toggleSourceMute() }
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    height: 6
+                                    radius: 3
+                                    color: root.trackColor
+                                    Rectangle {
+                                        width: parent.width * (Math.max(0, Math.min(root.sourceVolumePercent, 100)) / 100)
+                                        height: parent.height
+                                        radius: 3
+                                        color: root.sourceAccent
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        function setMic(mouse) {
+                                            if (width <= 0) return;
+                                            var p = (mouse.x / width) * 100.0;
+                                            root.setSourceVolumePercent(p);
+                                        }
+                                        onPressed: function(mouse) { setMic(mouse); }
+                                        onPositionChanged: function(mouse) { if (pressed) setMic(mouse); }
+                                    }
                                 }
                             }
                         }
@@ -634,15 +848,15 @@ Rectangle {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 220
-                    radius: 10
-                    color: Theme.surface
+                    height: 240
+                    radius: 16
+                    color: root.glassCard
                     border.width: 1
-                    border.color: Qt.rgba(255,255,255,0.06)
+                    border.color: root.glassStroke
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 10
+                        anchors.margins: 12
                         spacing: 8
 
                         RowLayout {
@@ -650,15 +864,15 @@ Rectangle {
                             Text { text: "󰓃"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 15; color: root.sinkAccent }
                             Text {
                                 text: "Output Devices"
-                                color: root.adaptiveText
+                                color: root.softText
                                 font.bold: true
-                                font.pixelSize: 14
+                                font.pixelSize: 13
                             }
                             Item { Layout.fillWidth: true }
                             Text {
                                 text: backend.isBusy ? "Applying..." : ""
-                                color: root.adaptiveSubtext
-                                font.pixelSize: 11
+                                color: root.dimText
+                                font.pixelSize: 10
                             }
                         }
 
@@ -672,11 +886,11 @@ Rectangle {
                             delegate: Rectangle {
                                 required property var modelData
                                 width: ListView.view.width
-                                height: 52
-                                radius: 10
-                                color: modelData.selected ? root.eqAccentDim : Qt.rgba(255,255,255,0.04)
+                                height: 42
+                                radius: 12
+                                color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.16) : Qt.rgba(255,255,255,0.04)
                                 border.width: 1
-                                border.color: modelData.selected ? root.eqAccentBorder : Qt.rgba(255,255,255,0.05)
+                                border.color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.38) : Qt.rgba(255,255,255,0.05)
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -697,16 +911,16 @@ Rectangle {
                                         Text {
                                             Layout.fillWidth: true
                                             text: modelData.label
-                                            color: root.adaptiveText
-                                            font.pixelSize: 12
+                                            color: root.softText
+                                            font.pixelSize: 11
                                             font.bold: modelData.selected
                                             elide: Text.ElideRight
                                         }
 
                                         Text {
                                             text: modelData.state.toLowerCase()
-                                            color: root.adaptiveSubtext
-                                            font.pixelSize: 10
+                                            color: root.dimText
+                                            font.pixelSize: 9
                                         }
                                     }
                                 }
@@ -720,6 +934,7 @@ Rectangle {
                             }
                         }
                     }
+                }
                 }
             }
         }
