@@ -13,9 +13,13 @@ Rectangle {
     property color barBgColor: Theme.calendarColor
     property color barTextColor: Theme.background
 
-    property color popupBg: Theme.background
-    property color popupText: Theme.text
+    property color popupBg: Qt.rgba(28/255, 41/255, 56/255, 0.82)
+    property color popupText: "#eef6ff"
     property color accentColor: Theme.calendarColor
+    readonly property color glassCard: Qt.rgba(164/255, 226/255, 255/255, 0.09)
+    readonly property color glassCardStrong: Qt.rgba(184/255, 239/255, 255/255, 0.14)
+    readonly property color glassStroke: Qt.rgba(113/255, 229/255, 255/255, 0.24)
+    readonly property color dimText: "#c5d8e8"
 
     CalendarBackend { id: backend }
     property alias showFullDate: backend.showFullDate
@@ -100,8 +104,10 @@ Rectangle {
         visible: false
         property real panelOpacity: 0.0
         property real panelYOffset: -18
+        property real panelScale: 0.97
         Behavior on panelOpacity { NumberAnimation { duration: 170; easing.type: Easing.OutCubic } }
         Behavior on panelYOffset { NumberAnimation { duration: 220; easing.type: Easing.OutBack } }
+        Behavior on panelScale { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         implicitWidth: 400
         implicitHeight: 560
         color: "transparent"
@@ -114,7 +120,7 @@ Rectangle {
             left: true
         }
 
-        // Position below/beside the calendar button
+        // Position below the calendar button
         margins {
             top: 58
             left: 0
@@ -123,35 +129,54 @@ Rectangle {
         function repositionCalendar() {
             if (!dateRoot.QsWindow || !dateRoot.QsWindow.window) return;
             var win = dateRoot.QsWindow.window;
-            var isVertBar = win.height > win.width;
-            var globalPos = dateRoot.mapToGlobal(0, 0);
-
-            if (isVertBar) {
-                calWindow.margins.top = globalPos.y;
-                calWindow.margins.left = globalPos.x - calWindow.width - 10;
-                if (calWindow.margins.left < 10) calWindow.margins.left = 10;
-            } else {
-                var desiredTop = globalPos.y + dateRoot.height + 8;
-                if (desiredTop + calWindow.height > win.height - 8) {
-                    desiredTop = globalPos.y - calWindow.height - 8;
-                }
-                calWindow.margins.top = Math.max(8, desiredTop);
-
-                var desiredLeft = globalPos.x - (calWindow.width / 2) + (dateRoot.width / 2);
-                var maxLeft = Math.max(10, win.width - calWindow.width - 10);
-                calWindow.margins.left = Math.max(10, Math.min(desiredLeft, maxLeft));
+            var localPos = win.contentItem.mapFromItem(dateRoot, 0, 0);
+            var desiredTop = localPos.y + dateRoot.height + 8;
+            if (desiredTop + calWindow.height > win.height - 8) {
+                desiredTop = localPos.y - calWindow.height - 8;
             }
+            calWindow.margins.top = Math.max(8, desiredTop);
+
+            var desiredLeft = localPos.x + (dateRoot.width / 2) - (calWindow.width / 2);
+            var maxLeft = Math.max(10, win.width - calWindow.width - 10);
+            calWindow.margins.left = Math.max(10, Math.min(desiredLeft, maxLeft));
         }
 
         Rectangle {
             id: bgRect
             anchors.fill: parent
             opacity: calWindow.panelOpacity
-            transform: Translate { y: calWindow.panelYOffset }
+            transform: [
+                Translate { y: calWindow.panelYOffset },
+                Scale {
+                    origin.x: bgRect.width / 2
+                    origin.y: 0
+                    xScale: calWindow.panelScale
+                    yScale: calWindow.panelScale
+                }
+            ]
             color: popupBg
-            border.color: accentColor
-            border.width: 2
-            radius: 12
+            border.color: Qt.rgba(115/255, 235/255, 255/255, 0.55)
+            border.width: 1
+            radius: 16
+
+            Rectangle {
+                anchors.fill: parent
+                anchors.margins: 1
+                radius: parent.radius - 1
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(133/255, 224/255, 255/255, 0.12) }
+                    GradientStop { position: 0.35; color: Qt.rgba(82/255, 146/255, 173/255, 0.10) }
+                    GradientStop { position: 1.0; color: Qt.rgba(37/255, 61/255, 85/255, 0.08) }
+                }
+            }
+
+            Rectangle {
+                anchors.fill: parent
+                radius: parent.radius
+                color: "transparent"
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.06)
+            }
 
             HoverHandler {
                 id: popupHover
@@ -179,13 +204,15 @@ Rectangle {
                     Layout.preferredHeight: 30
                     currentIndex: viewStack.currentIndex
 
-                    background: Rectangle { color: "transparent" }
+                        background: Rectangle { color: "transparent" }
 
                     component MyTabButton: TabButton {
                         property string iconChar
                         background: Rectangle {
-                            color: parent.checked ? Qt.rgba(1,1,1,0.1) : "transparent"
-                            radius: 5
+                            color: parent.checked ? dateRoot.glassCardStrong : "transparent"
+                            border.width: parent.checked ? 1 : 0
+                            border.color: parent.checked ? dateRoot.glassStroke : "transparent"
+                            radius: 8
                         }
                         contentItem: Text {
                             text: parent.iconChar
@@ -203,7 +230,7 @@ Rectangle {
 
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255,255,255,0.1) }
+                Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255,255,255,0.08) }
 
                 // CONTENT STACK
                 StackLayout {
@@ -227,7 +254,9 @@ Rectangle {
 
                                 Rectangle {
                                     width: 30; height: 30; radius: 15
-                                    color: prevMouse.containsMouse ? "#313244" : "transparent"
+                                    color: prevMouse.containsMouse ? dateRoot.glassCardStrong : "transparent"
+                                    border.width: prevMouse.containsMouse ? 1 : 0
+                                    border.color: prevMouse.containsMouse ? dateRoot.glassStroke : "transparent"
                                     Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
                                     MouseArea { id: prevMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.prevMonth() }
                                 }
@@ -245,7 +274,9 @@ Rectangle {
 
                                 Rectangle {
                                     width: 30; height: 30; radius: 15
-                                    color: nextMouse.containsMouse ? "#313244" : "transparent"
+                                    color: nextMouse.containsMouse ? dateRoot.glassCardStrong : "transparent"
+                                    border.width: nextMouse.containsMouse ? 1 : 0
+                                    border.color: nextMouse.containsMouse ? dateRoot.glassStroke : "transparent"
                                     Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
                                     MouseArea { id: nextMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.nextMonth() }
                                 }
@@ -305,14 +336,17 @@ Rectangle {
                 backend.toToday()
                 repositionCalendar()
                 calWindow.panelOpacity = 0.0
-                calWindow.panelYOffset = -18
+                calWindow.panelYOffset = -22
+                calWindow.panelScale = 0.965
                 Qt.callLater(function() {
                     calWindow.panelOpacity = 1.0
                     calWindow.panelYOffset = 0
+                    calWindow.panelScale = 1.0
                 })
             } else {
                 calWindow.panelOpacity = 0.0
                 calWindow.panelYOffset = -14
+                calWindow.panelScale = 0.985
             }
         }
 
