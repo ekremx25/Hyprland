@@ -1,0 +1,8 @@
+{
+  "backgroundPath": "/home/Eko/Pictures/wallpapers/Dynamic-Wallpapers/Light/Forest-Light.png",
+  "dimTimeoutMinutes": 36,
+  "lockTimeoutMinutes": 30,
+  "screenOffTimeoutMinutes": 31,
+  "suspendTimeoutMinutes": 34,
+  "ignoreMediaInhibit": true
+}
