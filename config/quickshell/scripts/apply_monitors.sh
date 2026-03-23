@@ -28,6 +28,11 @@ fi
 
 # Read keys from JSON using jq
 MONITORS=$(jq -r 'keys[]' "$CONFIG_FILE" 2>/dev/null)
+DEFAULT_MONITOR=$(jq -r 'to_entries[] | select(.value.default == true) | .key' "$CONFIG_FILE" 2>/dev/null | head -n1)
+
+if [ $IS_HYPRLAND -eq 1 ]; then
+    CONNECTED_MONITORS=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[].name' 2>/dev/null)
+fi
 
 for MON in $MONITORS; do
     RES=$(jq -r ".\"$MON\".res" "$CONFIG_FILE")
@@ -36,8 +41,11 @@ for MON in $MONITORS; do
     POS_X=$(jq -r ".\"$MON\".posX" "$CONFIG_FILE")
     POS_Y=$(jq -r ".\"$MON\".posY" "$CONFIG_FILE")
 
-    if [ "$RES" != "null" ] && [ "$HZ" != "null" ] && [ "$SCALE" != "null" ]; then
+    if [ "$RES" != "null" ] && [ "$HZ" != "null" ] && [ "$SCALE" != "null" ] && [ "$RES" != "0x0" ]; then
         if [ $IS_HYPRLAND -eq 1 ]; then
+            if ! printf '%s\n' "$CONNECTED_MONITORS" | grep -Fxq "$MON"; then
+                continue
+            fi
             # hyprctl keyword monitor name,res@hz,XxY,scale[,extra_params]
             HDR=$(jq -r ".\"$MON\".hdr // false" "$CONFIG_FILE")
             BITDEPTH=$(jq -r ".\"$MON\".bitdepth // 8" "$CONFIG_FILE")
@@ -60,3 +68,7 @@ for MON in $MONITORS; do
         fi
     fi
 done
+
+if [ $IS_HYPRLAND -eq 1 ] && [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
+    hyprctl dispatch focusmonitor "$DEFAULT_MONITOR" >/dev/null 2>&1
+fi
