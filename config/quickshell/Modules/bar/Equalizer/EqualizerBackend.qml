@@ -21,6 +21,9 @@ Item {
     property string currentSourceName: ""
     property string lastAppliedTargetSink: ""
     property string pendingAutoTargetSink: ""
+    property bool pendingEqApply: false
+    property bool hydratingEqState: false
+    property var pendingEqBandsSnapshot: null
     property var availableSinks: []
     readonly property bool isBusy: eqProc.running
     readonly property var presetNames: ["Flat", "Bass", "Movie", "Treble", "Voice", "Vocal", "Pop", "Rock", "Jazz", "Classic"]
@@ -127,8 +130,10 @@ Item {
             if (m && m.length > 1) gains.push(parseFloat(m[1]));
         }
         if (gains.length === 10) {
+            backend.hydratingEqState = true;
             backend.eqBands = gains;
             backend.selectedPreset = backend.detectPresetFromBands(gains);
+            backend.hydratingEqState = false;
         }
     }
 
@@ -157,6 +162,12 @@ Item {
             routeRecoveryTimer.restart();
             Volume.pulseOsd();
             eqProc.out = "";
+            if (backend.pendingEqApply) {
+                backend.pendingEqApply = false;
+                if (backend.pendingEqBandsSnapshot && backend.pendingEqBandsSnapshot.length === 10) {
+                    eqBandAutoApplyTimer.restart();
+                }
+            }
         }
     }
 
@@ -268,6 +279,20 @@ Item {
         onTriggered: backend.refreshAudioInfo()
     }
 
+    Timer {
+        id: eqBandAutoApplyTimer
+        interval: 320
+        repeat: false
+        onTriggered: {
+            if (backend.eqProc.running) {
+                backend.pendingEqApply = true;
+                return;
+            }
+            backend.pendingEqApply = false;
+            backend.applyToPipeWire(backend.pendingEqBandsSnapshot);
+        }
+    }
+
     function sameBands(a, b) {
         if (!a || !b || a.length !== b.length) return false;
         for (var i = 0; i < a.length; i++) {
@@ -289,10 +314,29 @@ Item {
         return name.replace(/^alsa_output\./, "").replace(/\.analog-stereo$/, "").replace(/_/g, " ");
     }
 
+    function queueEqApply(immediate) {
+        if (hydratingEqState) return;
+        pendingEqBandsSnapshot = eqBands.slice();
+        pendingEqApply = true;
+        if (eqProc.running) return;
+        if (immediate === true) {
+            eqBandAutoApplyTimer.stop();
+            pendingEqApply = false;
+            applyToPipeWire(pendingEqBandsSnapshot);
+            return;
+        }
+        eqBandAutoApplyTimer.restart();
+    }
+
+    onEqBandsChanged: {
+        queueEqApply(false);
+    }
+
     function applyPreset(name) {
         if (!presetMap[name]) return;
         selectedPreset = name;
         eqBands = presetMap[name].slice();
+        queueEqApply(true);
     }
 
     function setBandFromY(idx, y, h) {
@@ -301,24 +345,26 @@ Item {
         arr[idx] = Math.round((ratio * 24) - 12);
         eqBands = arr;
         selectedPreset = "Custom";
+        queueEqApply(false);
     }
 
-    function applyEqToTarget(targetSink) {
+    function applyEqToTarget(targetSink, bands) {
         if (eqProc.running) return;
         applyStatus = targetSink === "auto" ? "Applying..." : "Switching output...";
         eqProc.requestedTargetSink = targetSink;
+        var gains = (bands && bands.length === 10) ? bands : eqBands;
         startManagedProcess(eqProc, [
             "/bin/bash", eqScriptPath, "apply",
-            String(eqBands[0]), String(eqBands[1]), String(eqBands[2]), String(eqBands[3]), String(eqBands[4]),
-            String(eqBands[5]), String(eqBands[6]), String(eqBands[7]), String(eqBands[8]), String(eqBands[9]),
+            String(gains[0]), String(gains[1]), String(gains[2]), String(gains[3]), String(gains[4]),
+            String(gains[5]), String(gains[6]), String(gains[7]), String(gains[8]), String(gains[9]),
             targetSink
         ]);
     }
 
-    function applyToPipeWire() {
+    function applyToPipeWire(bands) {
         var targetSink = "auto";
         if (currentSinkName.length > 0 && currentSinkName !== "effect_input.eq") targetSink = currentSinkName;
-        applyEqToTarget(targetSink);
+        applyEqToTarget(targetSink, bands);
     }
 
     function autoApplyForCurrentSink() {
