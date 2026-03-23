@@ -192,7 +192,7 @@ Rectangle {
         Rectangle {
             id: panel
             width: 430
-            height: Math.min(930, Screen.height - 72)
+            height: Math.min(contentColumn.implicitHeight + 32, Screen.height - 72)
             radius: 24
             opacity: 0
             scale: 1.0
@@ -657,18 +657,18 @@ Rectangle {
                             }
                         }
 
-                        RowLayout {
+                        Item {
                             Layout.fillWidth: true
-                            spacing: 8
+                            Layout.preferredHeight: 28
 
                             Rectangle {
-                                Layout.preferredWidth: 92
-                                Layout.preferredHeight: 36
-                                radius: 10
-                                color: Qt.rgba(243/255,139/255,168/255,0.14)
+                                anchors.fill: parent
+                                height: parent.height
+                                radius: 8
+                                color: Qt.rgba(243/255,139/255,168/255,0.10)
                                 border.width: 1
-                                border.color: Qt.rgba(243/255,139/255,168/255,0.30)
-                                Text { anchors.centerIn: parent; text: "Disable"; color: "#f7b4c5"; font.bold: true; font.pixelSize: 12 }
+                                border.color: Qt.rgba(243/255,139/255,168/255,0.22)
+                                Text { anchors.centerIn: parent; text: "Disable EQ"; color: "#f7b4c5"; font.bold: true; font.pixelSize: 11 }
                                 MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.disablePipeWireEq() }
                             }
                         }
@@ -848,7 +848,7 @@ Rectangle {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 240
+                    height: 188
                     radius: 16
                     color: root.glassCard
                     border.width: 1
@@ -856,8 +856,8 @@ Rectangle {
 
                     ColumnLayout {
                         anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 8
+                        anchors.margins: 10
+                        spacing: 6
 
                         RowLayout {
                             Layout.fillWidth: true
