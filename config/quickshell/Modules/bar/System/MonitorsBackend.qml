@@ -49,6 +49,291 @@ Item {
 
     signal refreshRequested()
 
+    function parseResParts(res) {
+        var parts = String(res || "").split("x");
+        return {
+            width: parts.length > 0 ? parseInt(parts[0]) || 0 : 0,
+            height: parts.length > 1 ? parseInt(parts[1]) || 0 : 0
+        };
+    }
+
+    function isOutputValid(outObj) {
+        if (!outObj) return false;
+        var dims = parseResParts(outObj.res);
+        return dims.width > 0 && dims.height > 0 && parseFloat(outObj.hz || "0") > 0;
+    }
+
+    function logicalWidth(outObj) {
+        var dims = parseResParts(outObj.res);
+        var scale = parseFloat(outObj.scale || "1");
+        if (!isFinite(scale) || scale <= 0) scale = 1;
+        return Math.round(dims.width / scale);
+    }
+
+    function logicalHeight(outObj) {
+        var dims = parseResParts(outObj.res);
+        var scale = parseFloat(outObj.scale || "1");
+        if (!isFinite(scale) || scale <= 0) scale = 1;
+        return Math.round(dims.height / scale);
+    }
+
+    function getSavedPosition(outObj) {
+        var saved = backend.savedConfig[outObj.name];
+        if (saved && saved.posX !== undefined && saved.posY !== undefined) {
+            return {
+                x: parseInt(saved.posX) || 0,
+                y: parseInt(saved.posY) || 0
+            };
+        }
+        return {
+            x: Math.round(outObj.posX || 0),
+            y: Math.round(outObj.posY || 0)
+        };
+    }
+
+    function horizontalOverlapAmount(first, second) {
+        var firstLeft = Math.round(first.posX || 0);
+        var firstRight = firstLeft + logicalWidth(first);
+        var secondLeft = Math.round(second.posX || 0);
+        var secondRight = secondLeft + logicalWidth(second);
+        return Math.max(0, Math.min(firstRight, secondRight) - Math.max(firstLeft, secondLeft));
+    }
+
+    function verticalOverlapAmount(first, second) {
+        var firstTop = Math.round(first.posY || 0);
+        var firstBottom = firstTop + logicalHeight(first);
+        var secondTop = Math.round(second.posY || 0);
+        var secondBottom = secondTop + logicalHeight(second);
+        return Math.max(0, Math.min(firstBottom, secondBottom) - Math.max(firstTop, secondTop));
+    }
+
+    function outputsOverlap(first, second) {
+        return horizontalOverlapAmount(first, second) > 0 && verticalOverlapAmount(first, second) > 0;
+    }
+
+    function centerYForPlacement(reference, candidate) {
+        return Math.round((Math.round(reference.posY || 0) + (logicalHeight(reference) / 2)) - (logicalHeight(candidate) / 2));
+    }
+
+    function centerXForPlacement(reference, candidate) {
+        return Math.round((Math.round(reference.posX || 0) + (logicalWidth(reference) / 2)) - (logicalWidth(candidate) / 2));
+    }
+
+    function candidatePlacement(reference, candidate, side) {
+        if (side === "left") {
+            return {
+                x: Math.round(reference.posX || 0) - logicalWidth(candidate),
+                y: centerYForPlacement(reference, candidate)
+            };
+        }
+        if (side === "right") {
+            return {
+                x: Math.round(reference.posX || 0) + logicalWidth(reference),
+                y: centerYForPlacement(reference, candidate)
+            };
+        }
+        if (side === "top") {
+            return {
+                x: centerXForPlacement(reference, candidate),
+                y: Math.round(reference.posY || 0) - logicalHeight(candidate)
+            };
+        }
+        return {
+            x: centerXForPlacement(reference, candidate),
+            y: Math.round(reference.posY || 0) + logicalHeight(reference)
+        };
+    }
+
+    function placementScore(reference, candidate, placement, preferredPosition) {
+        var prefX = preferredPosition.x;
+        var prefY = preferredPosition.y;
+        var distance = Math.abs(placement.x - prefX) + Math.abs(placement.y - prefY);
+        var centerDistance = Math.abs((placement.x + logicalWidth(candidate) / 2) - (prefX + logicalWidth(candidate) / 2))
+            + Math.abs((placement.y + logicalHeight(candidate) / 2) - (prefY + logicalHeight(candidate) / 2));
+        var attachPenalty = 0;
+        var refCenterX = Math.round(reference.posX || 0) + logicalWidth(reference) / 2;
+        var refCenterY = Math.round(reference.posY || 0) + logicalHeight(reference) / 2;
+        var prefCenterX = prefX + logicalWidth(candidate) / 2;
+        var prefCenterY = prefY + logicalHeight(candidate) / 2;
+        var dx = prefCenterX - refCenterX;
+        var dy = prefCenterY - refCenterY;
+        if ((placement.x < Math.round(reference.posX || 0) && dx > 0)
+            || (placement.x >= Math.round(reference.posX || 0) + logicalWidth(reference) && dx < 0)
+            || (placement.y < Math.round(reference.posY || 0) && dy > 0)
+            || (placement.y >= Math.round(reference.posY || 0) + logicalHeight(reference) && dy < 0)) {
+            attachPenalty += 250;
+        }
+        return distance + centerDistance + attachPenalty;
+    }
+
+    function guessPreferredSide(reference, candidate, preferredPosition) {
+        var refCenterX = Math.round(reference.posX || 0) + logicalWidth(reference) / 2;
+        var refCenterY = Math.round(reference.posY || 0) + logicalHeight(reference) / 2;
+        var candCenterX = preferredPosition.x + logicalWidth(candidate) / 2;
+        var candCenterY = preferredPosition.y + logicalHeight(candidate) / 2;
+        var dx = candCenterX - refCenterX;
+        var dy = candCenterY - refCenterY;
+        if (Math.abs(dx) >= Math.abs(dy)) return dx < 0 ? "left" : "right";
+        return dy < 0 ? "top" : "bottom";
+    }
+
+    function findPlacementForOutput(placed, candidate, preferredPosition) {
+        if (placed.length === 0) {
+            return { x: preferredPosition.x, y: preferredPosition.y };
+        }
+
+        var best = null;
+        for (var i = 0; i < placed.length; i++) {
+            var reference = placed[i];
+            var preferredSide = guessPreferredSide(reference, candidate, preferredPosition);
+            var sides = [preferredSide, "right", "left", "bottom", "top"];
+            var seen = {};
+            for (var s = 0; s < sides.length; s++) {
+                var side = sides[s];
+                if (seen[side]) continue;
+                seen[side] = true;
+                var placement = candidatePlacement(reference, candidate, side);
+                var ghost = {
+                    posX: placement.x,
+                    posY: placement.y,
+                    res: candidate.res,
+                    scale: candidate.scale
+                };
+                var collides = false;
+                for (var j = 0; j < placed.length; j++) {
+                    if (outputsOverlap(ghost, placed[j])) {
+                        collides = true;
+                        break;
+                    }
+                }
+                if (collides) continue;
+                var score = placementScore(reference, candidate, placement, preferredPosition);
+                if (!best || score < best.score) {
+                    best = { x: placement.x, y: placement.y, score: score };
+                }
+            }
+        }
+
+        if (best) return { x: best.x, y: best.y };
+
+        var fallbackX = 0;
+        for (var k = 0; k < placed.length; k++) {
+            fallbackX = Math.max(fallbackX, Math.round(placed[k].posX || 0) + logicalWidth(placed[k]));
+        }
+        return { x: fallbackX, y: 0 };
+    }
+
+    function getDefaultOutputName(outs) {
+        for (var i = 0; i < outs.length; i++) {
+            if (outs[i].isDefault) return outs[i].name;
+        }
+        var savedKeys = Object.keys(backend.savedConfig || {});
+        for (var j = 0; j < savedKeys.length; j++) {
+            var saved = backend.savedConfig[savedKeys[j]];
+            if (saved && saved.default) return savedKeys[j];
+        }
+        return outs.length > 0 ? outs[0].name : "";
+    }
+
+    function autoArrangeOutputs(outs) {
+        if (!outs || outs.length <= 1) return outs;
+
+        var arranged = [];
+        for (var i = 0; i < outs.length; i++) arranged.push(outs[i]);
+
+        var defaultName = getDefaultOutputName(arranged);
+        var anchorIndex = 0;
+        for (var a = 0; a < arranged.length; a++) {
+            if (arranged[a].name === defaultName) {
+                anchorIndex = a;
+                break;
+            }
+        }
+
+        var anchor = arranged[anchorIndex];
+        if (!isOutputValid(anchor)) return arranged;
+
+        arranged.splice(anchorIndex, 1);
+        arranged.sort(function(left, right) {
+            var leftPos = getSavedPosition(left);
+            var rightPos = getSavedPosition(right);
+            if (leftPos.x !== rightPos.x) return leftPos.x - rightPos.x;
+            if (leftPos.y !== rightPos.y) return leftPos.y - rightPos.y;
+            return String(left.name).localeCompare(String(right.name));
+        });
+
+        anchor.posX = 0;
+        anchor.posY = 0;
+        var result = [anchor];
+
+        for (var j = 0; j < arranged.length; j++) {
+            if (!isOutputValid(arranged[j])) continue;
+            var preferred = getSavedPosition(arranged[j]);
+            var placement = findPlacementForOutput(result, arranged[j], preferred);
+            arranged[j].posX = placement.x;
+            arranged[j].posY = placement.y;
+            result.push(arranged[j]);
+        }
+
+        return result;
+    }
+
+    function needsAutoLayout(outs) {
+        if (!outs || outs.length <= 1) return false;
+        var seen = {};
+        for (var i = 0; i < outs.length; i++) {
+            var outObj = outs[i];
+            if (!isOutputValid(outObj)) return true;
+            var key = Math.round(outObj.posX || 0) + ":" + Math.round(outObj.posY || 0);
+            if (seen[key]) return true;
+            seen[key] = true;
+            for (var j = i + 1; j < outs.length; j++) {
+                if (outputsOverlap(outObj, outs[j])) return true;
+            }
+        }
+        return false;
+    }
+
+    function syncCurrentOutputsToConfig(outs) {
+        if (!outs || outs.length === 0) return;
+
+        var nextConfig = JSON.parse(JSON.stringify(backend.savedConfig || {}));
+        var changed = false;
+        var defaultName = getDefaultOutputName(outs);
+
+        for (var i = 0; i < outs.length; i++) {
+            var outObj = outs[i];
+            if (!isOutputValid(outObj)) continue;
+
+            var existing = nextConfig[outObj.name] || {};
+            var nextEntry = {
+                res: outObj.res,
+                hz: parseFloat(outObj.hz || "60").toFixed(2),
+                scale: String(parseFloat(outObj.scale || "1")),
+                posX: String(Math.round(outObj.posX || 0)),
+                posY: String(Math.round(outObj.posY || 0)),
+                default: outObj.name === defaultName,
+                hdr: outObj.hdr || false,
+                bitdepth: outObj.bitdepth || 8,
+                vrr: (outObj.vrr !== undefined) ? outObj.vrr : 0,
+                sdrLuminance: outObj.sdrLuminance || 450,
+                sdrBrightness: outObj.sdrBrightness || 1.0,
+                sdrSaturation: outObj.sdrSaturation || 1.0,
+                colorManagement: outObj.colorManagement || "srgb",
+                sdrEotf: (outObj.sdrEotf !== undefined) ? outObj.sdrEotf : 1
+            };
+
+            if (JSON.stringify(existing) !== JSON.stringify(nextEntry)) {
+                nextConfig[outObj.name] = nextEntry;
+                changed = true;
+            }
+        }
+
+        if (!changed) return;
+        backend.savedConfig = nextConfig;
+        configStore.save(nextConfig);
+    }
+
     function isHdrColorMode(mode) {
         return backend.hdrColorModes.indexOf(mode) >= 0;
     }
@@ -66,6 +351,7 @@ Item {
     function applySavedOverlay(outObj) {
         var saved = backend.savedConfig[outObj.name];
         if (!saved) return;
+        if (saved.default !== undefined) outObj.isDefault = !!saved.default;
         if (saved.vrr !== undefined) outObj.vrr = saved.vrr;
         if (saved.hdr !== undefined) outObj.hdr = saved.hdr;
         if (saved.bitdepth !== undefined) outObj.bitdepth = saved.bitdepth;
@@ -77,8 +363,11 @@ Item {
     }
 
     function finalizeOutputs(outs) {
-        backend.outputs = outs;
-        if (backend.selectedIdx >= outs.length) backend.selectedIdx = 0;
+        var finalOuts = outs;
+        if (needsAutoLayout(finalOuts)) finalOuts = autoArrangeOutputs(finalOuts);
+        syncCurrentOutputsToConfig(finalOuts);
+        backend.outputs = finalOuts;
+        if (backend.selectedIdx >= finalOuts.length) backend.selectedIdx = 0;
     }
 
     function parseHyprland(text) {
@@ -95,6 +384,7 @@ Item {
                     scale: info.scale ? info.scale.toFixed(2) : "1.00",
                     posX: info.x || 0,
                     posY: info.y || 0,
+                    isDefault: false,
                     hdr: (info.colorManagementPreset === "hdr" || info.colorManagement === "hdr" || info.cm === "hdr") ? true : false,
                     bitdepth: (info.currentFormat && info.currentFormat.indexOf("2101010") >= 0) ? 10 : (info.bitdepth || 8),
                     vrr: (info.vrr === true) ? 1 : ((info.vrr === false) ? 0 : (info.vrr || 0)),
@@ -145,6 +435,7 @@ Item {
                     scale: "1.0",
                     posX: 0,
                     posY: 0,
+                    isDefault: false,
                     modes: []
                 };
 
@@ -202,6 +493,7 @@ Item {
                         scale: "1.00",
                         posX: 0,
                         posY: 0,
+                        isDefault: false,
                         modes: []
                     };
                     inModes = false;
@@ -310,7 +602,7 @@ Item {
         return false;
     }
 
-    function recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf) {
+    function recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName) {
         if (outputs.length === 0) return outputs;
         var updated = [];
         for (var i = 0; i < outputs.length; i++) {
@@ -321,8 +613,9 @@ Item {
                 res: isSel ? selRes : outputs[i].res,
                 hz: isSel ? selHz : outputs[i].hz,
                 scale: isSel ? selScale : parseFloat(outputs[i].scale),
-                posX: outputs[i].posX,
-                posY: outputs[i].posY,
+                posX: isSel ? Math.round(selPosX) : Math.round(outputs[i].posX || 0),
+                posY: isSel ? Math.round(selPosY) : Math.round(outputs[i].posY || 0),
+                isDefault: outputs[i].name === defaultMonitorName,
                 hdr: isSel ? selHdr : (outputs[i].hdr || false),
                 bitdepth: isSel ? selBitdepth : (outputs[i].bitdepth || 8),
                 vrr: isSel ? selVrr : ((outputs[i].vrr !== undefined) ? outputs[i].vrr : 0),
@@ -334,24 +627,24 @@ Item {
                 modes: outputs[i].modes
             });
         }
-
-        updated.sort(function(a, b) { return a.posX - b.posX; });
-        var currentX = 0;
-        for (var j = 0; j < updated.length; j++) {
-            var parts = updated[j].res.split("x");
-            var width = parseInt(parts[0]);
-            var scale = parseFloat(updated[j].scale);
-            updated[j].posX = currentX;
-            updated[j].posY = 0;
-            currentX += Math.round(width / scale);
-        }
         return updated;
     }
 
-    function buildApplyCommand(outputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf) {
-        var updatedOutputs = recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf);
+    function buildApplyCommand(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName) {
+        var updatedOutputs = recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName);
         var cmds = [];
         var saveCmds = [];
+        var defaultOutputName = defaultMonitorName;
+
+        if (!defaultOutputName && updatedOutputs.length > 0) {
+            for (var d = 0; d < updatedOutputs.length; d++) {
+                if (updatedOutputs[d].isDefault) {
+                    defaultOutputName = updatedOutputs[d].name;
+                    break;
+                }
+            }
+            if (!defaultOutputName) defaultOutputName = updatedOutputs[0].name;
+        }
 
         saveCmds.push("mkdir -p ~/.config/quickshell && ([ -s ~/.config/quickshell/monitor_config.json ] || echo '{}' > ~/.config/quickshell/monitor_config.json)");
 
@@ -423,16 +716,18 @@ Item {
             var monSatSave = isSelected ? selSdrSaturation : (mon.sdrSaturation || 1.0);
             var monCmSave = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
             var monEotfSave = isSelected ? selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
-            saveCmds.push("jq '.\"" + mon.name + "\" = {\"res\": \"" + monRes + "\", \"hz\": \"" + monHz + "\", \"scale\": \"" + monScale + "\", \"posX\": \"" + monPosX + "\", \"posY\": \"" + monPosY + "\", \"hdr\": " + (monHdrSave ? "true" : "false") + ", \"bitdepth\": " + monBdSave + ", \"vrr\": " + monVrrSave + ", \"sdrLuminance\": " + monLumSave + ", \"sdrBrightness\": " + monBriSave.toFixed(1) + ", \"sdrSaturation\": " + monSatSave.toFixed(1) + ", \"colorManagement\": \"" + monCmSave + "\", \"sdrEotf\": " + monEotfSave + "}' ~/.config/quickshell/monitor_config.json > ~/.config/quickshell/monitor_config.tmp && mv ~/.config/quickshell/monitor_config.tmp ~/.config/quickshell/monitor_config.json");
+            var monDefaultSave = (mon.name === defaultOutputName);
+            saveCmds.push("jq '.\"" + mon.name + "\" = {\"res\": \"" + monRes + "\", \"hz\": \"" + monHz + "\", \"scale\": \"" + monScale + "\", \"posX\": \"" + monPosX + "\", \"posY\": \"" + monPosY + "\", \"default\": " + (monDefaultSave ? "true" : "false") + ", \"hdr\": " + (monHdrSave ? "true" : "false") + ", \"bitdepth\": " + monBdSave + ", \"vrr\": " + monVrrSave + ", \"sdrLuminance\": " + monLumSave + ", \"sdrBrightness\": " + monBriSave.toFixed(1) + ", \"sdrSaturation\": " + monSatSave.toFixed(1) + ", \"colorManagement\": \"" + monCmSave + "\", \"sdrEotf\": " + monEotfSave + "}' ~/.config/quickshell/monitor_config.json > ~/.config/quickshell/monitor_config.tmp && mv ~/.config/quickshell/monitor_config.tmp ~/.config/quickshell/monitor_config.json");
         }
 
         var fullCmd = cmds.join(" && ") + " && " + saveCmds.join(" && ");
+        if (CompositorService.isHyprland && defaultOutputName) fullCmd += " && hyprctl dispatch focusmonitor " + defaultOutputName;
         if (CompositorService.isMango) fullCmd += " && mmsg -d reload_config";
         return { command: fullCmd, updatedOutputs: updatedOutputs };
     }
 
-    function applySettings(outputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf) {
-        var applyData = buildApplyCommand(outputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf);
+    function applySettings(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName) {
+        var applyData = buildApplyCommand(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName);
         backend.outputs = applyData.updatedOutputs;
         Log.debug("MonitorsBackend", "Running: " + applyData.command);
         applyProc.running = false;
