@@ -100,7 +100,7 @@ YAY_PACKAGES=(
   qt6ct-kde
   ttf-hack
   ttf-jetbrains-mono-nerd
-  waypaper
+  waypaper-git
   zsh
   zsh-autosuggestions
   zsh-syntax-highlighting
