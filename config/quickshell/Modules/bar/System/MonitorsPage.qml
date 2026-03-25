@@ -36,7 +36,10 @@ Item {
 
     property string selColorManagement: "srgb"
     property int selSdrEotf: 1
+    readonly property int sdrLuminanceMin: 80
+    readonly property int sdrLuminanceMax: 600
     property bool identifyMode: false
+    property var draftSettings: ({})
 
     readonly property color cardColor: Qt.rgba(245 / 255, 247 / 255, 250 / 255, 0.05)
     readonly property color cardBorder: Qt.rgba(255, 255, 255, 0.08)
@@ -61,20 +64,48 @@ Item {
 
     function syncSelection() {
         if (!selectedOutput) return;
-        selRes = selectedOutput.res;
-        selHz = selectedOutput.hz;
-        selScale = parseFloat(selectedOutput.scale);
-        selPosX = Math.round(selectedOutput.posX || 0);
-        selPosY = Math.round(selectedOutput.posY || 0);
+        var draft = draftSettings[selectedOutput.name];
+        selRes = draft && draft.res !== undefined ? draft.res : selectedOutput.res;
+        selHz = draft && draft.hz !== undefined ? draft.hz : selectedOutput.hz;
+        selScale = draft && draft.scale !== undefined ? draft.scale : parseFloat(selectedOutput.scale);
+        selPosX = draft && draft.posX !== undefined ? draft.posX : Math.round(selectedOutput.posX || 0);
+        selPosY = draft && draft.posY !== undefined ? draft.posY : Math.round(selectedOutput.posY || 0);
         if (!defaultMonitorName || !hasOutput(defaultMonitorName)) defaultMonitorName = getDefaultMonitorName();
-        selHdr = selectedOutput.hdr || false;
-        selBitdepth = selectedOutput.bitdepth || 10;
-        selVrr = (selectedOutput.vrr !== undefined) ? selectedOutput.vrr : 0;
-        selSdrLuminance = selectedOutput.sdrLuminance || 450;
-        selSdrBrightness = selectedOutput.sdrBrightness || 1.1;
-        selSdrSaturation = selectedOutput.sdrSaturation || 1.3;
-        selColorManagement = selectedOutput.colorManagement || "srgb";
-        selSdrEotf = (selectedOutput.sdrEotf !== undefined) ? selectedOutput.sdrEotf : 1;
+        selHdr = draft && draft.hdr !== undefined ? draft.hdr : (selectedOutput.hdr || false);
+        selBitdepth = draft && draft.bitdepth !== undefined ? draft.bitdepth : (selectedOutput.bitdepth || 10);
+        selVrr = draft && draft.vrr !== undefined ? draft.vrr : ((selectedOutput.vrr !== undefined) ? selectedOutput.vrr : 0);
+        selSdrLuminance = draft && draft.sdrLuminance !== undefined ? draft.sdrLuminance : ((selectedOutput.sdrLuminance !== undefined) ? selectedOutput.sdrLuminance : 450);
+        selSdrBrightness = draft && draft.sdrBrightness !== undefined ? draft.sdrBrightness : (selectedOutput.sdrBrightness || 1.1);
+        selSdrSaturation = draft && draft.sdrSaturation !== undefined ? draft.sdrSaturation : (selectedOutput.sdrSaturation || 1.3);
+        selColorManagement = draft && draft.colorManagement !== undefined ? draft.colorManagement : (selectedOutput.colorManagement || "srgb");
+        selSdrEotf = draft && draft.sdrEotf !== undefined ? draft.sdrEotf : ((selectedOutput.sdrEotf !== undefined) ? selectedOutput.sdrEotf : 1);
+    }
+
+    function saveCurrentDraft() {
+        if (!selectedOutput) return;
+        var nextDrafts = {};
+        for (var key in draftSettings) nextDrafts[key] = draftSettings[key];
+        nextDrafts[selectedOutput.name] = {
+            res: selRes,
+            hz: selHz,
+            scale: selScale,
+            posX: selPosX,
+            posY: selPosY,
+            hdr: selHdr,
+            bitdepth: selBitdepth,
+            vrr: selVrr,
+            sdrLuminance: selSdrLuminance,
+            sdrBrightness: selSdrBrightness,
+            sdrSaturation: selSdrSaturation,
+            colorManagement: selColorManagement,
+            sdrEotf: selSdrEotf
+        };
+        draftSettings = nextDrafts;
+    }
+
+    function selectOutput(index) {
+        saveCurrentDraft();
+        selectedIdx = index;
     }
 
     function isHdrColorMode(mode) {
@@ -255,7 +286,9 @@ Item {
             Log.warn("MonitorsPage", "Cannot apply settings without resolution and refresh rate");
             return;
         }
+        saveCurrentDraft();
         backend.applySettings(outputs, selectedOutput.name, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName);
+        draftSettings = ({});
     }
 
     function refresh() { backend.refresh(); }
@@ -270,7 +303,7 @@ Item {
         var currentHdr = selectedOutput.hdr || false;
         var currentBitdepth = selectedOutput.bitdepth || 10;
         var currentVrr = (selectedOutput.vrr !== undefined) ? selectedOutput.vrr : 0;
-        var currentLum = selectedOutput.sdrLuminance || 450;
+        var currentLum = (selectedOutput.sdrLuminance !== undefined) ? selectedOutput.sdrLuminance : 450;
         var currentBri = selectedOutput.sdrBrightness || 1.1;
         var currentSat = selectedOutput.sdrSaturation || 1.3;
         var currentCm = selectedOutput.colorManagement || "srgb";
@@ -670,13 +703,13 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: pressed ? Qt.ClosedHandCursor : Qt.PointingHandCursor
                                     onPressed: function(mouse) {
-                                        page.selectedIdx = index;
+                                        page.selectOutput(index);
                                         parent.dragOffsetX = mouse.x;
                                         parent.dragOffsetY = mouse.y;
                                     }
                                     onPositionChanged: function(mouse) {
                                         if (!pressed) return;
-                                        page.selectedIdx = index;
+                                        page.selectOutput(index);
                                         var newX = page.canvasToLayoutX(parent.x + mouse.x - parent.dragOffsetX, layoutCanvas.width, layoutCanvas.height);
                                         var newY = page.canvasToLayoutY(parent.y + mouse.y - parent.dragOffsetY, layoutCanvas.width, layoutCanvas.height);
                                         var snapped = page.snapDraggedPosition(modelData.name, newX, newY);
@@ -685,7 +718,7 @@ Item {
                                             page.selPosY = snapped.y;
                                         }
                                     }
-                                    onClicked: page.selectedIdx = index
+                                    onClicked: page.selectOutput(index)
                                 }
                             }
                         }
@@ -824,7 +857,7 @@ Item {
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: page.selectedIdx = index
+                                        onClicked: page.selectOutput(index)
                                     }
                                 }
                             }
@@ -1447,7 +1480,7 @@ Item {
                                         color: Qt.rgba(255, 255, 255, 0.08)
 
                                         Rectangle {
-                                            width: parent.width * Math.max(0, Math.min(1, (page.selSdrLuminance - 100) / 500.0))
+                                            width: parent.width * Math.max(0, Math.min(1, (page.selSdrLuminance - page.sdrLuminanceMin) / Math.max(1, page.sdrLuminanceMax - page.sdrLuminanceMin)))
                                             height: parent.height
                                             radius: parent.radius
                                             color: Theme.primary
@@ -1459,7 +1492,7 @@ Item {
                                         height: 18
                                         radius: 9
                                         anchors.verticalCenter: parent.verticalCenter
-                                        x: parent.width * Math.max(0, Math.min(1, (page.selSdrLuminance - 100) / 500.0)) - 9
+                                        x: parent.width * Math.max(0, Math.min(1, (page.selSdrLuminance - page.sdrLuminanceMin) / Math.max(1, page.sdrLuminanceMax - page.sdrLuminanceMin))) - 9
                                         color: Theme.primary
                                         border.color: Qt.lighter(Theme.primary, 1.4)
                                         border.width: 2
@@ -1470,7 +1503,7 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         function setVal(mx) {
                                             var ratio = Math.max(0, Math.min(1, mx / width));
-                                            page.selSdrLuminance = Math.round(100 + ratio * 500);
+                                            page.selSdrLuminance = Math.round(page.sdrLuminanceMin + ratio * (page.sdrLuminanceMax - page.sdrLuminanceMin));
                                         }
                                         onPressed: function(mouse) { setVal(mouse.x); }
                                         onPositionChanged: function(mouse) { if (pressed) setVal(mouse.x); }

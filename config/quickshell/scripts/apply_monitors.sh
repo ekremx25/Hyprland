@@ -56,7 +56,7 @@ for MON in $MONITORS; do
 
             MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
             if [ "$HDR" = "true" ]; then
-                MON_CMD="$MON_CMD,cm,hdr,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
+                MON_CMD="$MON_CMD,cm,hdr,sdrluminance,$SDR_LUM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
             fi
             hyprctl keyword monitor "$MON_CMD"
         elif [ $IS_NIRI -eq 1 ]; then

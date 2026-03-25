@@ -316,7 +316,7 @@ Item {
                 hdr: outObj.hdr || false,
                 bitdepth: outObj.bitdepth || 8,
                 vrr: (outObj.vrr !== undefined) ? outObj.vrr : 0,
-                sdrLuminance: outObj.sdrLuminance || 450,
+                sdrLuminance: (outObj.sdrLuminance !== undefined) ? outObj.sdrLuminance : 450,
                 sdrBrightness: outObj.sdrBrightness || 1.0,
                 sdrSaturation: outObj.sdrSaturation || 1.0,
                 colorManagement: outObj.colorManagement || "srgb",
@@ -348,18 +348,22 @@ Item {
         else parseAll(text);
     }
 
-    function applySavedOverlay(outObj) {
+    function applySavedOverlay(outObj, includeColorState, includeSdrTuningState) {
         var saved = backend.savedConfig[outObj.name];
         if (!saved) return;
         if (saved.default !== undefined) outObj.isDefault = !!saved.default;
-        if (saved.vrr !== undefined) outObj.vrr = saved.vrr;
-        if (saved.hdr !== undefined) outObj.hdr = saved.hdr;
-        if (saved.bitdepth !== undefined) outObj.bitdepth = saved.bitdepth;
-        if (saved.sdrLuminance !== undefined) outObj.sdrLuminance = saved.sdrLuminance;
-        if (saved.sdrBrightness !== undefined) outObj.sdrBrightness = saved.sdrBrightness;
-        if (saved.sdrSaturation !== undefined) outObj.sdrSaturation = saved.sdrSaturation;
-        if (saved.colorManagement !== undefined) outObj.colorManagement = saved.colorManagement;
-        if (saved.sdrEotf !== undefined) outObj.sdrEotf = saved.sdrEotf;
+        if (includeColorState) {
+            if (saved.vrr !== undefined) outObj.vrr = saved.vrr;
+            if (saved.hdr !== undefined) outObj.hdr = saved.hdr;
+            if (saved.bitdepth !== undefined) outObj.bitdepth = saved.bitdepth;
+            if (saved.colorManagement !== undefined) outObj.colorManagement = saved.colorManagement;
+        }
+        if (includeSdrTuningState) {
+            if (saved.sdrLuminance !== undefined) outObj.sdrLuminance = saved.sdrLuminance;
+            if (saved.sdrBrightness !== undefined) outObj.sdrBrightness = saved.sdrBrightness;
+            if (saved.sdrSaturation !== undefined) outObj.sdrSaturation = saved.sdrSaturation;
+            if (saved.sdrEotf !== undefined) outObj.sdrEotf = saved.sdrEotf;
+        }
     }
 
     function finalizeOutputs(outs) {
@@ -388,9 +392,9 @@ Item {
                     hdr: (info.colorManagementPreset === "hdr" || info.colorManagement === "hdr" || info.cm === "hdr") ? true : false,
                     bitdepth: (info.currentFormat && info.currentFormat.indexOf("2101010") >= 0) ? 10 : (info.bitdepth || 8),
                     vrr: (info.vrr === true) ? 1 : ((info.vrr === false) ? 0 : (info.vrr || 0)),
-                    sdrLuminance: info.sdrMaxLuminance || info.sdr_max_luminance || 450,
-                    sdrBrightness: info.sdrBrightness || info.sdrbrightness || 1.0,
-                    sdrSaturation: info.sdrSaturation || info.sdrsaturation || 1.0,
+                    sdrLuminance: (info.sdrMaxLuminance !== undefined) ? info.sdrMaxLuminance : ((info.sdr_max_luminance !== undefined) ? info.sdr_max_luminance : 450),
+                    sdrBrightness: (info.sdrBrightness !== undefined) ? info.sdrBrightness : ((info.sdrbrightness !== undefined) ? info.sdrbrightness : 1.0),
+                    sdrSaturation: (info.sdrSaturation !== undefined) ? info.sdrSaturation : ((info.sdrsaturation !== undefined) ? info.sdrsaturation : 1.0),
                     colorManagement: info.colorManagementPreset || info.cm || info.colorManagement || "srgb",
                     sdrEotf: info.sdr_eotf || info.sdreotf || 1,
                     modes: []
@@ -410,7 +414,7 @@ Item {
                     }
                 }
 
-                applySavedOverlay(outObj);
+                applySavedOverlay(outObj, false, true);
                 outs.push(outObj);
             }
             finalizeOutputs(outs);
@@ -458,6 +462,7 @@ Item {
                         }
                     }
                 }
+                applySavedOverlay(outObj, true, true);
                 outs.push(outObj);
             }
             finalizeOutputs(outs);
@@ -538,7 +543,10 @@ Item {
                     inModes = false;
                 }
             }
-            if (current) outs.push(current);
+            if (current) {
+                applySavedOverlay(current, true, true);
+                outs.push(current);
+            }
             finalizeOutputs(outs);
         } catch (e) {
             Log.warn("MonitorsBackend", "Mango wlr-randr parse error: " + e);
@@ -578,10 +586,11 @@ Item {
         return unique;
     }
 
-    function monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY, monHdr, monBitdepth, monVrr, monSdrBri, monSdrSat, monCm, monEotf) {
+    function monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY, monHdr, monBitdepth, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf) {
         var currentHdr = mon.hdr || false;
         var currentBitdepth = mon.bitdepth || 8;
         var currentVrr = (mon.vrr !== undefined) ? mon.vrr : 0;
+        var currentLum = (mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450;
         var currentBri = mon.sdrBrightness || 1.0;
         var currentSat = mon.sdrSaturation || 1.0;
         var currentCm = mon.colorManagement || "srgb";
@@ -595,6 +604,7 @@ Item {
         if (monHdr !== currentHdr) return true;
         if (monBitdepth !== currentBitdepth) return true;
         if (monVrr !== currentVrr) return true;
+        if (Math.abs(monSdrLum - currentLum) >= 1) return true;
         if (Math.abs(monSdrBri - currentBri) >= 0.01) return true;
         if (Math.abs(monSdrSat - currentSat) >= 0.01) return true;
         if (monCm !== currentCm) return true;
@@ -619,7 +629,7 @@ Item {
                 hdr: isSel ? selHdr : (outputs[i].hdr || false),
                 bitdepth: isSel ? selBitdepth : (outputs[i].bitdepth || 8),
                 vrr: isSel ? selVrr : ((outputs[i].vrr !== undefined) ? outputs[i].vrr : 0),
-                sdrLuminance: isSel ? selSdrLuminance : (outputs[i].sdrLuminance || 450),
+                sdrLuminance: isSel ? selSdrLuminance : ((outputs[i].sdrLuminance !== undefined) ? outputs[i].sdrLuminance : 450),
                 sdrBrightness: isSel ? selSdrBrightness : (outputs[i].sdrBrightness || 1.0),
                 sdrSaturation: isSel ? selSdrSaturation : (outputs[i].sdrSaturation || 1.0),
                 colorManagement: isSel ? selColorManagement : (outputs[i].colorManagement || "srgb"),
@@ -661,6 +671,7 @@ Item {
                 var monHdr = isSelected ? selHdr : (mon.hdr || false);
                 var monBitdepth = isSelected ? selBitdepth : (mon.bitdepth || 8);
                 var monVrr = isSelected ? selVrr : (mon.vrr || 0);
+                var monSdrLum = isSelected ? selSdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450);
                 var monSdrBri = isSelected ? selSdrBrightness : (mon.sdrBrightness || 1.0);
                 var monSdrSat = isSelected ? selSdrSaturation : (mon.sdrSaturation || 1.0);
                 var monCm = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
@@ -671,14 +682,14 @@ Item {
 
                 if (monHdr || isHdrColorMode(monCm)) {
                     var appliedCm = (monCm === "hdredid") ? "hdredid" : "hdr";
-                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
+                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrluminance," + monSdrLum + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
                 } else if (monCm === "default") {
                     monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr;
                 } else {
                     monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + monCm;
                 }
 
-                var changed = monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY, monHdr, monBitdepth, monVrr, monSdrBri, monSdrSat, monCm, monEotf);
+                var changed = monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY, monHdr, monBitdepth, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf);
                 if (isSelected && monCm !== (mon.colorManagement || "srgb")) {
                     var resetCmd = "hyprctl keyword monitor " + mon.name + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale + ",bitdepth,10,vrr,0,cm,srgb";
                     monCmd = resetCmd + " && sleep 0.2 && " + monCmd;
@@ -711,7 +722,7 @@ Item {
             var monHdrSave = isSelected ? selHdr : (mon.hdr || false);
             var monBdSave = isSelected ? selBitdepth : (mon.bitdepth || 8);
             var monVrrSave = isSelected ? selVrr : (mon.vrr || 0);
-            var monLumSave = isSelected ? selSdrLuminance : (mon.sdrLuminance || 450);
+            var monLumSave = isSelected ? selSdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450);
             var monBriSave = isSelected ? selSdrBrightness : (mon.sdrBrightness || 1.0);
             var monSatSave = isSelected ? selSdrSaturation : (mon.sdrSaturation || 1.0);
             var monCmSave = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
