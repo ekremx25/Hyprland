@@ -12,14 +12,27 @@ Item {
     property string path: ""
     property string readBuffer: ""
     property string pendingText: ""
+    property string inFlightText: ""
+    property bool writeQueued: false
 
     signal loaded(string text)
     signal saved()
     signal failed(string phase, int exitCode)
 
+    function shellQuote(text) {
+        return "'" + String(text).replace(/'/g, "'\\''") + "'";
+    }
+
+    function startWrite() {
+        if (root.path.length === 0 || writeProc.running) return;
+        root.inFlightText = root.pendingText;
+        root.writeQueued = false;
+        writeProc.running = true;
+    }
+
     Process {
         id: readProc
-        command: root.path.length > 0 ? ["sh", "-c", "cat \"" + root.path + "\" 2>/dev/null || true"] : []
+        command: root.path.length > 0 ? ["sh", "-c", "cat " + root.shellQuote(root.path) + " 2>/dev/null || true"] : []
         running: false
         stdout: SplitParser { onRead: data => { root.readBuffer += data; } }
         onExited: (exitCode) => {
@@ -33,13 +46,21 @@ Item {
 
     Process {
         id: writeProc
-        command: root.path.length > 0 ? ["sh", "-c", "mkdir -p \"$(dirname \"" + root.path + "\")\" && printf '%s' '" + root.pendingText.replace(/'/g, "'\\''") + "' > \"" + root.path + "\""] : []
+        command: root.path.length > 0 ? [
+            "sh",
+            "-c",
+            "mkdir -p \"$(dirname " + root.shellQuote(root.path) + ")\" && printf '%s' " + root.shellQuote(root.inFlightText) + " > " + root.shellQuote(root.path)
+        ] : []
         running: false
         onExited: (exitCode) => {
             if (exitCode === 0) {
                 root.saved();
             } else {
                 root.failed("write", exitCode);
+            }
+
+            if (root.writeQueued || root.pendingText !== root.inFlightText) {
+                root.startWrite();
             }
         }
     }
@@ -51,8 +72,12 @@ Item {
     }
 
     function write(text) {
-        if (writeProc.running || root.path.length === 0) return;
+        if (root.path.length === 0) return;
         root.pendingText = text;
-        writeProc.running = true;
+        if (writeProc.running) {
+            root.writeQueued = true;
+            return;
+        }
+        root.startWrite();
     }
 }

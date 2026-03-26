@@ -223,7 +223,9 @@ Item {
     Process {
         id: macProc
         property string iface: ""
-        command: ["sh", "-c", "cat /sys/class/net/" + iface + "/address 2>/dev/null || echo '--'"]
+        command: iface.length > 0
+            ? ["sh", "-c", "cat \"$1\" 2>/dev/null || echo '--'", "sh", "/sys/class/net/" + iface + "/address"]
+            : ["sh", "-c", "echo '--'"]
         property string buf: ""
         stdout: SplitParser { onRead: data => macProc.buf = data.trim() }
         onExited: {
@@ -246,7 +248,9 @@ Item {
     Process {
         id: connDetailProc
         property string conn: ""
-        command: ["sh", "-c", "nmcli -t -f ipv4.method,ipv6.method,802-3-ethernet.mtu connection show '" + conn + "' 2>/dev/null"]
+        command: conn.length > 0
+            ? ["nmcli", "-t", "-f", "ipv4.method,ipv6.method,802-3-ethernet.mtu", "connection", "show", conn]
+            : []
         property string buf: ""
         stdout: SplitParser { onRead: data => connDetailProc.buf += data + "\n" }
         onExited: {

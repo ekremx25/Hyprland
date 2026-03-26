@@ -9,7 +9,8 @@ Singleton {
     id: root
 
     property var screenPreferences: ({})
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/screen_config.json"
+    readonly property string configDir: StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString().replace("file://", "") + "/quickshell"
+    property string configPath: configDir + "/screen_config.json"
 
     Component.onCompleted: configStore.load()
 

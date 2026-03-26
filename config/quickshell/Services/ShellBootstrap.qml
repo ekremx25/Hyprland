@@ -10,7 +10,8 @@ Item {
     height: 0
 
     readonly property string homeDir: Quickshell.env("HOME") || ""
-    readonly property string monitorScriptPath: homeDir + "/.config/quickshell/scripts/apply_monitors.sh"
+    readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (homeDir + "/.config")
+    readonly property string monitorScriptPath: configHome + "/quickshell/scripts/apply_monitors.sh"
 
     Timer {
         id: monitorApplyDelay

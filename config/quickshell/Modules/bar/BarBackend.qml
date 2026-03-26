@@ -21,7 +21,8 @@ Item {
     property bool isVertical: barPosition === "left" || barPosition === "right"
     property var workspacesConfig: barLayout.workspaces || BarDefaults.createWorkspacesConfig()
     property bool configLoaded: false
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
+    readonly property string configDir: StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString().replace("file://", "") + "/quickshell"
+    readonly property string configPath: configDir + "/bar_config.json"
     property string lastConfigContent: ""
 
     function normalizeLayout(cfg) {

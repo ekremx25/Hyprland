@@ -1,9 +1,9 @@
 #!/bin/bash
 
-# ~/.config/quickshell/scripts/apply_monitors.sh
 # Applies monitor settings from monitor_config.json
 
-CONFIG_FILE="$HOME/.config/quickshell/monitor_config.json"
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+CONFIG_FILE="$CONFIG_HOME/quickshell/monitor_config.json"
 
 if [ ! -f "$CONFIG_FILE" ]; then
     exit 0
@@ -34,12 +34,14 @@ if [ $IS_HYPRLAND -eq 1 ]; then
     CONNECTED_MONITORS=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[].name' 2>/dev/null)
 fi
 
-for MON in $MONITORS; do
-    RES=$(jq -r ".\"$MON\".res" "$CONFIG_FILE")
-    HZ=$(jq -r ".\"$MON\".hz" "$CONFIG_FILE")
-    SCALE=$(jq -r ".\"$MON\".scale" "$CONFIG_FILE")
-    POS_X=$(jq -r ".\"$MON\".posX" "$CONFIG_FILE")
-    POS_Y=$(jq -r ".\"$MON\".posY" "$CONFIG_FILE")
+while IFS= read -r MON; do
+    [ -n "$MON" ] || continue
+
+    RES=$(jq -r --arg mon "$MON" '.[$mon].res' "$CONFIG_FILE")
+    HZ=$(jq -r --arg mon "$MON" '.[$mon].hz' "$CONFIG_FILE")
+    SCALE=$(jq -r --arg mon "$MON" '.[$mon].scale' "$CONFIG_FILE")
+    POS_X=$(jq -r --arg mon "$MON" '.[$mon].posX' "$CONFIG_FILE")
+    POS_Y=$(jq -r --arg mon "$MON" '.[$mon].posY' "$CONFIG_FILE")
 
     if [ "$RES" != "null" ] && [ "$HZ" != "null" ] && [ "$SCALE" != "null" ] && [ "$RES" != "0x0" ]; then
         if [ $IS_HYPRLAND -eq 1 ]; then
@@ -47,12 +49,12 @@ for MON in $MONITORS; do
                 continue
             fi
             # hyprctl keyword monitor name,res@hz,XxY,scale[,extra_params]
-            HDR=$(jq -r ".\"$MON\".hdr // false" "$CONFIG_FILE")
-            BITDEPTH=$(jq -r ".\"$MON\".bitdepth // 8" "$CONFIG_FILE")
-            VRR=$(jq -r ".\"$MON\".vrr // 0" "$CONFIG_FILE")
-            SDR_LUM=$(jq -r ".\"$MON\".sdrLuminance // 450" "$CONFIG_FILE")
-            SDR_BRI=$(jq -r ".\"$MON\".sdrBrightness // 1.0" "$CONFIG_FILE")
-            SDR_SAT=$(jq -r ".\"$MON\".sdrSaturation // 1.0" "$CONFIG_FILE")
+            HDR=$(jq -r --arg mon "$MON" '.[$mon].hdr // false' "$CONFIG_FILE")
+            BITDEPTH=$(jq -r --arg mon "$MON" '.[$mon].bitdepth // 8' "$CONFIG_FILE")
+            VRR=$(jq -r --arg mon "$MON" '.[$mon].vrr // 0' "$CONFIG_FILE")
+            SDR_LUM=$(jq -r --arg mon "$MON" '.[$mon].sdrLuminance // 450' "$CONFIG_FILE")
+            SDR_BRI=$(jq -r --arg mon "$MON" '.[$mon].sdrBrightness // 1.0' "$CONFIG_FILE")
+            SDR_SAT=$(jq -r --arg mon "$MON" '.[$mon].sdrSaturation // 1.0' "$CONFIG_FILE")
 
             MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
             if [ "$HDR" = "true" ]; then
@@ -60,14 +62,14 @@ for MON in $MONITORS; do
             fi
             hyprctl keyword monitor "$MON_CMD"
         elif [ $IS_NIRI -eq 1 ]; then
-            WLR_CMD="wlr-randr --output \"$MON\" --mode \"${RES}@${HZ}Hz\" --scale \"$SCALE\""
             if [ "$POS_X" != "null" ] && [ "$POS_Y" != "null" ]; then
-                WLR_CMD="$WLR_CMD --pos ${POS_X},${POS_Y}"
+                wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE" --pos "${POS_X},${POS_Y}"
+            else
+                wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE"
             fi
-            eval $WLR_CMD
         fi
     fi
-done
+done <<< "$MONITORS"
 
 if [ $IS_HYPRLAND -eq 1 ] && [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
     hyprctl dispatch focusmonitor "$DEFAULT_MONITOR" >/dev/null 2>&1

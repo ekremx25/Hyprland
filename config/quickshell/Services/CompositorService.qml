@@ -7,6 +7,11 @@ import "./core/Log.js" as Log
 Singleton {
     id: root
 
+    readonly property string homeDir: Quickshell.env("HOME") || ""
+    readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (homeDir + "/.config")
+    readonly property string configDir: configHome + "/quickshell"
+    readonly property string monitorScriptPath: configDir + "/scripts/apply_monitors.sh"
+
     // Compositor detection
     readonly property string niriSocket: Quickshell.env("NIRI_SOCKET") || ""
     readonly property string hyprlandSignature: Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || ""
@@ -52,7 +57,7 @@ Singleton {
     
     Process {
         id: applySavedMonitorsProc
-        command: ["sh", "-c", "$HOME/.config/quickshell/scripts/apply_monitors.sh"]
+        command: [root.monitorScriptPath]
     }
 
     // Monitor listing via niri msg
@@ -191,7 +196,13 @@ Singleton {
             focusProc.command = ["hyprctl", "dispatch", "focuswindow", "class:" + appId];
             startProcess(focusProc, false);
         } else if (isNiri) {
-            focusProc.command = ["sh", "-c", "niri msg --json windows | jq -r '.[] | select(.app_id==\"" + appId + "\") | .id' | head -1 | xargs -I{} niri msg action focus-window --id {}"];
+            focusProc.command = [
+                "sh",
+                "-c",
+                "niri msg --json windows | jq -r --arg appId \"$1\" '.[] | select(.app_id == $appId) | .id' | head -1 | xargs -r -I{} niri msg action focus-window --id {}",
+                "sh",
+                appId
+            ];
             startProcess(focusProc, false);
         } else if (isMango) {
             Log.warn("CompositorService", "Mango focusWindow not supported for appId: " + appId);
@@ -208,15 +219,23 @@ Singleton {
 
     function focusAppByName(appName) {
         if (!appName || appName.trim() === "") return;
-        var safeName = appName.replace(/'/g, "'\\''");
+        var needle = appName.toLowerCase();
         if (isHyprland) {
-            focusByNameProc.command = ["sh", "-c",
-                "hyprctl clients -j | jq -r '.[] | select(((.class // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\")) or ((.title // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\"))) | .address' | head -1 | xargs -r -I{} hyprctl dispatch focuswindow address:{}"
+            focusByNameProc.command = [
+                "sh",
+                "-c",
+                "hyprctl clients -j | jq -r --arg needle \"$1\" '.[] | select((((.class // \"\") | ascii_downcase) | contains($needle)) or (((.title // \"\") | ascii_downcase) | contains($needle))) | .address' | head -1 | xargs -r -I{} hyprctl dispatch focuswindow address:{}",
+                "sh",
+                needle
             ];
             startProcess(focusByNameProc, false);
         } else if (isNiri) {
-            focusByNameProc.command = ["sh", "-c",
-                "niri msg --json windows | jq -r '.[] | select(((.app_id // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\")) or ((.title // \"\") | ascii_downcase | contains(\"" + safeName.toLowerCase() + "\"))) | .id' | head -1 | xargs -r -I{} niri msg action focus-window --id {}"
+            focusByNameProc.command = [
+                "sh",
+                "-c",
+                "niri msg --json windows | jq -r --arg needle \"$1\" '.[] | select((((.app_id // \"\") | ascii_downcase) | contains($needle)) or (((.title // \"\") | ascii_downcase) | contains($needle))) | .id' | head -1 | xargs -r -I{} niri msg action focus-window --id {}",
+                "sh",
+                needle
             ];
             startProcess(focusByNameProc, false);
         } else if (isMango) {

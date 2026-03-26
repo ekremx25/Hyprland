@@ -360,6 +360,168 @@ Item {
         return selectedOutput && recommendedResolution(selectedOutput) === res;
     }
 
+    function displayCountText() {
+        return outputs.length === 1 ? "1 display" : outputs.length + " displays";
+    }
+
+    function selectedModeText() {
+        if (!selectedOutput || !selRes || !selHz) return "Choose a display to begin.";
+        return selRes + " at " + parseFloat(selHz).toFixed(1) + " Hz";
+    }
+
+    function selectedScaleText() {
+        if (!selectedOutput || !selRes) return "--";
+        var parts = selRes.split("x");
+        var w = parts.length > 0 ? parseInt(parts[0]) || 0 : 0;
+        var h = parts.length > 1 ? parseInt(parts[1]) || 0 : 0;
+        var effW = Math.round(w / Math.max(0.01, selScale));
+        var effH = Math.round(h / Math.max(0.01, selScale));
+        return selScale.toFixed(2) + "x  |  " + effW + " x " + effH;
+    }
+
+    function selectedScalePercentText() {
+        if (!selectedOutput) return "--";
+        return scaleChipText(selScale);
+    }
+
+    function selectedScaleResolutionText() {
+        if (!selectedOutput || !selRes) return "--";
+        var parts = selRes.split("x");
+        var w = parts.length > 0 ? parseInt(parts[0]) || 0 : 0;
+        var h = parts.length > 1 ? parseInt(parts[1]) || 0 : 0;
+        var effW = Math.round(w / Math.max(0.01, selScale));
+        var effH = Math.round(h / Math.max(0.01, selScale));
+        return effW + " x " + effH;
+    }
+
+    function selectedLayoutText() {
+        if (!selectedOutput) return "--";
+        return "X " + selPosX + "  Y " + selPosY;
+    }
+
+    function selectedColorText() {
+        if (!selectedOutput) return "--";
+        if (!CompositorService.isHyprland) return "Standard desktop profile";
+        var parts = [];
+        parts.push(selColorManagement === "default" ? "Default" : (colorModeLabels[selColorManagement] || selColorManagement));
+        parts.push(selBitdepth + "-bit");
+        parts.push(selHdr ? "HDR" : "SDR");
+        if (selVrr === 1) parts.push("VRR on");
+        else if (selVrr === 2) parts.push("VRR fullscreen");
+        else parts.push("VRR off");
+        return parts.join("  |  ");
+    }
+
+    function selectedHintText() {
+        if (!selectedOutput) return "No active display selected.";
+        if (!isRecommendedResolution(selRes)) return "This display is using a non-recommended resolution. Sharpness may be reduced.";
+        if (CompositorService.isHyprland && isRiskyColorMode(selColorManagement)) return "Wide color profiles can trade stability for gamut and may force VRR off.";
+        if (selHdr) return "HDR is enabled. Tune luminance and SDR controls if apps look washed out.";
+        return "This layout looks healthy. You can drag the preview above or fine-tune values below.";
+    }
+
+    function getScaleCandidates() {
+        var candidates = CompositorService.isHyprland
+            ? [0.5, 0.75, 0.8, 1.0, 1.2, 1.25, 1.333333, 1.5, 1.6, 1.75, 2.0]
+            : [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+        var result = [];
+        var seen = {};
+        var resParts = String(selRes || "1920x1080").split("x");
+        var resW = resParts.length > 0 ? parseInt(resParts[0]) || 1920 : 1920;
+        var resH = resParts.length > 1 ? parseInt(resParts[1]) || 1080 : 1080;
+
+        for (var i = 0; i < candidates.length; i++) {
+            var scale = candidates[i];
+            if (CompositorService.isHyprland) {
+                var effW = resW / scale;
+                var effH = resH / scale;
+                if (Math.abs(effW - Math.round(effW)) >= 0.01 || Math.abs(effH - Math.round(effH)) >= 0.01) continue;
+            }
+            var key = scale.toFixed(3);
+            if (seen[key]) continue;
+            seen[key] = true;
+            result.push(scale);
+        }
+
+        if (result.length === 0) result.push(1.0);
+
+        var currentKey = selScale.toFixed(3);
+        if (!seen[currentKey]) result.push(selScale);
+
+        result.sort(function(a, b) { return a - b; });
+        return result;
+    }
+
+    function setScaleValue(value) {
+        if (!selectedOutput) return;
+        var next = parseFloat(value);
+        if (!isFinite(next)) return;
+
+        if (CompositorService.isHyprland) {
+            var scales = getScaleCandidates();
+            var best = scales[0];
+            var minDist = Math.abs(next - best);
+            for (var i = 1; i < scales.length; i++) {
+                var dist = Math.abs(next - scales[i]);
+                if (dist < minDist) {
+                    minDist = dist;
+                    best = scales[i];
+                }
+            }
+            selScale = best;
+        } else {
+            if (next < 0.5) next = 0.5;
+            if (next > 2.0) next = 2.0;
+            selScale = Math.round(next * 20) / 20;
+        }
+    }
+
+    function stepScale(direction) {
+        var scales = getScaleCandidates();
+        if (scales.length === 0) return;
+
+        var currentIndex = selectedScaleIndex();
+        if (currentIndex < 0) currentIndex = 0;
+
+        var nextIndex = Math.max(0, Math.min(scales.length - 1, currentIndex + direction));
+        setScaleValue(scales[nextIndex]);
+    }
+
+    function selectedScaleIndex() {
+        var scales = getScaleCandidates();
+        if (scales.length === 0) return -1;
+
+        var index = 0;
+        var minDist = Math.abs(selScale - scales[0]);
+        for (var i = 1; i < scales.length; i++) {
+            var dist = Math.abs(selScale - scales[i]);
+            if (dist < minDist) {
+                minDist = dist;
+                index = i;
+            }
+        }
+        return index;
+    }
+
+    function canStepScale(direction) {
+        var scales = getScaleCandidates();
+        var index = selectedScaleIndex();
+        if (scales.length === 0 || index < 0) return false;
+        var nextIndex = index + direction;
+        return nextIndex >= 0 && nextIndex < scales.length;
+    }
+
+    function scaleChipText(value) {
+        return Math.round(value * 100) + "%";
+    }
+
+    function scaleSupportText() {
+        return CompositorService.isHyprland
+            ? "Only clean fractional scales for this resolution are shown."
+            : "Common scaling presets are shown here for quicker adjustment.";
+    }
+
     onSelectedOutputChanged: syncSelection()
 
     Timer {
@@ -398,7 +560,7 @@ Item {
 
                     Text {
                         anchors.centerIn: parent
-                        text: "1"
+                        text: page.outputs.length
                         color: Theme.primary
                         font.pixelSize: 18
                         font.bold: true
@@ -416,12 +578,12 @@ Item {
                         font.bold: true
                     }
 
-                    Text {
-                        text: selectedOutput
-                            ? "Arrange your displays, choose your main screen, and set resolution, scale, and advanced color."
+                        Text {
+                            text: selectedOutput
+                            ? (displayCountText() + " connected. Arrange your displays, choose the main screen, and tune resolution, scale, and color.")
                             : "No active display detected."
-                        color: Theme.subtext
-                        font.pixelSize: 12
+                            color: Theme.subtext
+                            font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -751,7 +913,7 @@ Item {
                         id: selectedSummary
                         anchors.fill: parent
                         anchors.margins: 14
-                        spacing: 14
+                        spacing: 12
 
                         RowLayout {
                             Layout.fillWidth: true
@@ -776,12 +938,12 @@ Item {
 
                             ColumnLayout {
                                 Layout.fillWidth: true
-                                spacing: 3
+                                spacing: 4
 
                                 Text {
                                     text: page.selectedOutput ? page.selectedOutput.name : "No display selected"
                                     color: Theme.text
-                                    font.pixelSize: 18
+                                    font.pixelSize: 19
                                     font.bold: true
                                 }
 
@@ -794,11 +956,10 @@ Item {
                                 }
 
                                 Text {
-                                    text: page.selectedOutput
-                                        ? (page.selRes + " at " + parseFloat(page.selHz).toFixed(1) + " Hz, scale " + page.selScale.toFixed(2) + "x")
-                                        : ""
-                                    color: Theme.text
+                                    text: page.selectedModeText()
+                                    color: page.selectedOutput ? Theme.text : Theme.subtext
                                     font.pixelSize: 12
+                                    font.bold: page.selectedOutput !== null
                                 }
                             }
 
@@ -828,7 +989,128 @@ Item {
                             }
                         }
 
-                        RowLayout {
+                        GridLayout {
+                            Layout.fillWidth: true
+                            columns: 4
+                            columnSpacing: 10
+                            rowSpacing: 10
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                radius: 12
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                                border.color: page.softBorder
+                                border.width: 1
+                                implicitHeight: 74
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 3
+
+                                    Text { text: "Mode"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedModeText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                radius: 12
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                                border.color: page.softBorder
+                                border.width: 1
+                                implicitHeight: 74
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 3
+
+                                    Text { text: "Scale"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedScaleText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                radius: 12
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                                border.color: page.softBorder
+                                border.width: 1
+                                implicitHeight: 74
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 3
+
+                                    Text { text: "Layout"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedLayoutText(); color: Theme.text; font.pixelSize: 13; font.bold: true }
+                                    Text { text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "Main display" : "Secondary display"; color: Theme.subtext; font.pixelSize: 11 }
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.fillWidth: true
+                                radius: 12
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                                border.color: page.softBorder
+                                border.width: 1
+                                implicitHeight: 74
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 12
+                                    spacing: 3
+
+                                    Text { text: "Color"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedColorText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            radius: 12
+                            color: pendingChanges() ? page.accentSoft : Qt.rgba(255, 255, 255, 0.03)
+                            border.color: pendingChanges() ? page.accentBorder : page.softBorder
+                            border.width: 1
+                            implicitHeight: hintRow.implicitHeight + 20
+
+                            RowLayout {
+                                id: hintRow
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 10
+
+                                Rectangle {
+                                    width: 28
+                                    height: 28
+                                    radius: 9
+                                    color: pendingChanges() ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(166 / 255, 227 / 255, 161 / 255, 0.16)
+                                    border.color: pendingChanges() ? Qt.rgba(255, 255, 255, 0.2) : Qt.rgba(166 / 255, 227 / 255, 161 / 255, 0.35)
+                                    border.width: 1
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: pendingChanges() ? "!" : "i"
+                                        color: pendingChanges() ? "white" : "#a6e3a1"
+                                        font.pixelSize: 13
+                                        font.bold: true
+                                    }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: page.selectedHintText()
+                                    color: Theme.subtext
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
+                        }
+
+                        Flow {
                             Layout.fillWidth: true
                             spacing: 10
 
@@ -879,11 +1161,24 @@ Item {
                         anchors.margins: 14
                         spacing: 12
 
-                        Text {
-                            text: "Display settings"
-                            color: Theme.text
-                            font.pixelSize: 15
-                            font.bold: true
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Text {
+                                text: "Display settings"
+                                color: Theme.text
+                                font.pixelSize: 15
+                                font.bold: true
+                            }
+
+                            Text {
+                                text: page.selectedOutput
+                                    ? "Choose the sharpest mode first, then tune scale and placement."
+                                    : "Select a display above to edit its settings."
+                                color: Theme.subtext
+                                font.pixelSize: 11
+                            }
                         }
 
                         RowLayout {
@@ -1021,104 +1316,17 @@ Item {
                                 Layout.preferredWidth: 130
                             }
 
-                            Item {
+                            ScaleSelector {
                                 Layout.fillWidth: true
-                                height: 34
-
-                                Rectangle {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: parent.width
-                                    height: 8
-                                    radius: 4
-                                    color: Qt.rgba(255, 255, 255, 0.08)
-
-                                    Rectangle {
-                                        width: parent.width * Math.max(0, Math.min(1, (page.selScale - 0.5) / 1.5))
-                                        height: parent.height
-                                        radius: parent.radius
-                                        color: Theme.primary
-                                        Behavior on width { NumberAnimation { duration: 40 } }
-                                    }
-                                }
-
-                                Rectangle {
-                                    width: 18
-                                    height: 18
-                                    radius: 9
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    x: parent.width * Math.max(0, Math.min(1, (page.selScale - 0.5) / 1.5)) - 9
-                                    color: Theme.primary
-                                    border.color: Qt.lighter(Theme.primary, 1.4)
-                                    border.width: 2
-                                    Behavior on x { NumberAnimation { duration: 40 } }
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    function setVal(mx) {
-                                        var ratio = mx / width;
-                                        if (ratio < 0) ratio = 0;
-                                        if (ratio > 1) ratio = 1;
-                                        var raw = 0.5 + ratio * 1.5;
-                                        if (CompositorService.isHyprland) {
-                                            var allScales = [0.5, 0.75, 0.8, 1.0, 1.2, 1.25, 1.333333, 1.5, 1.6, 1.75, 2.0];
-                                            var resParts = page.selRes.split("x");
-                                            var resW = resParts.length > 0 ? parseInt(resParts[0]) : 1920;
-                                            var resH = resParts.length > 1 ? parseInt(resParts[1]) : 1080;
-                                            var scales = [];
-                                            for (var s = 0; s < allScales.length; s++) {
-                                                var effW = resW / allScales[s];
-                                                var effH = resH / allScales[s];
-                                                if (Math.abs(effW - Math.round(effW)) < 0.01 && Math.abs(effH - Math.round(effH)) < 0.01) {
-                                                    scales.push(allScales[s]);
-                                                }
-                                            }
-                                            if (scales.length === 0) scales = [1.0];
-                                            var best = scales[0];
-                                            var minDist = Math.abs(raw - best);
-                                            for (var i = 1; i < scales.length; i++) {
-                                                var dist = Math.abs(raw - scales[i]);
-                                                if (dist < minDist) {
-                                                    minDist = dist;
-                                                    best = scales[i];
-                                                }
-                                            }
-                                            page.selScale = best;
-                                        } else {
-                                            page.selScale = Math.round(raw * 20) / 20;
-                                        }
-                                    }
-                                    onPressed: function(mouse) { setVal(mouse.x); }
-                                    onPositionChanged: function(mouse) { if (pressed) setVal(mouse.x); }
-                                }
-                            }
-
-                            ColumnLayout {
-                                spacing: 2
-                                Layout.preferredWidth: 72
-
-                                Text {
-                                    text: page.selScale.toFixed(2) + "x"
-                                    color: Theme.primary
-                                    font.pixelSize: 13
-                                    font.bold: true
-                                    horizontalAlignment: Text.AlignRight
-                                    Layout.fillWidth: true
-                                }
-
-                                Text {
-                                    property var parts: page.selRes.split("x")
-                                    property real w: parts.length > 0 ? parseInt(parts[0]) : 0
-                                    property real h: parts.length > 1 ? parseInt(parts[1]) : 0
-                                    property real effW: Math.round(w / page.selScale)
-                                    property real effH: Math.round(h / page.selScale)
-                                    text: effW + " x " + effH
-                                    color: Theme.subtext
-                                    font.pixelSize: 10
-                                    horizontalAlignment: Text.AlignRight
-                                    Layout.fillWidth: true
-                                }
+                                scaleOptions: page.getScaleCandidates()
+                                selectedScale: page.selScale
+                                summaryText: page.selectedScalePercentText()
+                                detailText: page.selectedScaleResolutionText()
+                                helperText: page.scaleSupportText()
+                                canStepDown: page.canStepScale(-1)
+                                canStepUp: page.canStepScale(1)
+                                onScaleSelected: value => page.setScaleValue(value)
+                                onStepRequested: direction => page.stepScale(direction)
                             }
                         }
 
@@ -1688,8 +1896,10 @@ Item {
 
                 Rectangle {
                     radius: 10
-                    color: revertArea.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03)
-                    border.color: page.softBorder
+                    color: revertArea.enabled
+                        ? (revertArea.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03))
+                        : Qt.rgba(255, 255, 255, 0.02)
+                    border.color: revertArea.enabled ? page.softBorder : Qt.rgba(255, 255, 255, 0.03)
                     border.width: 1
                     implicitWidth: 90
                     implicitHeight: 40
@@ -1697,7 +1907,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "Revert"
-                        color: Theme.text
+                        color: revertArea.enabled ? Theme.text : Theme.subtext
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -1706,7 +1916,7 @@ Item {
                         id: revertArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        enabled: page.selectedOutput !== null
+                        enabled: page.selectedOutput !== null && pendingChanges()
                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: page.syncSelection()
                     }
@@ -1714,16 +1924,18 @@ Item {
 
                 Rectangle {
                     radius: 10
-                    color: applyArea.containsMouse ? Qt.lighter(Theme.primary, 1.1) : Theme.primary
-                    border.color: Qt.lighter(Theme.primary, 1.2)
+                    color: applyArea.enabled
+                        ? (applyArea.containsMouse ? Qt.lighter(Theme.primary, 1.1) : Theme.primary)
+                        : Qt.rgba(255, 255, 255, 0.08)
+                    border.color: applyArea.enabled ? Qt.lighter(Theme.primary, 1.2) : Qt.rgba(255, 255, 255, 0.05)
                     border.width: 1
                     implicitWidth: 118
                     implicitHeight: 40
 
                     Text {
                         anchors.centerIn: parent
-                        text: "Apply"
-                        color: "#11151b"
+                        text: pendingChanges() ? "Apply" : "Saved"
+                        color: applyArea.enabled ? "#11151b" : Theme.subtext
                         font.pixelSize: 13
                         font.bold: true
                     }
@@ -1732,7 +1944,7 @@ Item {
                         id: applyArea
                         anchors.fill: parent
                         hoverEnabled: true
-                        enabled: page.selectedOutput !== null
+                        enabled: page.selectedOutput !== null && pendingChanges()
                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                         onClicked: page.applySettings()
                     }

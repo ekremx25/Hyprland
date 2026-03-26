@@ -9,13 +9,14 @@ Item {
     id: backend
 
     readonly property var initialBarConfig: BarDefaults.createBarConfig()
+    readonly property string configDir: StandardPaths.writableLocation(StandardPaths.ConfigLocation).toString().replace("file://", "") + "/quickshell"
 
     property var barConfig: BarDefaults.clone(initialBarConfig)
     property var dockConfig: ({})
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/bar_config.json"
-    property string dockConfigPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
-    property string customPresetPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/presets/custom.json"
-    property string defaultsPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/Modules/bar/BarDefaults.js"
+    property string configPath: configDir + "/bar_config.json"
+    property string dockConfigPath: configDir + "/dock_config.json"
+    property string customPresetPath: configDir + "/presets/custom.json"
+    property string defaultsPath: configDir + "/Modules/bar/BarDefaults.js"
     property var dockLeftModulesList: []
     property var dockRightModulesList: []
 
@@ -192,7 +193,7 @@ Item {
         var workspaceText = JSON.stringify(workspaces, null, 4).replace(/\n/g, "\n    ");
 
         return ".pragma library\n\n"
-            + "// Fallback only. Runtime bar changes are saved to ~/.config/quickshell/bar_config.json.\n\n"
+            + "// Fallback only. Runtime bar changes are saved to the quickshell config directory.\n\n"
             + "function createWorkspacesConfig() {\n"
             + "    return " + workspaceText + ";\n"
             + "}\n\n"

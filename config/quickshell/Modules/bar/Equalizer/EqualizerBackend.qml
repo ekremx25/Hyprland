@@ -24,13 +24,18 @@ Item {
     property bool pendingEqApply: false
     property bool hydratingEqState: false
     property var pendingEqBandsSnapshot: null
+    property var appliedEqBands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    property bool hasPendingEqChanges: false
+    property bool bandDragActive: false
     property var availableSinks: []
     readonly property bool isBusy: eqProc.running
     readonly property var presetNames: ["Flat", "Bass", "Movie", "Treble", "Voice", "Vocal", "Pop", "Rock", "Jazz", "Classic"]
     readonly property string homeDir: Quickshell.env("HOME") || ""
     readonly property string configDir: Quickshell.env("XDG_CONFIG_HOME") || (homeDir + "/.config")
+    readonly property string stateHome: Quickshell.env("XDG_STATE_HOME") || (homeDir + "/.local/state")
     readonly property string eqScriptPath: configDir + "/quickshell/scripts/eq_filter_chain.sh"
     readonly property string eqPipewireConfPath: configDir + "/pipewire/pipewire.conf.d/90-quickshell-eq.conf"
+    readonly property string eqStatePath: stateHome + "/quickshell/eq_filter_chain.state"
 
     readonly property var presetMap: ({
         "Flat":    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -60,6 +65,10 @@ Item {
     function scheduleRefresh(delayMs) {
         refreshDebounce.interval = delayMs !== undefined ? delayMs : 120;
         refreshDebounce.restart();
+    }
+
+    function shellQuote(text) {
+        return "'" + String(text).replace(/'/g, "'\\''") + "'";
     }
 
     function formatSourceLabel(name) {
@@ -132,9 +141,15 @@ Item {
         if (gains.length === 10) {
             backend.hydratingEqState = true;
             backend.eqBands = gains;
+            backend.appliedEqBands = gains.slice();
             backend.selectedPreset = backend.detectPresetFromBands(gains);
             backend.hydratingEqState = false;
+            backend.updatePendingEqState();
         }
+    }
+
+    function updatePendingEqState() {
+        backend.hasPendingEqChanges = !backend.sameBands(backend.eqBands, backend.appliedEqBands);
     }
 
     Process {
@@ -143,13 +158,28 @@ Item {
         running: false
         property string out: ""
         property string requestedTargetSink: "auto"
+        property string requestedAction: ""
+        property var requestedBandsSnapshot: null
         stdout: SplitParser { onRead: data => { eqProc.out += data + "\n"; } }
         stderr: SplitParser { onRead: data => { eqProc.out += data + "\n"; } }
         onExited: code => {
             if (code === 0) {
-                backend.applyStatus = "Applied";
+                if (eqProc.requestedAction === "switch") {
+                    backend.applyStatus = "Output switched";
+                } else if (eqProc.requestedAction === "disable") {
+                    backend.applyStatus = "Disabled";
+                } else {
+                    backend.applyStatus = "Applied";
+                }
                 if (eqProc.requestedTargetSink.length > 0 && eqProc.requestedTargetSink !== "auto") {
                     backend.lastAppliedTargetSink = eqProc.requestedTargetSink;
+                }
+                if (eqProc.requestedAction === "apply" && eqProc.requestedBandsSnapshot && eqProc.requestedBandsSnapshot.length === 10) {
+                    backend.appliedEqBands = eqProc.requestedBandsSnapshot.slice();
+                    backend.updatePendingEqState();
+                }
+                if (eqProc.requestedAction === "switch") {
+                    backend.pendingAutoTargetSink = "";
                 }
             } else {
                 var errText = eqProc.out.trim();
@@ -162,10 +192,16 @@ Item {
             routeRecoveryTimer.restart();
             Volume.pulseOsd();
             eqProc.out = "";
+            eqProc.requestedAction = "";
+            eqProc.requestedBandsSnapshot = null;
             if (backend.pendingEqApply) {
                 backend.pendingEqApply = false;
                 if (backend.pendingEqBandsSnapshot && backend.pendingEqBandsSnapshot.length === 10) {
-                    eqBandAutoApplyTimer.restart();
+                    if (backend.bandDragActive) {
+                        bandPreviewTimer.restart();
+                    } else {
+                        backend.applyToPipeWire(backend.pendingEqBandsSnapshot);
+                    }
                 }
             }
         }
@@ -188,7 +224,7 @@ Item {
 
     Process {
         id: audioInfoProc
-        command: ["/bin/bash", "-lc", "STATE_FILE=\"" + backend.configDir + "/../.local/state/quickshell/eq_filter_chain.state\"; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Sink:/{print $2; exit}'); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; S=\"$DEFAULT_SINK\"; if [ \"$DEFAULT_SINK\" = \"effect_input.eq\" ]; then if [ -n \"$STATE_SINK\" ]; then S=\"$STATE_SINK\"; elif [ -n \"$RUNNING_SINK\" ]; then S=\"$RUNNING_SINK\"; fi; fi; SR=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Source:/{print $2; exit}'); SV=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SM=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); SRV=$(/usr/bin/pactl get-source-volume \"$SR\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SRM=$(/usr/bin/pactl get-source-mute \"$SR\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); echo \"SINK=$S\"; echo \"SOURCE=$SR\"; echo \"SINKVOL=$SV\"; echo \"SINKMUTE=$SM\"; echo \"SOURCEVOL=$SRV\"; echo \"SOURCEMUTE=$SRM\""]
+        command: ["/bin/bash", "-lc", "STATE_FILE=" + backend.shellQuote(backend.eqStatePath) + "; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Sink:/{print $2; exit}'); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; S=\"$DEFAULT_SINK\"; if [ \"$DEFAULT_SINK\" = \"effect_input.eq\" ]; then if [ -n \"$STATE_SINK\" ]; then S=\"$STATE_SINK\"; elif [ -n \"$RUNNING_SINK\" ]; then S=\"$RUNNING_SINK\"; fi; fi; SR=$(/usr/bin/pactl info | /usr/bin/awk -F': ' '/^Default Source:/{print $2; exit}'); SV=$(/usr/bin/pactl get-sink-volume \"$S\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SM=$(/usr/bin/pactl get-sink-mute \"$S\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); SRV=$(/usr/bin/pactl get-source-volume \"$SR\" 2>/dev/null | /usr/bin/sed -n 's/.* \\([0-9]\\+\\)%.*/\\1/p' | /usr/bin/head -n1 || echo 0); SRM=$(/usr/bin/pactl get-source-mute \"$SR\" 2>/dev/null | /usr/bin/awk '{print $2}' || echo no); echo \"SINK=$S\"; echo \"SOURCE=$SR\"; echo \"SINKVOL=$SV\"; echo \"SINKMUTE=$SM\"; echo \"SOURCEVOL=$SRV\"; echo \"SOURCEMUTE=$SRM\""]
         running: false
         property string out: ""
         stdout: SplitParser { onRead: data => { audioInfoProc.out += data + "\n"; } }
@@ -200,7 +236,7 @@ Item {
 
     Process {
         id: sinkListProc
-        command: ["/bin/bash", "-lc", "STATE_FILE=\"" + backend.configDir + "/../.local/state/quickshell/eq_filter_chain.state\"; CURRENT=''; if [ -f \"$STATE_FILE\" ]; then CURRENT=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; /usr/bin/pactl list short sinks | /usr/bin/awk '{print $2 \"|\" $5}' | /usr/bin/grep -v '^effect_input\\.eq|' || true; echo \"CURRENT=$CURRENT\""]
+        command: ["/bin/bash", "-lc", "STATE_FILE=" + backend.shellQuote(backend.eqStatePath) + "; CURRENT=''; if [ -f \"$STATE_FILE\" ]; then CURRENT=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; /usr/bin/pactl list short sinks | /usr/bin/awk '{print $2 \"|\" $5}' | /usr/bin/grep -v '^effect_input\\.eq|' || true; echo \"CURRENT=$CURRENT\""]
         running: false
         property string out: ""
         stdout: SplitParser { onRead: data => { sinkListProc.out += data + "\n"; } }
@@ -280,17 +316,10 @@ Item {
     }
 
     Timer {
-        id: eqBandAutoApplyTimer
-        interval: 320
+        id: bandPreviewTimer
+        interval: 240
         repeat: false
-        onTriggered: {
-            if (backend.eqProc.running) {
-                backend.pendingEqApply = true;
-                return;
-            }
-            backend.pendingEqApply = false;
-            backend.applyToPipeWire(backend.pendingEqBandsSnapshot);
-        }
+        onTriggered: {}
     }
 
     function sameBands(a, b) {
@@ -320,16 +349,17 @@ Item {
         pendingEqApply = true;
         if (eqProc.running) return;
         if (immediate === true) {
-            eqBandAutoApplyTimer.stop();
             pendingEqApply = false;
             applyToPipeWire(pendingEqBandsSnapshot);
             return;
         }
-        eqBandAutoApplyTimer.restart();
     }
 
     onEqBandsChanged: {
-        queueEqApply(false);
+        updatePendingEqState();
+        if (!hydratingEqState && hasPendingEqChanges) {
+            applyStatus = "Unapplied changes";
+        }
     }
 
     function applyPreset(name) {
@@ -345,14 +375,32 @@ Item {
         arr[idx] = Math.round((ratio * 24) - 12);
         eqBands = arr;
         selectedPreset = "Custom";
-        queueEqApply(false);
+        pendingEqBandsSnapshot = arr.slice();
+        applyStatus = "Unapplied changes";
+    }
+
+    function beginBandDrag() {
+        bandDragActive = true;
+    }
+
+    function commitBandDrag() {
+        bandDragActive = false;
+        if (!hasPendingEqChanges) return;
+        if (eqProc.running) {
+            pendingEqApply = true;
+            applyStatus = "Applying...";
+            return;
+        }
+        queueEqApply(true);
     }
 
     function applyEqToTarget(targetSink, bands) {
         if (eqProc.running) return;
         applyStatus = targetSink === "auto" ? "Applying..." : "Switching output...";
         eqProc.requestedTargetSink = targetSink;
+        eqProc.requestedAction = "apply";
         var gains = (bands && bands.length === 10) ? bands : eqBands;
+        eqProc.requestedBandsSnapshot = gains.slice();
         startManagedProcess(eqProc, [
             "/bin/bash", eqScriptPath, "apply",
             String(gains[0]), String(gains[1]), String(gains[2]), String(gains[3]), String(gains[4]),
@@ -369,13 +417,20 @@ Item {
 
     function autoApplyForCurrentSink() {
         if (currentSinkName.length === 0 || currentSinkName === "effect_input.eq") return;
-        applyStatus = "Auto-applying...";
-        applyEqToTarget(currentSinkName);
+        if (eqProc.running) return;
+        applyStatus = "Syncing output...";
+        eqProc.requestedTargetSink = currentSinkName;
+        eqProc.requestedAction = "switch";
+        eqProc.requestedBandsSnapshot = null;
+        startManagedProcess(eqProc, ["/bin/bash", eqScriptPath, "switch", currentSinkName]);
     }
 
     function disablePipeWireEq() {
         if (eqProc.running) return;
         applyStatus = "Disabling...";
+        eqProc.requestedAction = "disable";
+        eqProc.requestedTargetSink = "";
+        eqProc.requestedBandsSnapshot = null;
         startManagedProcess(eqProc, ["/bin/bash", eqScriptPath, "disable"]);
     }
 
@@ -390,13 +445,16 @@ Item {
 
     function selectOutputSink(sinkName) {
         if (!sinkName || sinkName.length === 0 || eqProc.running) return;
-        lastAppliedTargetSink = sinkName;
-        pendingAutoTargetSink = sinkName;
-        currentSinkName = sinkName;
-        sinkDisplayName = formatSinkLabel(sinkName);
         applyStatus = "Switching output...";
         eqProc.requestedTargetSink = sinkName;
+        eqProc.requestedAction = "switch";
+        eqProc.requestedBandsSnapshot = null;
         startManagedProcess(eqProc, ["/bin/bash", eqScriptPath, "switch", sinkName]);
+    }
+
+    function applyPendingBands() {
+        if (eqProc.running || !hasPendingEqChanges) return;
+        queueEqApply(true);
     }
 
     function loadEqStateFromFile() {

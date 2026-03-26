@@ -39,7 +39,11 @@ Rectangle {
     property alias currentSinkName: backend.currentSinkName
     property alias currentSourceName: backend.currentSourceName
     property alias availableSinks: backend.availableSinks
+    property alias hasPendingEqChanges: backend.hasPendingEqChanges
     readonly property alias presetNames: backend.presetNames
+    readonly property bool eqIsBypassed: root.applyStatus === "Disabled" || root.applyStatus === "Disabling..."
+    readonly property string eqModeLabel: root.eqIsBypassed ? "Bypassed" : (root.selectedPreset === "Custom" ? "Custom curve" : "Preset mode")
+    readonly property string eqStateLabel: backend.isBusy ? "Applying" : (root.eqIsBypassed ? "Bypassed" : (root.hasPendingEqChanges ? "Pending" : "Live"))
     readonly property real bgLuma: (Theme.background.r * 0.299) + (Theme.background.g * 0.587) + (Theme.background.b * 0.114)
     readonly property color eqAccent: Theme.equalizerColor
     readonly property real eqAccentLuma: (eqAccent.r * 0.299) + (eqAccent.g * 0.587) + (eqAccent.b * 0.114)
@@ -117,12 +121,76 @@ Rectangle {
     function setBandFromY(idx, y, h) { backend.setBandFromY(idx, y, h); }
     function applyToPipeWire() { backend.applyToPipeWire(); }
     function disablePipeWireEq() { backend.disablePipeWireEq(); }
+    function applyPendingBands() { backend.applyPendingBands(); }
     function loadEqStateFromFile() { backend.loadEqStateFromFile(); }
     function setSinkVolumePercent(percent) { backend.setSinkVolumePercent(percent); }
     function setSourceVolumePercent(percent) { backend.setSourceVolumePercent(percent); }
     function toggleSinkMute() { backend.toggleSinkMute(); }
     function toggleSourceMute() { backend.toggleSourceMute(); }
     function selectOutputSink(sinkName) { backend.selectOutputSink(sinkName); }
+
+    component MetaChip: Rectangle {
+        required property string label
+        property color fillColor: Qt.rgba(255,255,255,0.05)
+        property color strokeColor: Qt.rgba(255,255,255,0.08)
+        property color textColor: root.softText
+
+        radius: 9
+        color: fillColor
+        border.width: 1
+        border.color: strokeColor
+        implicitWidth: metaChipText.implicitWidth + 16
+        implicitHeight: 26
+
+        Text {
+            id: metaChipText
+            anchors.centerIn: parent
+            text: parent.label
+            color: parent.textColor
+            font.pixelSize: 10
+            font.bold: true
+        }
+    }
+
+    component PresetChip: Rectangle {
+        required property string presetName
+
+        Layout.fillWidth: true
+        Layout.preferredHeight: 34
+        radius: 10
+        color: root.selectedPreset === presetName
+            ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.22)
+            : Qt.rgba(255,255,255,0.035)
+        border.width: 1
+        border.color: root.selectedPreset === presetName
+            ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.46)
+            : Qt.rgba(255,255,255,0.06)
+
+        Rectangle {
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: 10
+            width: 5
+            height: parent.height - 14
+            radius: 2.5
+            visible: root.selectedPreset === parent.presetName
+            color: root.eqAccent
+        }
+
+        Text {
+            anchors.centerIn: parent
+            text: parent.presetName
+            color: root.selectedPreset === parent.presetName ? root.softText : root.dimText
+            font.pixelSize: 10
+            font.bold: root.selectedPreset === parent.presetName
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            cursorShape: Qt.PointingHandCursor
+            onClicked: root.applyPreset(parent.presetName)
+        }
+    }
 
     Timer {
         id: waveMotionTimer
@@ -290,13 +358,14 @@ Rectangle {
 
                     Rectangle {
                         Layout.fillWidth: true
-                        height: 158
+                        implicitHeight: eqSectionLayout.implicitHeight + 28
                         radius: 18
                         color: root.glassCard
                         border.width: 1
                         border.color: root.glassStroke
 
                         ColumnLayout {
+                            id: eqSectionLayout
                             anchors.fill: parent
                             anchors.margins: 14
                             spacing: 10
@@ -414,44 +483,53 @@ Rectangle {
                     }
                 Rectangle {
                     Layout.fillWidth: true
-                    height: 282
+                    implicitHeight: eqControlsLayout.implicitHeight + 28
                     radius: 18
                     color: root.glassCard
                     border.width: 1
                     border.color: root.glassStroke
 
                     ColumnLayout {
+                        id: eqControlsLayout
                         anchors.fill: parent
                         anchors.margins: 14
-                        spacing: 10
+                        spacing: 8
 
                         RowLayout {
                             Layout.fillWidth: true
                             Text { text: "Equalizer"; color: root.softText; font.bold: true; font.pixelSize: 15 }
                             Text { text: "10-band"; color: root.dimText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            Rectangle {
-                                radius: 10
-                                color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.18)
-                                border.color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.40)
-                                border.width: 1
-                                implicitWidth: presetLabel.implicitWidth + 16
-                                implicitHeight: 30
-                                Text {
-                                    id: presetLabel
-                                    anchors.centerIn: parent
-                                    text: root.selectedPreset
-                                    color: root.softText
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                }
+                            MetaChip {
+                                label: root.selectedPreset
+                                fillColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.18)
+                                strokeColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.40)
+                                textColor: root.softText
+                            }
+                            MetaChip {
+                                label: root.eqStateLabel
+                                fillColor: backend.isBusy
+                                    ? Qt.rgba(250/255, 204/255, 21/255, 0.18)
+                                    : (root.eqIsBypassed
+                                        ? Qt.rgba(243/255, 139/255, 168/255, 0.14)
+                                        : (root.hasPendingEqChanges
+                                            ? Qt.rgba(251/255, 191/255, 36/255, 0.14)
+                                            : Qt.rgba(166/255, 227/255, 161/255, 0.14)))
+                                strokeColor: backend.isBusy
+                                    ? Qt.rgba(250/255, 204/255, 21/255, 0.28)
+                                    : (root.eqIsBypassed
+                                        ? Qt.rgba(243/255, 139/255, 168/255, 0.24)
+                                        : (root.hasPendingEqChanges
+                                            ? Qt.rgba(251/255, 191/255, 36/255, 0.26)
+                                            : Qt.rgba(166/255, 227/255, 161/255, 0.24)))
+                                textColor: root.softText
                             }
                         }
 
-                        RowLayout {
+                        Item {
                             Layout.fillWidth: true
                             Layout.preferredHeight: 132
-                            spacing: 6
+                            clip: false
 
                             Canvas {
                                 id: eqWaveCanvas
@@ -555,129 +633,221 @@ Rectangle {
                                 Component.onCompleted: requestPaint()
                             }
 
-                            Repeater {
-                                model: root.eqFrequencies
-                                delegate: ColumnLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 5
-                                    z: 1
+                            RowLayout {
+                                anchors.fill: parent
+                                spacing: 6
+                                z: 1
 
-                                    Item {
-                                        Layout.alignment: Qt.AlignHCenter
-                                        width: 24
-                                        height: 100
+                                Repeater {
+                                    model: root.eqFrequencies
+                                    delegate: ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 5
 
-                                        Rectangle {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 4
-                                            height: parent.height
-                                            radius: 2
-                                            color: root.trackColor
-                                        }
+                                        Item {
+                                            Layout.alignment: Qt.AlignHCenter
+                                            width: 24
+                                            height: 100
 
-                                        Rectangle {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 16
-                                            height: 36
-                                            radius: 8
-                                            color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.92)
-                                            y: {
-                                                var db = root.eqBands[index];
-                                                var ratio = (db + 12) / 24.0;
-                                                return (1 - ratio) * (parent.height - height);
+                                            Rectangle {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                width: 4
+                                                height: parent.height
+                                                radius: 2
+                                                color: root.trackColor
                                             }
-                                            border.width: 1
-                                            border.color: Qt.rgba(255,255,255,0.35)
-                                        }
 
-                                        Rectangle {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 20
-                                            height: 20
-                                            radius: 10
-                                            y: {
-                                                var db2 = root.eqBands[index];
-                                                var ratio2 = (db2 + 12) / 24.0;
-                                                return (1 - ratio2) * (parent.height - height);
+                                            Rectangle {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                width: 16
+                                                height: 36
+                                                radius: 8
+                                                color: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.92)
+                                                y: {
+                                                    var db = root.eqBands[index];
+                                                    var ratio = (db + 12) / 24.0;
+                                                    return (1 - ratio) * (parent.height - height);
+                                                }
+                                                border.width: 1
+                                                border.color: Qt.rgba(255,255,255,0.35)
                                             }
-                                            color: "#dff8ff"
-                                            border.width: 1
-                                            border.color: Qt.rgba(255,255,255,0.35)
+
+                                            Rectangle {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                width: 20
+                                                height: 20
+                                                radius: 10
+                                                y: {
+                                                    var db2 = root.eqBands[index];
+                                                    var ratio2 = (db2 + 12) / 24.0;
+                                                    return (1 - ratio2) * (parent.height - height);
+                                                }
+                                                color: "#dff8ff"
+                                                border.width: 1
+                                                border.color: Qt.rgba(255,255,255,0.35)
+                                            }
+
+                                            MouseArea {
+                                                anchors.fill: parent
+                                                cursorShape: Qt.PointingHandCursor
+                                                onPressed: (mouse) => {
+                                                    backend.beginBandDrag()
+                                                    root.setBandFromY(index, mouse.y, height)
+                                                }
+                                                onPositionChanged: (mouse) => { if (pressed) root.setBandFromY(index, mouse.y, height); }
+                                                onReleased: backend.commitBandDrag()
+                                                onCanceled: backend.commitBandDrag()
+                                            }
                                         }
 
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            cursorShape: Qt.PointingHandCursor
-                                            onPressed: (mouse) => root.setBandFromY(index, mouse.y, height)
-                                            onPositionChanged: (mouse) => { if (pressed) root.setBandFromY(index, mouse.y, height); }
+                                        Text {
+                                            Layout.alignment: Qt.AlignHCenter
+                                            text: modelData
+                                            color: root.dimText
+                                            font.pixelSize: 10
+                                            font.bold: true
                                         }
-                                    }
-
-                                    Text {
-                                        Layout.alignment: Qt.AlignHCenter
-                                        text: modelData
-                                        color: root.dimText
-                                        font.pixelSize: 10
-                                        font.bold: true
                                     }
                                 }
                             }
                         }
 
-                        GridLayout {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            columns: 5
-                            rowSpacing: 6
-                            columnSpacing: 6
+                            spacing: 6
 
-                            Repeater {
-                                model: root.presetNames
-                                delegate: Rectangle {
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 28
-                                    radius: 8
-                                    color: root.selectedPreset === modelData ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.20) : Qt.rgba(255,255,255,0.04)
+                            Rectangle {
+                                Layout.fillWidth: true
+                                implicitHeight: 46
+                                radius: 12
+                                color: Qt.rgba(255,255,255,0.035)
+                                border.width: 1
+                                border.color: Qt.rgba(255,255,255,0.06)
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 10
+                                    spacing: 10
+
+                                    ColumnLayout {
+                                        spacing: 1
+
+                                        Text {
+                                            text: "Sound Profiles"
+                                            color: root.softText
+                                            font.pixelSize: 11
+                                            font.bold: true
+                                        }
+
+                                        Text {
+                                            text: "Curated starting points for quick tuning."
+                                            color: root.dimText
+                                            font.pixelSize: 9
+                                        }
+                                    }
+
+                                    Item { Layout.fillWidth: true }
+
+                                    MetaChip {
+                                        label: root.eqModeLabel
+                                        fillColor: Qt.rgba(255,255,255,0.045)
+                                        strokeColor: Qt.rgba(255,255,255,0.08)
+                                        textColor: root.softText
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: Math.min(5, root.presetNames.length)
+                                    delegate: PresetChip {
+                                        required property int index
+                                        presetName: root.presetNames[index]
+                                    }
+                                }
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: Math.max(0, root.presetNames.length - 5)
+                                    delegate: PresetChip {
+                                        required property int index
+                                        presetName: root.presetNames[index + 5]
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 38
+                            radius: 12
+                            color: Qt.rgba(255,255,255,0.03)
+                            border.width: 1
+                            border.color: Qt.rgba(255,255,255,0.06)
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.margins: 8
+                                spacing: 10
+
+                                MetaChip {
+                                    label: root.eqModeLabel
+                                    fillColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.14)
+                                    strokeColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.26)
+                                    textColor: root.softText
+                                }
+
+                                MetaChip {
+                                    label: root.eqStateLabel
+                                    fillColor: backend.isBusy
+                                        ? Qt.rgba(250/255, 204/255, 21/255, 0.16)
+                                        : (root.eqIsBypassed
+                                            ? Qt.rgba(243/255, 139/255, 168/255, 0.12)
+                                            : Qt.rgba(255,255,255,0.045))
+                                    strokeColor: backend.isBusy
+                                        ? Qt.rgba(250/255, 204/255, 21/255, 0.26)
+                                        : (root.eqIsBypassed
+                                            ? Qt.rgba(243/255, 139/255, 168/255, 0.24)
+                                            : Qt.rgba(255,255,255,0.08))
+                                    textColor: root.softText
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                Rectangle {
+                                    implicitWidth: disableEqText.implicitWidth + 28
+                                    implicitHeight: 28
+                                    radius: 9
+                                    color: Qt.rgba(243/255,139/255,168/255,0.12)
                                     border.width: 1
-                                    border.color: root.selectedPreset === modelData ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.42) : Qt.rgba(255,255,255,0.05)
+                                    border.color: Qt.rgba(243/255,139/255,168/255,0.26)
 
                                     Text {
+                                        id: disableEqText
                                         anchors.centerIn: parent
-                                        text: modelData
-                                        color: root.selectedPreset === modelData ? root.softText : root.dimText
-                                        font.pixelSize: 10
-                                        font.bold: root.selectedPreset === modelData
+                                        text: root.eqIsBypassed ? "EQ Bypassed" : "Bypass EQ"
+                                        color: "#f7b4c5"
+                                        font.bold: true
+                                        font.pixelSize: 11
                                     }
 
                                     MouseArea {
                                         anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.applyPreset(modelData)
+                                        enabled: !backend.isBusy && !root.eqIsBypassed
+                                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        onClicked: root.disablePipeWireEq()
                                     }
                                 }
                             }
                         }
 
-                        Item {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 28
-
-                            Rectangle {
-                                anchors.fill: parent
-                                height: parent.height
-                                radius: 8
-                                color: Qt.rgba(243/255,139/255,168/255,0.10)
-                                border.width: 1
-                                border.color: Qt.rgba(243/255,139/255,168/255,0.22)
-                                Text { anchors.centerIn: parent; text: "Disable EQ"; color: "#f7b4c5"; font.bold: true; font.pixelSize: 11 }
-                                MouseArea { anchors.fill: parent; enabled: !backend.isBusy; cursorShape: Qt.PointingHandCursor; onClicked: root.disablePipeWireEq() }
-                            }
-                        }
-
-                        Text {
-                            text: backend.isBusy ? "Applying automatically..." : ("Auto apply on drag and preset change" + (root.applyStatus.length > 0 ? " • " + root.applyStatus : ""))
-                            color: root.dimText
-                            font.pixelSize: 10
-                        }
                     }
                 }
 

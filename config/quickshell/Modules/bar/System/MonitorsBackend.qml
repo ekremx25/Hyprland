@@ -15,6 +15,11 @@ Item {
     property int selectedIdx: 0
     property var selectedOutput: outputs.length > selectedIdx ? outputs[selectedIdx] : null
     property var savedConfig: ({})
+    readonly property string homeDir: Quickshell.env("HOME") || ""
+    readonly property string configHome: Quickshell.env("XDG_CONFIG_HOME") || (homeDir + "/.config")
+    readonly property string configDir: configHome + "/quickshell"
+    readonly property string monitorConfigPath: configDir + "/monitor_config.json"
+    readonly property string monitorConfigTmpPath: monitorConfigPath + ".tmp"
 
     readonly property var riskyColorModes: ["dcip3", "dp3", "adobe"]
     readonly property var hdrColorModes: ["hdr", "hdredid", "hdrp3", "hdrapple", "hdradobe"]
@@ -48,6 +53,10 @@ Item {
     })
 
     signal refreshRequested()
+
+    function shellQuote(text) {
+        return "'" + String(text).replace(/'/g, "'\\''") + "'";
+    }
 
     function parseResParts(res) {
         var parts = String(res || "").split("x");
@@ -656,7 +665,7 @@ Item {
             if (!defaultOutputName) defaultOutputName = updatedOutputs[0].name;
         }
 
-        saveCmds.push("mkdir -p ~/.config/quickshell && ([ -s ~/.config/quickshell/monitor_config.json ] || echo '{}' > ~/.config/quickshell/monitor_config.json)");
+        saveCmds.push("mkdir -p " + backend.shellQuote(backend.configDir) + " && ([ -s " + backend.shellQuote(backend.monitorConfigPath) + " ] || echo '{}' > " + backend.shellQuote(backend.monitorConfigPath) + ")");
 
         for (var i = 0; i < updatedOutputs.length; i++) {
             var mon = updatedOutputs[i];
@@ -728,10 +737,29 @@ Item {
             var monCmSave = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
             var monEotfSave = isSelected ? selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
             var monDefaultSave = (mon.name === defaultOutputName);
-            saveCmds.push("jq '.\"" + mon.name + "\" = {\"res\": \"" + monRes + "\", \"hz\": \"" + monHz + "\", \"scale\": \"" + monScale + "\", \"posX\": \"" + monPosX + "\", \"posY\": \"" + monPosY + "\", \"default\": " + (monDefaultSave ? "true" : "false") + ", \"hdr\": " + (monHdrSave ? "true" : "false") + ", \"bitdepth\": " + monBdSave + ", \"vrr\": " + monVrrSave + ", \"sdrLuminance\": " + monLumSave + ", \"sdrBrightness\": " + monBriSave.toFixed(1) + ", \"sdrSaturation\": " + monSatSave.toFixed(1) + ", \"colorManagement\": \"" + monCmSave + "\", \"sdrEotf\": " + monEotfSave + "}' ~/.config/quickshell/monitor_config.json > ~/.config/quickshell/monitor_config.tmp && mv ~/.config/quickshell/monitor_config.tmp ~/.config/quickshell/monitor_config.json");
+            var jqFilter = ".[" + JSON.stringify(mon.name) + "] = {"
+                + "\"res\": " + JSON.stringify(monRes) + ", "
+                + "\"hz\": " + JSON.stringify(monHz) + ", "
+                + "\"scale\": " + JSON.stringify(monScale) + ", "
+                + "\"posX\": " + JSON.stringify(String(monPosX)) + ", "
+                + "\"posY\": " + JSON.stringify(String(monPosY)) + ", "
+                + "\"default\": " + (monDefaultSave ? "true" : "false") + ", "
+                + "\"hdr\": " + (monHdrSave ? "true" : "false") + ", "
+                + "\"bitdepth\": " + monBdSave + ", "
+                + "\"vrr\": " + monVrrSave + ", "
+                + "\"sdrLuminance\": " + monLumSave + ", "
+                + "\"sdrBrightness\": " + monBriSave.toFixed(1) + ", "
+                + "\"sdrSaturation\": " + monSatSave.toFixed(1) + ", "
+                + "\"colorManagement\": " + JSON.stringify(monCmSave) + ", "
+                + "\"sdrEotf\": " + monEotfSave
+                + "}";
+            saveCmds.push("jq " + backend.shellQuote(jqFilter) + " " + backend.shellQuote(backend.monitorConfigPath) + " > " + backend.shellQuote(backend.monitorConfigTmpPath) + " && mv " + backend.shellQuote(backend.monitorConfigTmpPath) + " " + backend.shellQuote(backend.monitorConfigPath));
         }
 
-        var fullCmd = cmds.join(" && ") + " && " + saveCmds.join(" && ");
+        var fullCmdParts = [];
+        if (cmds.length > 0) fullCmdParts.push(cmds.join(" && "));
+        if (saveCmds.length > 0) fullCmdParts.push(saveCmds.join(" && "));
+        var fullCmd = fullCmdParts.join(" && ");
         if (CompositorService.isHyprland && defaultOutputName) fullCmd += " && hyprctl dispatch focusmonitor " + defaultOutputName;
         if (CompositorService.isMango) fullCmd += " && mmsg -d reload_config";
         return { command: fullCmd, updatedOutputs: updatedOutputs };
@@ -792,7 +820,7 @@ Item {
 
     Core.JsonDataStore {
         id: configStore
-        path: Quickshell.env("HOME") + "/.config/quickshell/monitor_config.json"
+        path: backend.monitorConfigPath
         defaultValue: ({})
         onLoadedValue: function(value) {
             backend.savedConfig = value || {};

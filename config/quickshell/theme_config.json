@@ -1,8 +1,8 @@
 {
   "materialYou": true,
-  "wallpaperPath": "/home/Eko/Pictures/wallpapers/Messy-Room.jpg",
+  "wallpaperPath": "/home/Eko/Pictures/wallpapers/Wet-Road.jpg",
   "mode": "light",
-  "matugenType": "scheme-kanagawa",
+  "matugenType": "scheme-catppuccin",
   "applyToKitty": true,
   "applyToGtk": false,
   "liveUpdate": true
