@@ -1,5 +1,4 @@
 import QtQuick
-import Qt.labs.platform
 import Quickshell
 import Quickshell.Io
 import "../../../Services/core" as Core
@@ -13,6 +12,7 @@ Scope {
     property string cityName: "Erzurum"
     property string customLat: "39.9208"
     property string customLon: "41.2746"
+    property string apiKey: Quickshell.env("OPENWEATHER_API_KEY") || ""
     property bool useFahrenheit: false
     property bool weatherEnabled: true
 
@@ -26,10 +26,17 @@ Scope {
         forecast: []
     })
 
-    property string cachePath: StandardPaths.writableLocation(StandardPaths.CacheLocation).toString().replace("file://", "") + "/quickshell/weather.json"
-    readonly property string weatherConfigPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/weather_config.json"
+    property string cachePath: Core.PathService.cachePath("weather.json")
+    readonly property string weatherConfigPath: Core.PathService.configPath("weather_config.json")
 
     function triggerRefresh() {
+        if (!root.weatherEnabled) return;
+        if (root.apiKey.trim().length === 0) {
+            Log.warn("WeatherDataScope", "OpenWeather API key missing; using cache only");
+            cacheStore.load();
+            return;
+        }
+        apiProc.command = ["curl", "-s", "https://api.openweathermap.org/data/2.5/forecast?lat=" + root.customLat + "&lon=" + root.customLon + "&appid=" + root.apiKey + "&units=" + (root.useFahrenheit ? "imperial" : "metric") + "&lang=en"];
         apiProc.running = false;
         apiProc.fullOutput = "";
         apiProc.running = true;
@@ -42,7 +49,7 @@ Scope {
 
     Process {
         id: apiProc
-        command: ["curl", "-s", "http://api.openweathermap.org/data/2.5/forecast?lat=" + root.customLat + "&lon=" + root.customLon + "&appid=0893defca21907657083a55440bd9f71&units=" + (root.useFahrenheit ? "imperial" : "metric") + "&lang=en"]
+        command: ["curl", "-s", "https://api.openweathermap.org/data/2.5/forecast"]
         property string fullOutput: ""
 
         stdout: SplitParser { onRead: data => { apiProc.fullOutput += data; } }
@@ -164,7 +171,7 @@ Scope {
         interval: 5000
         running: true
         repeat: false
-        onTriggered: apiProc.running = true
+        onTriggered: root.triggerRefresh()
     }
 
     function getWeatherInfo(code) {
@@ -189,6 +196,7 @@ Scope {
             lat: root.customLat,
             lon: root.customLon,
             city: root.cityName,
+            apiKey: root.apiKey,
             fahrenheit: root.useFahrenheit,
             enabled: root.weatherEnabled
         })
@@ -197,6 +205,7 @@ Scope {
             if (cfg.lat && cfg.lat !== root.customLat) { root.customLat = cfg.lat; changed = true; }
             if (cfg.lon && cfg.lon !== root.customLon) { root.customLon = cfg.lon; changed = true; }
             if (cfg.city && cfg.city !== root.cityName) { root.cityName = cfg.city; }
+            if (!Quickshell.env("OPENWEATHER_API_KEY") && cfg.apiKey && cfg.apiKey !== root.apiKey) { root.apiKey = cfg.apiKey; changed = true; }
             if (cfg.fahrenheit !== undefined && cfg.fahrenheit !== root.useFahrenheit) { root.useFahrenheit = cfg.fahrenheit; changed = true; }
             if (cfg.enabled !== undefined && cfg.enabled !== root.weatherEnabled) { root.weatherEnabled = cfg.enabled; }
             if (changed) {

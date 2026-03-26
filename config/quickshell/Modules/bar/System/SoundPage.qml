@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "../../../Widgets"
 
@@ -7,6 +9,61 @@ Item {
     id: soundPage
 
     SoundService { id: soundService }
+
+    // Brightness backend
+    QtObject {
+        id: brightness
+        property bool available: false
+        property int value: 0
+        property int maxValue: 100
+        property bool loading: true
+
+        function read() {
+            if (!brightnessReadProc.running) {
+                brightnessReadProc.out = ""
+                brightnessReadProc.running = true
+            }
+        }
+        function set(percent) {
+            var p = Math.max(0, Math.min(100, Math.round(percent)))
+            Quickshell.execDetached(["/bin/bash", "-lc",
+                "brightnessctl s " + p + "% -q"])
+            brightness.value = p
+        }
+    }
+
+    Process {
+        id: brightnessReadProc
+        command: ["/bin/bash", "-lc",
+            "MAX=$(brightnessctl m 2>/dev/null) && CUR=$(brightnessctl g 2>/dev/null) && echo \"MAX=$MAX\" && echo \"CUR=$CUR\" || echo \"UNAVAILABLE\""]
+        running: true
+        property string out: ""
+        stdout: SplitParser { onRead: data => brightnessReadProc.out += data + "\n" }
+        onExited: function(code) {
+            var text = brightnessReadProc.out.trim()
+            if (code !== 0 || text === "UNAVAILABLE" || text.indexOf("UNAVAILABLE") !== -1) {
+                brightness.available = false
+            } else {
+                var maxMatch = text.match(/MAX=(\d+)/)
+                var curMatch = text.match(/CUR=(\d+)/)
+                if (maxMatch && curMatch) {
+                    var max = parseInt(maxMatch[1])
+                    var cur = parseInt(curMatch[1])
+                    if (max > 0) {
+                        brightness.maxValue = max
+                        brightness.value = Math.round(cur / max * 100)
+                        brightness.available = true
+                    } else {
+                        brightness.available = false
+                    }
+                } else {
+                    brightness.available = false
+                }
+            }
+            brightness.loading = false
+            brightnessReadProc.out = ""
+        }
+    }
 
     PwNodeLinkTracker {
         id: appTracker
@@ -23,6 +80,61 @@ Item {
             Layout.fillWidth: true
             Text { text: "󰕾"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
             Text { text: "Sound Settings"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+        }
+
+        // --- Parlaklık ---
+        Rectangle {
+            Layout.fillWidth: true
+            height: 90
+            color: Theme.surface
+            radius: 10
+            visible: brightness.available
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 8
+
+                RowLayout {
+                    spacing: 8
+                    Text { text: "󰃞"; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#f9e2af" }
+                    Text { text: "Brightness"; color: Theme.text; font.bold: true; font.pixelSize: 13; Layout.fillWidth: true }
+                    Text { text: brightness.value + "%"; color: "#f9e2af"; font.bold: true; font.pixelSize: 13 }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Rectangle {
+                        width: 30; height: 30; radius: 8
+                        color: Qt.rgba(249/255, 226/255, 175/255, 0.1)
+                        Text {
+                            anchors.centerIn: parent
+                            text: brightness.value < 30 ? "󰃞" : brightness.value < 70 ? "󰃟" : "󰃠"
+                            font.pixelSize: 14; font.family: "JetBrainsMono Nerd Font"; color: "#f9e2af"
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true; height: 6; radius: 3
+                        color: Qt.rgba(49/255, 50/255, 68/255, 0.8)
+
+                        Rectangle {
+                            width: parent.width * (brightness.value / 100)
+                            height: parent.height; radius: 3; color: "#f9e2af"
+                            Behavior on width { NumberAnimation { duration: 50 } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onPressed: mouse => brightness.set(mouse.x / width * 100)
+                            onPositionChanged: mouse => { if (pressed) brightness.set(mouse.x / width * 100) }
+                        }
+                    }
+                }
+            }
         }
 
         // --- Çıkış (Hoparlör) ---

@@ -1,5 +1,4 @@
 import QtQuick
-import Qt.labs.platform
 import Quickshell.Io
 import "../../../Services" as S
 import "../../../Services/core" as Core
@@ -11,9 +10,9 @@ Item {
     width: 0
     height: 0
 
-    property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/dock_config.json"
-    property string desktopIconScript: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/desktop_icons.sh"
-    property string initDockScript: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/init_dock.sh"
+    property string configPath: Core.PathService.configPath("dock_config.json")
+    property string desktopIconScript: Core.PathService.configPath("scripts/desktop_icons.sh")
+    property string initDockScript: Core.PathService.configPath("scripts/init_dock.sh")
 
     property var dockConfigData: null
     property var pinnedApps: []

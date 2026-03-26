@@ -120,7 +120,7 @@ Variants {
                 bottom: root.barPosition !== "top"
             }
             color: "transparent"
-            property real barSize: 52
+            property real barSize: 46
 
             // Yatay modda height, dikey modda width ayarla
             implicitHeight: root.isVertical ? -1 : barSize
@@ -166,8 +166,8 @@ Variants {
                 // --- LEFT ---
                 RowLayout {
                     visible: !root.isVertical
-                    anchors { left: parent.left; leftMargin: 15; verticalCenter: parent.verticalCenter }
-                    spacing: 18
+                    anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
+                    spacing: 14
                     Repeater {
                         model: root.barLayout.left
                         Loader {
@@ -201,8 +201,8 @@ Variants {
                 // --- RIGHT ---
                 RowLayout {
                     visible: !root.isVertical
-                    anchors { right: parent.right; rightMargin: 15; verticalCenter: parent.verticalCenter }
-                    spacing: 15
+                    anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                    spacing: 14
                     Repeater {
                         model: root.barLayout.right
                         Loader {

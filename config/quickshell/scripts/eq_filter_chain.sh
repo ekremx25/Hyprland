@@ -145,10 +145,6 @@ relink_eq_output_to_base_sink() {
   return 1
 }
 
-mute_non_target_sinks() {
-  :
-}
-
 first_real_sink() {
   pactl list short sinks | awk '{print $2}' | grep -Ev '^effect_input\.eq$' | head -n1
 }

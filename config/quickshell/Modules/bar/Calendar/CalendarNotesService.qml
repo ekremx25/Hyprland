@@ -9,7 +9,7 @@ Item {
     width: 0
     height: 0
 
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/notes.txt"
+    readonly property string configPath: Core.PathService.configPath("notes.txt")
     property string text: ""
 
     function load() {

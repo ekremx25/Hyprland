@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Qt.labs.platform
 import "../../../Services/core" as Core
 import "../../../Services/core/Log.js" as Log
 
@@ -11,7 +10,8 @@ Item {
     width: 0
     height: 0
 
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/weather_config.json"
+    readonly property string configPath: Core.PathService.configPath("weather_config.json")
+    readonly property string envApiKey: Quickshell.env("OPENWEATHER_API_KEY") || ""
 
     property bool weatherEnabled: true
     property bool useFahrenheit: false
@@ -19,6 +19,7 @@ Item {
     property string customLat: "39.9208"
     property string customLon: "41.2746"
     property string cityName: "Erzurum"
+    property string apiKey: envApiKey
     property string searchText: ""
     property var searchResults: []
     property bool searching: false
@@ -30,7 +31,8 @@ Item {
             autoLocation: autoLocation,
             lat: customLat,
             lon: customLon,
-            city: cityName
+            city: cityName,
+            apiKey: apiKey
         };
         configStore.save(cfg);
     }
@@ -38,6 +40,12 @@ Item {
     function searchCity() {
         var query = searchText.trim();
         if (query === "") return;
+        if (apiKey.trim().length === 0) {
+            service.searching = false;
+            service.searchResults = [];
+            Log.warn("WeatherSettingsService", "OpenWeather API key missing; set it in weather_config.json or OPENWEATHER_API_KEY");
+            return;
+        }
         searching = true;
         searchResults = [];
         geoSearchProc.query = query.replace(/ /g, "+");
@@ -68,7 +76,7 @@ Item {
         id: geoSearchProc
         property string buf: ""
         property string query: ""
-        command: ["curl", "-s", "http://api.openweathermap.org/geo/1.0/direct?q=" + query + "&limit=5&appid=0893defca21907657083a55440bd9f71"]
+        command: ["curl", "-s", "https://api.openweathermap.org/geo/1.0/direct?q=" + query + "&limit=5&appid=" + service.apiKey]
         stdout: SplitParser { onRead: data => geoSearchProc.buf += data }
         onExited: {
             service.searching = false;
@@ -95,13 +103,13 @@ Item {
     Process {
         id: autoLocProc
         property string buf: ""
-        command: ["curl", "-s", "http://ip-api.com/json/?fields=lat,lon,city"]
+        command: ["curl", "-s", "https://ipapi.co/json/"]
         stdout: SplitParser { onRead: data => autoLocProc.buf += data }
         onExited: {
             try {
                 var result = JSON.parse(autoLocProc.buf);
-                if (result.lat) service.customLat = result.lat.toFixed(4);
-                if (result.lon) service.customLon = result.lon.toFixed(4);
+                if (result.latitude) service.customLat = Number(result.latitude).toFixed(4);
+                if (result.longitude) service.customLon = Number(result.longitude).toFixed(4);
                 if (result.city) service.cityName = result.city;
                 saveConfig();
             } catch (e) {
@@ -122,7 +130,8 @@ Item {
             autoLocation: false,
             lat: "39.9208",
             lon: "41.2746",
-            city: "Erzurum"
+            city: "Erzurum",
+            apiKey: ""
         })
         onLoadedValue: function(cfg) {
             if (cfg.enabled !== undefined) service.weatherEnabled = cfg.enabled;
@@ -131,6 +140,7 @@ Item {
             if (cfg.lat) service.customLat = cfg.lat;
             if (cfg.lon) service.customLon = cfg.lon;
             if (cfg.city) service.cityName = cfg.city;
+            service.apiKey = service.envApiKey.length > 0 ? service.envApiKey : String(cfg.apiKey || "");
         }
         onFailed: function(phase, exitCode, details) {
             if (phase === "parse") Log.warn("WeatherSettingsService", "Config parse error: " + details);

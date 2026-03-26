@@ -222,11 +222,14 @@ Rectangle {
 
     MouseArea {
         anchors.fill: parent
-        hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.NoButton
-        onEntered: {
-            if (!popupWindow.visible) popupWindow.visible = true
+        onClicked: {
+            if (!popupWindow.visible) {
+                popupWindow.visible = true
+            } else if (!closeAnim.running) {
+                openAnim.stop()
+                closeAnim.start()
+            }
         }
     }
 
@@ -271,7 +274,7 @@ Rectangle {
             border.color: Qt.rgba(115/255, 235/255, 255/255, 0.55)
             anchors.top: parent.top
             anchors.right: parent.right
-            anchors.topMargin: 62
+            anchors.topMargin: 52
             anchors.rightMargin: 18
 
             Rectangle {
@@ -462,22 +465,6 @@ Rectangle {
                                     MouseArea { id: nextMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.next() }
                                 }
 
-                                Rectangle {
-                                    radius: 12
-                                    color: Qt.rgba(255,255,255,0.06)
-                                    border.width: 1
-                                    border.color: root.glassStroke
-                                    implicitWidth: 88
-                                    implicitHeight: 30
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: root.sinkVolumePercent + "%"
-                                        color: root.softText
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                    }
-                                }
                             }
                         }
                     }
@@ -500,30 +487,6 @@ Rectangle {
                             Text { text: "Equalizer"; color: root.softText; font.bold: true; font.pixelSize: 15 }
                             Text { text: "10-band"; color: root.dimText; font.pixelSize: 11 }
                             Item { Layout.fillWidth: true }
-                            MetaChip {
-                                label: root.selectedPreset
-                                fillColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.18)
-                                strokeColor: Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.40)
-                                textColor: root.softText
-                            }
-                            MetaChip {
-                                label: root.eqStateLabel
-                                fillColor: backend.isBusy
-                                    ? Qt.rgba(250/255, 204/255, 21/255, 0.18)
-                                    : (root.eqIsBypassed
-                                        ? Qt.rgba(243/255, 139/255, 168/255, 0.14)
-                                        : (root.hasPendingEqChanges
-                                            ? Qt.rgba(251/255, 191/255, 36/255, 0.14)
-                                            : Qt.rgba(166/255, 227/255, 161/255, 0.14)))
-                                strokeColor: backend.isBusy
-                                    ? Qt.rgba(250/255, 204/255, 21/255, 0.28)
-                                    : (root.eqIsBypassed
-                                        ? Qt.rgba(243/255, 139/255, 168/255, 0.24)
-                                        : (root.hasPendingEqChanges
-                                            ? Qt.rgba(251/255, 191/255, 36/255, 0.26)
-                                            : Qt.rgba(166/255, 227/255, 161/255, 0.24)))
-                                textColor: root.softText
-                            }
                         }
 
                         Item {

@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../Services/core" as Core
 
 Item {
     id: service
@@ -8,6 +9,9 @@ Item {
     height: 0
 
     signal triggerDetected()
+
+    readonly property string triggerPath: Core.PathService.runtimePath("qs_vpn_open")
+    readonly property string refreshTriggerPath: Core.PathService.runtimePath("qs_vpn_refresh")
 
     function notifyNetworkRefresh() {
         refreshTriggerProc.running = true;
@@ -26,19 +30,22 @@ Item {
 
     Process {
         id: triggerCheckProc
-        command: ["sh", "-c", "test -f /tmp/qs_vpn_open && echo 'yes' && rm /tmp/qs_vpn_open || echo 'no'"]
-        property string buf: ""
-        stdout: SplitParser { onRead: data => triggerCheckProc.buf = data.trim() }
-        onExited: {
-            if (triggerCheckProc.buf === "yes") {
+        command: ["/usr/bin/test", "-f", service.triggerPath]
+        onExited: function(exitCode) {
+            if (exitCode === 0) {
+                triggerRemoveProc.running = true;
                 service.triggerDetected();
             }
-            triggerCheckProc.buf = "";
         }
     }
 
     Process {
+        id: triggerRemoveProc
+        command: ["/usr/bin/rm", "-f", service.triggerPath]
+    }
+
+    Process {
         id: refreshTriggerProc
-        command: ["touch", "/tmp/qs_vpn_refresh"]
+        command: ["/usr/bin/touch", service.refreshTriggerPath]
     }
 }

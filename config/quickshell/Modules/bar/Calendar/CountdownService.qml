@@ -11,7 +11,7 @@ Item {
     width: 0
     height: 0
 
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/countdown.json"
+    readonly property string configPath: Core.PathService.configPath("countdown.json")
     property int tickCounter: 0
     property var pendingModel: null
 

@@ -47,9 +47,9 @@ Singleton {
     signal colorsExtracted()
     signal themeApplied()
 
-    readonly property string configPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/theme_config.json"
-    readonly property string scriptPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/matugen-worker.sh"
-    readonly property string autoDetectScriptPath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "") + "/.config/quickshell/scripts/get-active-wallpaper.sh"
+    readonly property string configPath: Core.PathService.configPath("theme_config.json")
+    readonly property string scriptPath: Core.PathService.configPath("scripts/matugen-worker.sh")
+    readonly property string autoDetectScriptPath: Core.PathService.configPath("scripts/get-active-wallpaper.sh")
 
     Component.onCompleted: {
         checkMatugen();
@@ -100,7 +100,7 @@ Singleton {
     function saveConfig() {
         var cfg = {
             materialYou: root.enabled,
-            wallpaperPath: root.wallpaperPath,
+            wallpaperPath: Core.PathService.compactHome(root.wallpaperPath),
             mode: root.mode,
             matugenType: root.matugenType,
             applyToKitty: root.applyToKitty,
@@ -121,7 +121,7 @@ Singleton {
             return;
         }
 
-        root.wallpaperPath = wallpaperPath;
+        root.wallpaperPath = Core.PathService.expandHome(wallpaperPath);
         root.errorMessage = "";
 
         // Static themes don't use matugen — just apply directly
@@ -134,7 +134,7 @@ Singleton {
         root.isBusy = true;
 
         // Escape single quotes primarily, as we wraps the path in single quotes for bash
-        var escaped = "'" + wallpaperPath.replace(/'/g, "'\\''") + "'";
+        var escaped = "'" + root.wallpaperPath.replace(/'/g, "'\\''") + "'";
         matugenProc.command = ["bash", "-c", root.binPath + " image " + escaped + " -t " + root.matugenType + " --json hex --source-color-index 0 2>/dev/null"];
         matugenProc.buf = "";
         matugenProc.running = true;
@@ -276,7 +276,7 @@ Singleton {
         stdout: SplitParser { onRead: data => autoDetectProc.output += data }
         onExited: (exitCode) => {
             // Trim any whitespace/newlines from the script output
-            var path = autoDetectProc.output.toString().trim();
+            var path = Core.PathService.expandHome(autoDetectProc.output.toString().trim());
             if (path.length > 0) {
                 root.wallpaperPath = path;
                 root.generateFromWallpaper(path);
@@ -316,7 +316,7 @@ Singleton {
         })
         onLoadedValue: function(cfg) {
             root.enabled = cfg.materialYou || false;
-            root.wallpaperPath = cfg.wallpaperPath || "";
+            root.wallpaperPath = Core.PathService.expandHome(cfg.wallpaperPath || "");
             root.mode = cfg.mode || "dark";
             root.matugenType = cfg.matugenType || "scheme-tonal-spot";
             root.applyToKitty = cfg.applyToKitty !== undefined ? cfg.applyToKitty : true;

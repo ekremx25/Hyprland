@@ -15,9 +15,9 @@ Item {
 
     readonly property bool supported: true
     readonly property bool hyprlandActive: CompositorService.isHyprland
-    readonly property string homePath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "")
-    readonly property string lockConfigPath: homePath + "/.config/quickshell/lock_config.json"
-    readonly property string hyprLockDir: homePath + "/.config/hypr/lock"
+    readonly property string homePath: Core.PathService.homePath
+    readonly property string lockConfigPath: Core.PathService.configPath("lock_config.json")
+    readonly property string hyprLockDir: Core.PathService.configHome + "/hypr/lock"
     readonly property string hyprlockConfigPath: hyprLockDir + "/hyprlock.conf"
     readonly property string hypridleConfigPath: hyprLockDir + "/hypridle.conf"
     readonly property string defaultBackgroundPath: homePath + "/.config/hypr/lock/wallpaper.jpg"
@@ -37,9 +37,7 @@ Item {
     }
 
     function normalizePath(path) {
-        var value = String(path || "").trim()
-        if (value.startsWith("~/")) return homePath + value.substring(1)
-        return value
+        return Core.PathService.expandHome(path)
     }
 
     function applySnapshot(cfg) {
@@ -60,7 +58,7 @@ Item {
     function saveSettings() {
         normalizeTimeouts()
         configStore.save({
-            backgroundPath: backgroundPath,
+            backgroundPath: Core.PathService.compactHome(backgroundPath),
             dimTimeoutMinutes: dimTimeoutMinutes,
             lockTimeoutMinutes: lockTimeoutMinutes,
             screenOffTimeoutMinutes: screenOffTimeoutMinutes,

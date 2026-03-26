@@ -18,8 +18,8 @@
   ],
   "inactive": [],
   "workspaces": {
-    "format": "roman",
-    "style": "square",
+    "format": "number",
+    "style": "pill",
     "transparent": true,
     "showApps": true,
     "groupApps": true,

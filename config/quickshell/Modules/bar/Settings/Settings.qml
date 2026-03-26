@@ -79,7 +79,8 @@ PanelWindow {
                 { key: "mouse",      icon: "🖱", label: "Mouse" },
                 { key: "screens",    icon: "󰹑", label: "Screen Prefs" },
                 { key: "sound",      icon: "󰕾", label: "Sound" },
-                { key: "network",    icon: "󰤨", label: "Network" }
+                { key: "network",    icon: "󰤨", label: "Network" },
+                { key: "bluetooth",  icon: "󰂯", label: "Bluetooth" }
             ]
         }
     ]
@@ -489,6 +490,13 @@ PanelWindow {
                 AboutPage {
                     anchors.fill: parent
                     visible: settingsPopup.currentPage === "about"
+                    z: visible ? 100 : 0
+                }
+
+                // ── BLUETOOTH ──
+                Sys.BluetoothPage {
+                    anchors.fill: parent
+                    visible: settingsPopup.currentPage === "bluetooth"
                     z: visible ? 100 : 0
                 }
             }

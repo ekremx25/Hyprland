@@ -27,6 +27,7 @@ Singleton {
     property string lastSnapshot: ""
     property int refreshSerial: 0
     property bool pendingOsdPulse: false
+    property int _subscribeRetryCount: 0
 
     function clamp(v, minV, maxV) {
         return Math.max(minV, Math.min(maxV, v))
@@ -85,13 +86,17 @@ Singleton {
         running: true
         stdout: SplitParser {
             onRead: data => {
+                root._subscribeRetryCount = 0
                 if (data.indexOf("sink") !== -1 || data.indexOf("server") !== -1) {
                     refreshDebounce.restart()
                 }
             }
         }
         onExited: {
-            subscribeRestartTimer.restart()
+            root._subscribeRetryCount++
+            if (root._subscribeRetryCount < 10) {
+                subscribeRestartTimer.restart()
+            }
         }
     }
 

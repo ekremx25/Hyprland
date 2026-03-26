@@ -46,6 +46,7 @@ Singleton {
     property bool privacyMode: false
     property int animationSpeed: 1 // 0: None, 1: Short, 2: Medium, 3: Long, 4: Custom
     property int historyRetentionMs: 300000
+    property var filteredApps: ["Spotify"]
     property bool notificationServerEnabled: false
 
     function stripHtml(html) {
@@ -125,7 +126,7 @@ Singleton {
     }
 
     function addNotification(notif) {
-        if (notif.appName === "Spotify") return
+        if (root.filteredApps.some(function(app) { return app.toLowerCase() === (notif.appName || "").toLowerCase() })) return
 
         var now = new Date()
         var normalized = normalizeNotificationContent(notif)
@@ -218,7 +219,8 @@ Singleton {
             popupShadowEnabled: root.popupShadowEnabled,
             privacyMode: root.privacyMode,
             animationSpeed: root.animationSpeed,
-            historyRetentionMs: root.historyRetentionMs
+            historyRetentionMs: root.historyRetentionMs,
+            filteredApps: root.filteredApps
         };
         configStore.save(obj);
     }
@@ -239,6 +241,7 @@ Singleton {
     onPrivacyModeChanged: saveConfigTimer.restart()
     onAnimationSpeedChanged: saveConfigTimer.restart()
     onHistoryRetentionMsChanged: saveConfigTimer.restart()
+    onFilteredAppsChanged: saveConfigTimer.restart()
 
     // Debounce save
     Timer {
@@ -267,7 +270,8 @@ Singleton {
             popupShadowEnabled: true,
             privacyMode: false,
             animationSpeed: 1,
-            historyRetentionMs: 300000
+            historyRetentionMs: 300000,
+            filteredApps: ["Spotify"]
         })
         onLoadedValue: function(cfg) {
             root.displayDuration = cfg.displayDuration || 5000;
@@ -279,6 +283,7 @@ Singleton {
             root.privacyMode = cfg.privacyMode !== undefined ? cfg.privacyMode : false;
             root.animationSpeed = cfg.animationSpeed !== undefined ? cfg.animationSpeed : 1;
             root.historyRetentionMs = cfg.historyRetentionMs !== undefined ? cfg.historyRetentionMs : 300000;
+            root.filteredApps = Array.isArray(cfg.filteredApps) ? cfg.filteredApps : ["Spotify"];
         }
         onFailed: function(phase, exitCode, details) {
             if (phase === "parse") Log.warn("Notifications", "Config parse error: " + details);
