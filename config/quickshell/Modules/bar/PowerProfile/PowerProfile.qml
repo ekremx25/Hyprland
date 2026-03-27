@@ -54,46 +54,26 @@ Rectangle {
     }
 
     // --- POPUP ---
-    PanelWindow {
+    PopupWindow {
         id: profilePopup
         visible: false
         implicitWidth: 260
         implicitHeight: 220
         color: "transparent"
-        exclusiveZone: 0
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-        anchors { top: true; right: true }
-        margins { top: 58; right: 50 }
-
-        function repositionPopup() {
-            if (!root.QsWindow || !root.QsWindow.window) return;
-            var win = root.QsWindow.window;
+        anchor.window: root.QsWindow.window
+        anchor.onAnchoring: {
+            if (!anchor.window) return;
+            var win = anchor.window;
             var isVertBar = win.height > win.width;
-            var globalPos = root.mapToGlobal(0, 0);
-
+            var itemPos = win.contentItem.mapFromItem(root, 0, 0);
             if (isVertBar) {
-                // Bar dikey: popup sola aç
-                profilePopup.anchors.top = true;
-                profilePopup.anchors.right = false;
-                profilePopup.anchors.left = true;
-                profilePopup.margins.top = globalPos.y;
-                profilePopup.margins.left = globalPos.x - profilePopup.width - 10;
-                if (profilePopup.margins.left < 10) profilePopup.margins.left = 10;
+                profilePopup.anchor.rect.x = -profilePopup.width - 5;
+                profilePopup.anchor.rect.y = itemPos.y + root.height / 2 - profilePopup.height / 2;
             } else {
-                // Bar yatay: popup alta aç
-                profilePopup.anchors.top = true;
-                profilePopup.anchors.left = false;
-                profilePopup.anchors.right = true;
-                profilePopup.margins.top = 58;
-                profilePopup.margins.right = win.width - globalPos.x - root.width;
+                profilePopup.anchor.rect.x = itemPos.x + root.width - profilePopup.width;
+                profilePopup.anchor.rect.y = win.height + 5;
             }
-        }
-
-        Component.onCompleted: repositionPopup()
-        onVisibleChanged: {
-            if (visible) repositionPopup()
         }
 
         Rectangle {

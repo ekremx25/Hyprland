@@ -99,7 +99,7 @@ Rectangle {
     }
 
     // --- TAKVİM PENCERESİ ---
-    PanelWindow {
+    PopupWindow {
         id: calWindow
         visible: false
         property real panelOpacity: 0.0
@@ -111,34 +111,19 @@ Rectangle {
         implicitWidth: 400
         implicitHeight: 560
         color: "transparent"
-        exclusiveZone: 0
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-        anchors {
-            top: true
-            left: true
-        }
-
-        // Position below the calendar button
-        margins {
-            top: 58
-            left: 0
+        anchor.window: dateRoot.QsWindow.window
+        anchor.onAnchoring: {
+            if (!anchor.window) return;
+            var win = anchor.window;
+            var itemPos = win.contentItem.mapFromItem(dateRoot, 0, 0);
+            var desiredX = itemPos.x + (dateRoot.width / 2) - (calWindow.width / 2);
+            calWindow.anchor.rect.x = Math.max(5, Math.min(desiredX, win.width - calWindow.width - 5));
+            calWindow.anchor.rect.y = win.height + 5;
         }
 
         function repositionCalendar() {
-            if (!dateRoot.QsWindow || !dateRoot.QsWindow.window) return;
-            var win = dateRoot.QsWindow.window;
-            var localPos = win.contentItem.mapFromItem(dateRoot, 0, 0);
-            var desiredTop = localPos.y + dateRoot.height + 8;
-            if (desiredTop + calWindow.height > win.height - 8) {
-                desiredTop = localPos.y - calWindow.height - 8;
-            }
-            calWindow.margins.top = Math.max(8, desiredTop);
-
-            var desiredLeft = localPos.x + (dateRoot.width / 2) - (calWindow.width / 2);
-            var maxLeft = Math.max(10, win.width - calWindow.width - 10);
-            calWindow.margins.left = Math.max(10, Math.min(desiredLeft, maxLeft));
+            // anchor.onAnchoring handles positioning
         }
 
         Rectangle {

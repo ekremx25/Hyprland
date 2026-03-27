@@ -32,54 +32,26 @@ Rectangle {
     }
     
     // --- NOTEPAD WINDOW ---
-    PanelWindow {
+    PopupWindow {
         id: notepadWindow
         visible: false
         implicitWidth: 320
         implicitHeight: 400
         color: "transparent"
-        exclusiveZone: 0
-        WlrLayershell.layer: WlrLayer.Top
-        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
-        anchors {
-            top: true
-            left: true
-        }
-
-        // Position relative to button
-        margins {
-            top: 58
-            left: 0 
-        }
-
-        // Auto-position logic (vertical-bar aware)
-        function repositionWindow() {
-            if (!root.QsWindow || !root.QsWindow.window) return;
-            var win = root.QsWindow.window;
+        anchor.window: root.QsWindow.window
+        anchor.onAnchoring: {
+            if (!anchor.window) return;
+            var win = anchor.window;
             var isVertBar = win.height > win.width;
-            var globalPos = root.mapToGlobal(0, 0);
-            
+            var itemPos = win.contentItem.mapFromItem(root, 0, 0);
             if (isVertBar) {
-                // Bar dikey: popup sola aç
-                notepadWindow.anchors.top = true;
-                notepadWindow.anchors.left = true;
-                notepadWindow.margins.top = globalPos.y;
-                notepadWindow.margins.left = globalPos.x - notepadWindow.width - 10;
-                if (notepadWindow.margins.left < 10) notepadWindow.margins.left = 10;
+                notepadWindow.anchor.rect.x = -notepadWindow.width - 5;
+                notepadWindow.anchor.rect.y = itemPos.y + root.height / 2 - notepadWindow.height / 2;
             } else {
-                // Bar yatay: popup alta aç
-                notepadWindow.anchors.top = true;
-                notepadWindow.anchors.left = true;
-                notepadWindow.margins.top = 58;
-                notepadWindow.margins.left = globalPos.x - (notepadWindow.width / 2) + (root.width / 2);
-                if (notepadWindow.margins.left < 10) notepadWindow.margins.left = 10;
+                notepadWindow.anchor.rect.x = Math.max(5, itemPos.x);
+                notepadWindow.anchor.rect.y = win.height + 5;
             }
-        }
-
-        Component.onCompleted: repositionWindow()
-        onVisibleChanged: {
-            if (visible) repositionWindow()
         }
 
         Rectangle {

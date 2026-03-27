@@ -1,11 +1,11 @@
 .pragma library
 
-// Fallback only. Runtime bar changes are saved to ~/.config/quickshell/bar_config.json.
+// Fallback only. Runtime bar changes are saved to the quickshell config directory.
 
 function createWorkspacesConfig() {
     return {
-        "format": "roman",
-        "style": "square",
+        "format": "number",
+        "style": "pill",
         "transparent": true,
         "showApps": true,
         "groupApps": true,
