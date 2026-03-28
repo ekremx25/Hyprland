@@ -157,6 +157,7 @@ Item {
 
     function savePinnedApps() {
         dockData.persistDockState(pinnedApps, leftModules, rightModules);
+        persistDockConfigToDisk(pinnedApps, leftModules, rightModules);
     }
 
     function setPinnedApps(nextPinnedApps) {
@@ -215,6 +216,26 @@ Item {
     function detachedWrap(rawCmd) {
         if (!rawCmd) return "";
         return "nohup sh -lc " + shellQuote(rawCmd) + " >/dev/null 2>&1 &";
+    }
+
+    function persistDockConfigToDisk(nextPinnedApps, nextLeftModules, nextRightModules) {
+        var nextConfig = {};
+        if (dockConfigData) {
+            var keys = Object.keys(dockConfigData);
+            for (var i = 0; i < keys.length; i++) nextConfig[keys[i]] = dockConfigData[keys[i]];
+        }
+
+        nextConfig.pinned = nextPinnedApps || [];
+        nextConfig.leftModules = nextLeftModules || [];
+        nextConfig.rightModules = nextRightModules || [];
+
+        setProcessCommand(persistProc, [
+            "/bin/sh",
+            "-lc",
+            "mkdir -p \"$(dirname " + shellQuote(dockData.configPath) + ")\" && printf '%s' "
+                + shellQuote(JSON.stringify(nextConfig, null, 2))
+                + " > " + shellQuote(dockData.configPath)
+        ]);
     }
 
     function runDetachedCommand(rawCmd) {
@@ -286,6 +307,14 @@ Item {
     }
 
     Process { id: focusProc; command: []; running: false }
+    Process {
+        id: persistProc
+        command: []
+        running: false
+        stdout: SplitParser { onRead: data => backend.logToFile("persist stdout: " + data) }
+        stderr: SplitParser { onRead: data => backend.logToFile("persist stderr: " + data) }
+        onExited: code => backend.logToFile("persist exit: " + code + " cmd=" + JSON.stringify(command))
+    }
 
     Connections {
         target: dockData

@@ -19,7 +19,7 @@ Item {
     property string accelProfile: "adaptive"
     property string cursorTheme: Quickshell.env("XCURSOR_THEME") || "Adwaita"
     property int cursorSize: parseInt(Quickshell.env("XCURSOR_SIZE") || "24")
-    property bool enabled: false
+    property bool applyMouseSettings: false
 
     function saneCursorTheme(theme) {
         var name = String(theme || "").trim()
@@ -35,7 +35,7 @@ Item {
         repeat: false
         running: false
         onTriggered: {
-            if (root.supported && root.enabled) runtimeApplyProc.running = true
+            if (root.supported && root.applyMouseSettings) runtimeApplyProc.running = true
         }
     }
 
@@ -56,7 +56,7 @@ Item {
             root.accelProfile = cfg.accelProfile || "adaptive"
             root.cursorTheme = root.saneCursorTheme(cfg.cursorTheme || root.cursorTheme)
             root.cursorSize = cfg.cursorSize !== undefined ? cfg.cursorSize : root.cursorSize
-            root.enabled = cfg.managedByQuickshell === true
+            root.applyMouseSettings = cfg.managedByQuickshell === true
             applyDelay.restart()
         }
         onFailed: function(phase, exitCode, details) {

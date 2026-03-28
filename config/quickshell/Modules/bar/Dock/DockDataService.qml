@@ -117,16 +117,20 @@ Item {
 
     function persistDockState(nextPinnedApps, nextLeftModules, nextRightModules) {
         var obj = cloneDockConfig();
+        if (!obj || Object.keys(obj).length === 0) {
+            try {
+                obj = JSON.parse(service.lastDockConfigContent || "{}");
+            } catch (e) {
+                obj = {};
+            }
+        }
         obj.pinned = nextPinnedApps || [];
         obj.leftModules = nextLeftModules || [];
         obj.rightModules = nextRightModules || [];
 
-        service.dockConfigData = obj;
-        service.pinnedApps = obj.pinned;
-        service.leftModules = obj.leftModules;
-        service.rightModules = obj.rightModules;
-        service.lastDockConfigContent = JSON.stringify(obj, null, 2);
-        dockConfigStore.write(service.lastDockConfigContent);
+        var nextContent = JSON.stringify(obj, null, 2);
+        applyDockConfig(obj, nextContent);
+        dockConfigStore.save(obj);
     }
 
     function refreshWindows() {

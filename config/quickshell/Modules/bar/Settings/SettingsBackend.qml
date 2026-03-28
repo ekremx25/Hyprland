@@ -91,6 +91,14 @@ Item {
         }
     }
 
+    Core.FileChangeWatcher {
+        id: dockConfigWatcher
+        path: backend.dockConfigPath
+        interval: 800
+        active: true
+        onChanged: dockConfigStore.read()
+    }
+
     JsonFileStore {
         id: customPresetStore
         path: backend.customPresetPath

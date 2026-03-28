@@ -70,7 +70,8 @@ var SPECIAL_ICON_NAMES = {
     "net.lutris.lutris": "lutris",
     "codex": "application-x-executable",
     "kittyfloat": "kitty",
-    "hyprpolkitagent": "application-x-executable"
+    "hyprpolkitagent": "application-x-executable",
+    "com.obsproject.studio": "com.obsproject.Studio"
 };
 
 function firstMatchingValue(rules, value) {
