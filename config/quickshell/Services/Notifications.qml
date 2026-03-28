@@ -228,6 +228,7 @@ Singleton {
     // Load on start
     Component.onCompleted: {
         configStore.load();
+        notificationServerStartTimer.start();
     }
 
     // Save on change
@@ -250,6 +251,13 @@ Singleton {
         onTriggered: root.saveConfig()
     }
 
+    Timer {
+        id: notificationServerStartTimer
+        interval: 1200
+        repeat: false
+        onTriggered: root.notificationServerEnabled = true
+    }
+
     Core.JsonDataStore {
         id: configStore
         path: root.configPath
@@ -261,7 +269,6 @@ Singleton {
             compactMode: false,
             popupShadowEnabled: true,
             privacyMode: false,
-            notificationServerEnabled: false,
             animationSpeed: 1,
             historyRetentionMs: 300000,
             filteredApps: ["Spotify"]
@@ -274,7 +281,6 @@ Singleton {
             root.compactMode = cfg.compactMode !== undefined ? cfg.compactMode : false;
             root.popupShadowEnabled = cfg.popupShadowEnabled !== undefined ? cfg.popupShadowEnabled : true;
             root.privacyMode = cfg.privacyMode !== undefined ? cfg.privacyMode : false;
-            root.notificationServerEnabled = cfg.notificationServerEnabled === true;
             root.animationSpeed = cfg.animationSpeed !== undefined ? cfg.animationSpeed : 1;
             root.historyRetentionMs = cfg.historyRetentionMs !== undefined ? cfg.historyRetentionMs : 300000;
             root.filteredApps = Array.isArray(cfg.filteredApps) ? cfg.filteredApps : ["Spotify"];
