@@ -52,13 +52,20 @@ while IFS= read -r MON; do
             HDR=$(jq -r --arg mon "$MON" '.[$mon].hdr // false' "$CONFIG_FILE")
             BITDEPTH=$(jq -r --arg mon "$MON" '.[$mon].bitdepth // 8' "$CONFIG_FILE")
             VRR=$(jq -r --arg mon "$MON" '.[$mon].vrr // 0' "$CONFIG_FILE")
-            SDR_LUM=$(jq -r --arg mon "$MON" '.[$mon].sdrLuminance // 450' "$CONFIG_FILE")
             SDR_BRI=$(jq -r --arg mon "$MON" '.[$mon].sdrBrightness // 1.0' "$CONFIG_FILE")
             SDR_SAT=$(jq -r --arg mon "$MON" '.[$mon].sdrSaturation // 1.0' "$CONFIG_FILE")
+            COLOR_MGMT=$(jq -r --arg mon "$MON" '.[$mon].colorManagement // "srgb"' "$CONFIG_FILE")
 
             MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
-            if [ "$HDR" = "true" ]; then
-                MON_CMD="$MON_CMD,cm,hdr,sdrluminance,$SDR_LUM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
+            if [ "$HDR" = "true" ] || [[ "$COLOR_MGMT" =~ ^hdr ]]; then
+                if [ "$COLOR_MGMT" = "hdredid" ]; then
+                    APPLIED_CM="hdredid"
+                else
+                    APPLIED_CM="hdr"
+                fi
+                MON_CMD="$MON_CMD,cm,$APPLIED_CM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
+            elif [ "$COLOR_MGMT" != "default" ] && [ "$COLOR_MGMT" != "srgb" ] && [ "$COLOR_MGMT" != "null" ]; then
+                MON_CMD="$MON_CMD,cm,$COLOR_MGMT"
             fi
             hyprctl keyword monitor "$MON_CMD"
         elif [ $IS_NIRI -eq 1 ]; then

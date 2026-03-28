@@ -691,7 +691,7 @@ Item {
 
                 if (monHdr || isHdrColorMode(monCm)) {
                     var appliedCm = (monCm === "hdredid") ? "hdredid" : "hdr";
-                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrluminance," + monSdrLum + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
+                    monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
                 } else if (monCm === "default") {
                     monCmd += ",bitdepth," + monBitdepth + ",vrr," + monVrr;
                 } else {
