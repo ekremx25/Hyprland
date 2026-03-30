@@ -29,10 +29,12 @@ Rectangle {
     radius: 17
     color: barBgColor
 
-    // GENİŞLİK: İçeriğe göre otomatik ayarla
+    scale: calMouse.pressed ? 0.93 : (calMouse.containsMouse ? 1.05 : 1.0)
+
     // GENİŞLİK: İçeriğe göre otomatik ayarla
     implicitWidth: layout.implicitWidth + 24
     Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.InOutQuad } }
+    Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
 
     
     // ... (Timer iptal edilebilir veya sadece takvim popup için kullanılabilir)
@@ -77,6 +79,7 @@ Rectangle {
 
     // --- FARE ETKİLEŞİMİ ---
     MouseArea {
+        id: calMouse
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor

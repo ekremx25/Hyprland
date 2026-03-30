@@ -12,7 +12,7 @@ Scope {
     property string cityName: "Erzurum"
     property string customLat: "39.9208"
     property string customLon: "41.2746"
-    property string apiKey: Quickshell.env("OPENWEATHER_API_KEY") || ""
+    property string apiKey: ""         // gerekmiyor
     property bool useFahrenheit: false
     property bool weatherEnabled: true
 
@@ -31,12 +31,16 @@ Scope {
 
     function triggerRefresh() {
         if (!root.weatherEnabled) return;
-        if (root.apiKey.trim().length === 0) {
-            Log.warn("WeatherDataScope", "OpenWeather API key missing; using cache only");
-            cacheStore.load();
-            return;
-        }
-        apiProc.command = ["curl", "-s", "https://api.openweathermap.org/data/2.5/forecast?lat=" + root.customLat + "&lon=" + root.customLon + "&appid=" + root.apiKey + "&units=" + (root.useFahrenheit ? "imperial" : "metric") + "&lang=en"];
+        var tempUnit = root.useFahrenheit ? "&temperature_unit=fahrenheit" : "";
+        var windUnit = "&windspeed_unit=kmh";
+        var url = "https://api.open-meteo.com/v1/forecast"
+                + "?latitude="  + root.customLat
+                + "&longitude=" + root.customLon
+                + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,windspeed_10m"
+                + "&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset"
+                + "&timezone=auto&forecast_days=5"
+                + tempUnit + windUnit;
+        apiProc.command = ["curl", "-s", url];
         apiProc.running = false;
         apiProc.fullOutput = "";
         apiProc.running = true;
@@ -49,7 +53,7 @@ Scope {
 
     Process {
         id: apiProc
-        command: ["curl", "-s", "https://api.openweathermap.org/data/2.5/forecast"]
+        command: ["curl", "-s", "https://api.open-meteo.com/v1/forecast"]
         property string fullOutput: ""
 
         stdout: SplitParser { onRead: data => { apiProc.fullOutput += data; } }
@@ -57,84 +61,66 @@ Scope {
 
         onExited: {
             if (apiProc.fullOutput.trim() === "") {
-                Log.warn("WeatherDataScope", "Weather data empty, retrying in 10s");
+                Log.warn("WeatherDataScope", "Weather data empty, retrying in 30s");
                 cacheStore.load();
-                updateTimer.interval = 10000;
+                updateTimer.interval = 30000;
                 updateTimer.restart();
                 return;
             }
 
             try {
                 var json = JSON.parse(apiProc.fullOutput);
-                if (json.cod != "200") {
-                    Log.warn("WeatherDataScope", "Weather API error: " + json.message);
+                if (json.error) {
+                    Log.warn("WeatherDataScope", "Open-Meteo error: " + json.reason);
                     cacheStore.load();
-                    updateTimer.interval = 900000;
+                    updateTimer.interval = 60000;
                     updateTimer.restart();
                     return;
                 }
 
-                var current = json.list[0];
-                var weatherCode = current.weather[0].icon;
-                var weatherDesc = current.weather[0].description;
-                weatherDesc = weatherDesc.charAt(0).toUpperCase() + weatherDesc.slice(1);
-                var info = root.getWeatherInfo(weatherCode);
+                var cur = json.current;
+                var daily = json.daily;
 
-                root.currentTemp = Math.round(current.main.feels_like).toString();
-                root.weatherIcon = info.icon;
+                root.currentTemp = Math.round(cur.temperature_2m).toString();
+                root.weatherIcon  = root.getWeatherIcon(cur.weathercode);
 
-                var dailyForecasts = {};
-                var todayDate = new Date().getDate();
-                for (var i = 0; i < json.list.length; i++) {
-                    var item = json.list[i];
-                    var date = new Date(item.dt * 1000);
-                    var day = date.getDate();
+                // Açıklama metni
+                var desc = root.getWeatherDesc(cur.weathercode);
 
-                    if (!dailyForecasts[day]) {
-                        dailyForecasts[day] = {
-                            date: date,
-                            min: item.main.temp_min,
-                            max: item.main.temp_max,
-                            icon: item.weather[0].icon
-                        };
-                    } else {
-                        dailyForecasts[day].min = Math.min(dailyForecasts[day].min, item.main.temp_min);
-                        dailyForecasts[day].max = Math.max(dailyForecasts[day].max, item.main.temp_max);
-                    }
-
-                    if (date.getHours() >= 11 && date.getHours() <= 15) {
-                        dailyForecasts[day].icon = item.weather[0].icon;
-                    }
+                // Sunrise/Sunset (bugün, ISO string → HH:MM)
+                function fmtTime(iso) {
+                    if (!iso) return "--:--";
+                    var d = new Date(iso);
+                    var h = d.getHours().toString().padStart(2, "0");
+                    var m = d.getMinutes().toString().padStart(2, "0");
+                    return h + ":" + m;
                 }
 
+                // 5 günlük tahmin
+                var dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
                 var forecastList = [];
-                var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-                var sortedKeys = Object.keys(dailyForecasts).sort(function(a, b) {
-                    return dailyForecasts[a].date - dailyForecasts[b].date;
-                });
-
-                for (var j = 0; j < sortedKeys.length; j++) {
-                    var key = sortedKeys[j];
-                    var data = dailyForecasts[key];
-                    var dayName = (data.date.getDate() === todayDate) ? "Today" : days[data.date.getDay()];
-                    if (forecastList.length < 5) {
-                        forecastList.push({
-                            day: dayName,
-                            max: Math.round(data.max),
-                            min: Math.round(data.min),
-                            icon: root.getWeatherInfo(data.icon).icon
-                        });
-                    }
+                for (var i = 0; i < daily.time.length; i++) {
+                    var date = new Date(daily.time[i] + "T12:00:00");
+                    var today = new Date();
+                    var isToday = (date.getDate()   === today.getDate() &&
+                                   date.getMonth()  === today.getMonth() &&
+                                   date.getFullYear() === today.getFullYear());
+                    forecastList.push({
+                        day:  isToday ? "Today" : dayNames[date.getDay()],
+                        max:  Math.round(daily.temperature_2m_max[i]),
+                        min:  Math.round(daily.temperature_2m_min[i]),
+                        icon: root.getWeatherIcon(daily.weathercode[i])
+                    });
                 }
 
                 root.popupData = {
-                    desc: weatherDesc,
-                    feelsLike: Math.round(current.main.feels_like).toString(),
-                    humidity: current.main.humidity.toString(),
-                    wind: Math.round(current.wind.speed).toString(),
-                    sunrise: new Date(json.city.sunrise * 1000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
-                    sunset: new Date(json.city.sunset * 1000).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }),
-                    forecast: forecastList
+                    desc:      desc,
+                    feelsLike: Math.round(cur.apparent_temperature).toString(),
+                    humidity:  cur.relative_humidity_2m.toString(),
+                    wind:      Math.round(cur.windspeed_10m).toString(),
+                    sunrise:   fmtTime(daily.sunrise[0]),
+                    sunset:    fmtTime(daily.sunset[0]),
+                    forecast:  forecastList
                 };
 
                 var cacheData = {
@@ -159,7 +145,7 @@ Scope {
 
     Timer {
         id: updateTimer
-        interval: 1800000
+        interval: 1800000  // 30 dakikada bir güncelle
         running: true
         repeat: true
         triggeredOnStart: false
@@ -168,25 +154,52 @@ Scope {
 
     Timer {
         id: initTimer
-        interval: 5000
+        interval: 3000
         running: true
         repeat: false
         onTriggered: root.triggerRefresh()
     }
 
-    function getWeatherInfo(code) {
-        var mapping = {
-            "01d": "󰖙", "01n": "󰖔",
-            "02d": "󰖕", "02n": "󰖕",
-            "03d": "󰖐", "03n": "󰖐",
-            "04d": "󰖑", "04n": "󰖑",
-            "09d": "󰖖", "09n": "󰖖",
-            "10d": "󰖗", "10n": "󰖗",
-            "11d": "󰖓", "11n": "󰖓",
-            "13d": "󰖘", "13n": "󰖘",
-            "50d": "󰖑", "50n": "󰖑"
-        };
-        return { icon: mapping[code] || "󰖕", text: "" };
+    // WMO Weather Codes → Nerd Font ikonlar
+    function getWeatherIcon(code) {
+        if (code === 0)                    return "󰖙";  // Clear sky
+        if (code === 1 || code === 2)      return "󰖕";  // Mainly clear / partly cloudy
+        if (code === 3)                    return "󰖐";  // Overcast
+        if (code === 45 || code === 48)    return "󰖑";  // Fog
+        if (code >= 51 && code <= 57)      return "󰖗";  // Drizzle
+        if (code >= 61 && code <= 67)      return "󰖗";  // Rain
+        if (code >= 71 && code <= 77)      return "󰖘";  // Snow
+        if (code >= 80 && code <= 82)      return "󰖗";  // Rain showers
+        if (code === 85 || code === 86)    return "󰖘";  // Snow showers
+        if (code >= 95 && code <= 99)      return "󰖓";  // Thunderstorm
+        return "󰖕";
+    }
+
+    // WMO kodundan açıklama
+    function getWeatherDesc(code) {
+        if (code === 0)  return "Clear Sky";
+        if (code === 1)  return "Mainly Clear";
+        if (code === 2)  return "Partly Cloudy";
+        if (code === 3)  return "Overcast";
+        if (code === 45) return "Foggy";
+        if (code === 48) return "Icy Fog";
+        if (code >= 51 && code <= 53) return "Drizzle";
+        if (code === 55) return "Heavy Drizzle";
+        if (code >= 56 && code <= 57) return "Freezing Drizzle";
+        if (code === 61) return "Light Rain";
+        if (code === 63) return "Moderate Rain";
+        if (code === 65) return "Heavy Rain";
+        if (code >= 66 && code <= 67) return "Freezing Rain";
+        if (code === 71) return "Light Snow";
+        if (code === 73) return "Moderate Snow";
+        if (code === 75) return "Heavy Snow";
+        if (code === 77) return "Snow Grains";
+        if (code >= 80 && code <= 81) return "Rain Showers";
+        if (code === 82) return "Heavy Showers";
+        if (code >= 85 && code <= 86) return "Snow Showers";
+        if (code === 95) return "Thunderstorm";
+        if (code >= 96 && code <= 99) return "Thunderstorm w/ Hail";
+        return "Unknown";
     }
 
     Core.JsonDataStore {
@@ -196,7 +209,6 @@ Scope {
             lat: root.customLat,
             lon: root.customLon,
             city: root.cityName,
-            apiKey: root.apiKey,
             fahrenheit: root.useFahrenheit,
             enabled: root.weatherEnabled
         })
@@ -205,7 +217,6 @@ Scope {
             if (cfg.lat && cfg.lat !== root.customLat) { root.customLat = cfg.lat; changed = true; }
             if (cfg.lon && cfg.lon !== root.customLon) { root.customLon = cfg.lon; changed = true; }
             if (cfg.city && cfg.city !== root.cityName) { root.cityName = cfg.city; }
-            if (!Quickshell.env("OPENWEATHER_API_KEY") && cfg.apiKey && cfg.apiKey !== root.apiKey) { root.apiKey = cfg.apiKey; changed = true; }
             if (cfg.fahrenheit !== undefined && cfg.fahrenheit !== root.useFahrenheit) { root.useFahrenheit = cfg.fahrenheit; changed = true; }
             if (cfg.enabled !== undefined && cfg.enabled !== root.weatherEnabled) { root.weatherEnabled = cfg.enabled; }
             if (changed) {

@@ -336,6 +336,23 @@ Variants {
                 return parent.height - height; // bottom
             }
             Behavior on x { NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
+
+            opacity: 0
+            scale: 0.82
+            transform: Translate {
+                id: dockSlide
+                y: dockWindow.cfgPosition === "top" ? -60 : 60
+            }
+
+            Component.onCompleted: Qt.callLater(function() { dockEnterAnim.start() })
+
+            ParallelAnimation {
+                id: dockEnterAnim
+                NumberAnimation { target: dockContent; property: "opacity"; from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic }
+                NumberAnimation { target: dockContent; property: "scale";   from: 0.82; to: 1; duration: 540; easing.type: Easing.OutBack }
+                NumberAnimation { target: dockSlide;   property: "y";       to: 0;          duration: 540; easing.type: Easing.OutBack }
+            }
+
             implicitWidth: dockRow.implicitWidth + (dockWindow.cfgPadding * 2 * dockScale)
             implicitHeight: (dockWindow.cfgIconSize + 8) * dockScale
             radius: 14 * dockScale

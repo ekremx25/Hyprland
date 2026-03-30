@@ -36,7 +36,29 @@ Rectangle {
 
     color: hasActive ? "#fab387" : "#45475a"
 
-    Behavior on color { ColorAnimation { duration: 200 } }
+    border.width: 0
+    border.color: "#fab387"
+
+    scale: notifHover.hovered && !notifHover.pressed ? 1.06 : (notifHover.pressed ? 0.92 : 1.0)
+
+    Behavior on color      { ColorAnimation  { duration: 200 } }
+    Behavior on scale      { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
+    Behavior on border.width { NumberAnimation { duration: 300 } }
+
+    // Bildirim gelince border pulse
+    SequentialAnimation {
+        running: hasActive
+        loops: Animation.Infinite
+        NumberAnimation { target: root; property: "border.width"; to: 2;   duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { target: root; property: "border.width"; to: 0;   duration: 700; easing.type: Easing.InOutSine }
+        PauseAnimation  { duration: 400 }
+    }
+
+    HoverHandler {
+        id: notifHover
+        property bool pressed: false
+        onHoveredChanged: if (!hovered) pressed = false
+    }
 
     // Main Layout
     RowLayout {
@@ -75,6 +97,8 @@ Rectangle {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onPressed: notifHover.pressed = true
+                onReleased: notifHover.pressed = false
                 onClicked: (mouse) => {
                     if (mouse.button === Qt.LeftButton) {
                         notifPopup.visible = !notifPopup.visible

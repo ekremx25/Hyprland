@@ -23,10 +23,30 @@ Rectangle {
     implicitHeight: 34
     radius: 17
     color: launcherMouse.containsMouse ? hoverColor : containerColor
-    border.width: 0 // Remove border to match Power button style? Power has no border.
+    border.width: 0
     // border.color: borderColor
 
+    scale: launcherMouse.pressed ? 0.85 : (launcherMouse.containsMouse ? 1.15 : 1.0)
+
     Behavior on color { ColorAnimation { duration: 200 } }
+    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
+
+    // Ripple efekti
+    Rectangle {
+        id: ripple
+        anchors.centerIn: parent
+        width: 0; height: 0
+        radius: width / 2
+        color: Qt.rgba(1, 1, 1, 0.35)
+        opacity: 0
+
+        ParallelAnimation {
+            id: rippleAnim
+            NumberAnimation { target: ripple; property: "width";   from: 0; to: 56; duration: 380; easing.type: Easing.OutCubic }
+            NumberAnimation { target: ripple; property: "height";  from: 0; to: 56; duration: 380; easing.type: Easing.OutCubic }
+            NumberAnimation { target: ripple; property: "opacity"; from: 0.35; to: 0; duration: 380; easing.type: Easing.OutCubic }
+        }
+    }
 
     // --- LOGO SETTINGS ---
     property string logo: ""
@@ -67,6 +87,7 @@ Rectangle {
         cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
 
+        onPressed: rippleAnim.restart()
         onClicked: launcherRoot.settingsRequested()
     }
 }

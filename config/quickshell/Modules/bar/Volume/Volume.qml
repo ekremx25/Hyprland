@@ -17,10 +17,15 @@ Rectangle {
 	readonly property real vol: (Volume.sinkVolume !== undefined && Volume.sinkVolume !== null) ? Volume.sinkVolume : 0
 
 	// Sessizdeyken Kırmızı, Normalken Yeşil
-	color: muted ? Theme.red : Theme.mediaColor
+	color: muted
+		? (volumeMouse.containsMouse ? Qt.lighter(Theme.red, 1.15) : Theme.red)
+		: (volumeMouse.containsMouse ? Qt.lighter(Theme.mediaColor, 1.15) : Theme.mediaColor)
 
-	// Geçiş Animasyonu
+	scale: volumeMouse.pressed ? 0.92 : (volumeMouse.containsMouse ? 1.06 : 1.0)
+
+	// Geçiş Animasyonları
 	Behavior on color { ColorAnimation { duration: 200 } }
+	Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutBack } }
 
 	RowLayout {
 		id: layout
@@ -51,7 +56,9 @@ Rectangle {
 
 	// --- KONTROLLER ---
 	MouseArea {
+		id: volumeMouse
 		anchors.fill: parent
+		hoverEnabled: true
 		cursorShape: Qt.PointingHandCursor
 
 		// Hem Sol (Aç/Kapa) hem Orta (Mute) tuşunu dinle

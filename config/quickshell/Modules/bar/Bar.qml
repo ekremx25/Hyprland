@@ -159,8 +159,25 @@ Variants {
             }
 
             Rectangle {
+                id: barContent
                 anchors.fill: parent
                 color: "transparent"
+                opacity: 0
+                transform: Translate { id: barSlide; y: root.barPosition === "bottom" ? 52 : -52 }
+
+                Component.onCompleted: Qt.callLater(function() { barEnterAnim.start() })
+
+                ParallelAnimation {
+                    id: barEnterAnim
+                    NumberAnimation {
+                        target: barContent; property: "opacity"
+                        from: 0; to: 1; duration: 1100; easing.type: Easing.OutCubic
+                    }
+                    NumberAnimation {
+                        target: barSlide; property: "y"
+                        to: 0; duration: 950; easing.type: Easing.OutBack
+                    }
+                }
 
                 // === YATAY MOD (top/bottom) ===
                 // --- LEFT ---
@@ -171,12 +188,23 @@ Variants {
                     Repeater {
                         model: root.barLayout.left
                         Loader {
+                            id: leftLoader
+                            property int itemIndex: index
                             active: (modelData === "Workspaces") ? screenItem.showWorkspaces : true
                             sourceComponent: {
                                 if (modelData === "Launcher") return launcherComp;
                                 if (modelData === "Workspaces") return workspacesComp;
                                 return root.moduleMap[modelData] || null;
                             }
+                            opacity: 0
+                            scale: 0.7
+                            Timer {
+                                interval: 350 + leftLoader.itemIndex * 100
+                                running: true
+                                onTriggered: { leftLoader.opacity = 1; leftLoader.scale = 1 }
+                            }
+                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
+                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
                         }
                     }
                 }
@@ -188,12 +216,23 @@ Variants {
                     Repeater {
                         model: root.barLayout.center
                         Loader {
+                            id: centerLoader
+                            property int itemIndex: index
                             active: (modelData === "Workspaces") ? screenItem.showWorkspaces : true
                             sourceComponent: {
                                 if (modelData === "Launcher") return launcherComp;
                                 if (modelData === "Workspaces") return workspacesComp;
                                 return root.moduleMap[modelData] || null;
                             }
+                            opacity: 0
+                            scale: 0.7
+                            Timer {
+                                interval: 500 + centerLoader.itemIndex * 100
+                                running: true
+                                onTriggered: { centerLoader.opacity = 1; centerLoader.scale = 1 }
+                            }
+                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
+                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
                         }
                     }
                 }
@@ -206,12 +245,23 @@ Variants {
                     Repeater {
                         model: root.barLayout.right
                         Loader {
+                            id: rightLoader
+                            property int itemIndex: index
                             active: (modelData === "Workspaces") ? screenItem.showWorkspaces : true
                             sourceComponent: {
                                 if (modelData === "Launcher") return launcherComp;
                                 if (modelData === "Workspaces") return workspacesComp;
                                 return root.moduleMap[modelData] || null;
                             }
+                            opacity: 0
+                            scale: 0.7
+                            Timer {
+                                interval: 650 + rightLoader.itemIndex * 100
+                                running: true
+                                onTriggered: { rightLoader.opacity = 1; rightLoader.scale = 1 }
+                            }
+                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
+                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
                         }
                     }
                 }

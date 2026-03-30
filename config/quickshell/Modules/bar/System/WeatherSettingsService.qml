@@ -40,15 +40,9 @@ Item {
     function searchCity() {
         var query = searchText.trim();
         if (query === "") return;
-        if (apiKey.trim().length === 0) {
-            service.searching = false;
-            service.searchResults = [];
-            Log.warn("WeatherSettingsService", "OpenWeather API key missing; set it in weather_config.json or OPENWEATHER_API_KEY");
-            return;
-        }
         searching = true;
         searchResults = [];
-        geoSearchProc.query = query.replace(/ /g, "+");
+        geoSearchProc.query = encodeURIComponent(query);
         geoSearchProc.buf = "";
         geoSearchProc.running = false;
         geoSearchProc.running = true;
@@ -76,19 +70,25 @@ Item {
         id: geoSearchProc
         property string buf: ""
         property string query: ""
-        command: ["curl", "-s", "https://api.openweathermap.org/geo/1.0/direct?q=" + query + "&limit=5&appid=" + service.apiKey]
+        // Open-Meteo Geocoding API — ücretsiz, API key yok
+        command: ["curl", "-s",
+            "https://geocoding-api.open-meteo.com/v1/search?name=" + query + "&count=5&language=en&format=json"]
         stdout: SplitParser { onRead: data => geoSearchProc.buf += data }
         onExited: {
             service.searching = false;
             try {
-                var results = JSON.parse(geoSearchProc.buf);
+                var json = JSON.parse(geoSearchProc.buf);
                 var list = [];
+                var results = json.results || [];
                 for (var i = 0; i < results.length; i++) {
                     var item = results[i];
+                    var label = item.name;
+                    if (item.admin1) label += ", " + item.admin1;
+                    if (item.country) label += ", " + item.country;
                     list.push({
-                        name: item.name + (item.state ? ", " + item.state : "") + ", " + (item.country || ""),
-                        lat: item.lat.toFixed(4),
-                        lon: item.lon.toFixed(4)
+                        name: label,
+                        lat: Number(item.latitude).toFixed(4),
+                        lon: Number(item.longitude).toFixed(4)
                     });
                 }
                 service.searchResults = list;

@@ -16,12 +16,6 @@
   "dockAlignment": "center",
   "pinned": [
     {
-      "name": "Brave",
-      "icon": "brave-browser",
-      "cmd": "brave-browser-stable --ozone-platform=wayland --enable-features=UseOzonePlatform,WebRTCPipeWireCapturer,WaylandWindowDecorations,AcceleratedVideoEncoder,AcceleratedVideoDecodeLinuxGL",
-      "appId": "brave-browser"
-    },
-    {
       "name": "Files",
       "icon": "org.kde.dolphin",
       "cmd": "dolphin",
@@ -40,12 +34,6 @@
       "appId": "org.telegram.desktop"
     },
     {
-      "name": "Lutris",
-      "icon": "net.lutris.lutris",
-      "cmd": "__desktop__:net.lutris.Lutris",
-      "appId": "net.lutris.Lutris"
-    },
-    {
       "name": "Virt-manager",
       "icon": "virt-manager",
       "cmd": "virt-manager",
@@ -56,6 +44,12 @@
       "icon": "discord",
       "cmd": "discord",
       "appId": "discord"
+    },
+    {
+      "name": "Chrome",
+      "icon": "google-chrome-stable",
+      "cmd": "google-chrome-stable",
+      "appId": "google-chrome-stable"
     },
     {
       "name": "Iriunwebcam",
