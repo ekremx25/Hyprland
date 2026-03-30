@@ -57,7 +57,6 @@ PACMAN_PACKAGES=(
   playerctl
   pipewire-pulse
   pipewire-jack
-  quickshell
   qt5-wayland
   qt5ct
   qemu-full
@@ -85,6 +84,7 @@ PACMAN_PACKAGES=(
 YAY_PACKAGES=(
   antigravity
   brave-bin
+  quickshell-git
   cargo
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
