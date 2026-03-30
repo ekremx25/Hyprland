@@ -32,8 +32,13 @@ Rectangle {
         Text {
             text: root.weatherIcon
             color: "#1e1e2e"
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: "JetBrainsMono Nerd Font Mono"
             font.pixelSize: 16
+            renderType: Text.NativeRendering
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignHCenter
+            lineHeightMode: Text.FixedHeight
+            lineHeight: 19
         }
 
         Text {
@@ -119,6 +124,11 @@ Rectangle {
                         color: Theme.primary
                         font.pixelSize: 64
                         font.family: "JetBrainsMono Nerd Font"
+                        renderType: Text.NativeRendering
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        lineHeightMode: Text.FixedHeight
+                        lineHeight: 74
                     }
 
                     ColumnLayout {
@@ -171,7 +181,19 @@ Rectangle {
                             spacing: 5
                             Layout.alignment: Qt.AlignHCenter
                             Text { text: modelData.day; color: Theme.subtext; font.pixelSize: 11; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: modelData.icon; color: Theme.primary; font.pixelSize: 22; font.family: "JetBrainsMono Nerd Font"; Layout.alignment: Qt.AlignHCenter }
+                            Text {
+                                text: modelData.icon
+                                color: Theme.primary
+                                font.pixelSize: 22
+                                font.family: "JetBrainsMono Nerd Font"
+                                renderType: Text.NativeRendering
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                lineHeightMode: Text.FixedHeight
+                                lineHeight: 28
+                                Layout.preferredHeight: 28
+                                Layout.alignment: Qt.AlignHCenter
+                            }
                             Text { text: modelData.min + "°/" + modelData.max + "°"; color: Theme.text; font.pixelSize: 10; font.bold: true; Layout.alignment: Qt.AlignHCenter }
                         }
                     }
@@ -188,7 +210,17 @@ Rectangle {
 
         spacing: 10
 
-        Text { text: icon; color: iconColor; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font" }
+        Text {
+            text: icon
+            color: iconColor
+            font.pixelSize: 16
+            font.family: "JetBrainsMono Nerd Font"
+            renderType: Text.NativeRendering
+            verticalAlignment: Text.AlignVCenter
+            horizontalAlignment: Text.AlignHCenter
+            lineHeightMode: Text.FixedHeight
+            lineHeight: 20
+        }
         ColumnLayout {
             spacing: 2
             Text { text: label; color: Theme.subtext; font.pixelSize: 11 }

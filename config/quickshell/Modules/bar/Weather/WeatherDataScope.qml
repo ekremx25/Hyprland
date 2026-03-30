@@ -36,7 +36,7 @@ Scope {
         var url = "https://api.open-meteo.com/v1/forecast"
                 + "?latitude="  + root.customLat
                 + "&longitude=" + root.customLon
-                + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,windspeed_10m"
+                + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,weathercode,windspeed_10m,is_day"
                 + "&daily=weathercode,temperature_2m_max,temperature_2m_min,sunrise,sunset"
                 + "&timezone=auto&forecast_days=5"
                 + tempUnit + windUnit;
@@ -82,7 +82,7 @@ Scope {
                 var daily = json.daily;
 
                 root.currentTemp = Math.round(cur.temperature_2m).toString();
-                root.weatherIcon  = root.getWeatherIcon(cur.weathercode);
+                root.weatherIcon  = root.getWeatherIcon(cur.weathercode, cur.is_day === 1);
 
                 // Açıklama metni
                 var desc = root.getWeatherDesc(cur.weathercode);
@@ -109,7 +109,7 @@ Scope {
                         day:  isToday ? "Today" : dayNames[date.getDay()],
                         max:  Math.round(daily.temperature_2m_max[i]),
                         min:  Math.round(daily.temperature_2m_min[i]),
-                        icon: root.getWeatherIcon(daily.weathercode[i])
+                        icon: root.getWeatherIcon(daily.weathercode[i], true)
                     });
                 }
 
@@ -161,18 +161,25 @@ Scope {
     }
 
     // WMO Weather Codes → Nerd Font ikonlar
-    function getWeatherIcon(code) {
-        if (code === 0)                    return "󰖙";  // Clear sky
-        if (code === 1 || code === 2)      return "󰖕";  // Mainly clear / partly cloudy
-        if (code === 3)                    return "󰖐";  // Overcast
-        if (code === 45 || code === 48)    return "󰖑";  // Fog
-        if (code >= 51 && code <= 57)      return "󰖗";  // Drizzle
-        if (code >= 61 && code <= 67)      return "󰖗";  // Rain
-        if (code >= 71 && code <= 77)      return "󰖘";  // Snow
-        if (code >= 80 && code <= 82)      return "󰖗";  // Rain showers
-        if (code === 85 || code === 86)    return "󰖘";  // Snow showers
-        if (code >= 95 && code <= 99)      return "󰖓";  // Thunderstorm
-        return "󰖕";
+    function getWeatherIcon(code, isDaylight) {
+        if (code === 0)  return "☀";                    // Clear sky
+        if (code === 1)  return "☀";                    // Mainly clear
+        if (code === 2)  return "⛅";                    // Partly cloudy
+        if (code === 3)  return "☁";                    // Overcast
+        if (code === 45 || code === 48) return "〰";     // Fog
+        if (code >= 51 && code <= 55)   return "🌦";     // Drizzle
+        if (code >= 56 && code <= 57)   return "🌨";     // Freezing drizzle
+        if (code === 61 || code === 63) return "🌧";     // Light/moderate rain
+        if (code === 65)                return "🌧";     // Heavy rain
+        if (code >= 66 && code <= 67)   return "🌨";     // Freezing rain
+        if (code >= 71 && code <= 75)   return "❄";     // Snow
+        if (code === 77)                return "❄";     // Snow grains
+        if (code === 80 || code === 81) return "🌦";     // Rain showers
+        if (code === 82)                return "🌧";     // Heavy rain showers
+        if (code >= 85 && code <= 86)   return "🌨";     // Snow showers
+        if (code === 95)                return "⛈";     // Thunderstorm
+        if (code >= 96 && code <= 99)   return "⛈";     // Thunderstorm w/ hail
+        return "⛅";
     }
 
     // WMO kodundan açıklama

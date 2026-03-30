@@ -47,12 +47,6 @@ WeatherDataScope {
                         Layout.fillWidth: true
                         spacing: 8
                         Text {
-                            text: ""
-                            color: Theme.subtext
-                            font.pixelSize: 14
-                            font.family: "JetBrainsMono Nerd Font"
-                        }
-                        Text {
                             text: root.cityName
                             color: Theme.subtext
                             font.pixelSize: 13
@@ -76,7 +70,12 @@ WeatherDataScope {
                             text: root.weatherIcon
                             color: Theme.yellow
                             font.pixelSize: 72
-                            font.family: "JetBrainsMono Nerd Font"
+                            font.family: "JetBrainsMono Nerd Font Mono"
+                            renderType: Text.NativeRendering
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            lineHeightMode: Text.FixedHeight
+                            lineHeight: 82
                             Layout.alignment: Qt.AlignHCenter
                         }
                         // Hissedilen sıcaklık (büyük, en başta)
@@ -142,7 +141,7 @@ WeatherDataScope {
                             iconColor: Theme.yellow
                         }
                         DetailCard {
-                            icon: ""
+                            icon: ""
                             label: "Humidity"
                             value: "%" + root.popupData.humidity
                             iconColor: Theme.primary
@@ -154,7 +153,7 @@ WeatherDataScope {
                             iconColor: Theme.green
                         }
                         DetailCard {
-                            icon: ""
+                            icon: ""
                             label: "Daylight"
                             value: root.popupData.sunrise + " - " + root.popupData.sunset
                             iconColor: Theme.red
@@ -205,10 +204,15 @@ WeatherDataScope {
                                     Text {
                                         text: modelData.icon
                                         color: Theme.yellow
-                                        font.pixelSize: 18
-                                        font.family: "JetBrainsMono Nerd Font"
-                                        Layout.preferredWidth: 28
+                                        font.pixelSize: 22
+                                        font.family: "JetBrainsMono Nerd Font Mono"
+                                        renderType: Text.NativeRendering
+                                        verticalAlignment: Text.AlignVCenter
                                         horizontalAlignment: Text.AlignHCenter
+                                        lineHeightMode: Text.FixedHeight
+                                        lineHeight: 28
+                                        Layout.preferredWidth: 32
+                                        Layout.preferredHeight: 28
                                     }
                                     Item { Layout.fillWidth: true }
                                     Text {
@@ -273,6 +277,11 @@ WeatherDataScope {
                         color: iconColor
                         font.pixelSize: 18
                         font.family: "JetBrainsMono Nerd Font"
+                        renderType: Text.NativeRendering
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        lineHeightMode: Text.FixedHeight
+                        lineHeight: 22
                     }
                     ColumnLayout {
                         spacing: 1
