@@ -6,48 +6,74 @@ import Quickshell.Wayland
 import "../../../Widgets"
 import "../../../Services" as S
 
-// Toast Popup for new notifications
 PanelWindow {
     id: root
-    
-    // Ensure transparent background for rounded corners
-    color: "transparent"
 
-    // Ensure it's above the bar
+    color: "transparent"
     WlrLayershell.layer: WlrLayer.Top
     WlrLayershell.namespace: "toast-notification"
 
-    // APPEARANCE
     implicitWidth: mainRect.width
     implicitHeight: mainRect.height
-    
-    // Position: Dynamic based on settings
+
     anchors {
-        top: notifService.popupPosition === 1 || notifService.popupPosition === 2 || notifService.popupPosition === 3
+        top:    notifService.popupPosition === 1 || notifService.popupPosition === 2 || notifService.popupPosition === 3
         bottom: notifService.popupPosition === 4 || notifService.popupPosition === 5 || notifService.popupPosition === 6
-        left: notifService.popupPosition === 2 || notifService.popupPosition === 6
-        right: notifService.popupPosition === 1 || notifService.popupPosition === 5
+        left:   notifService.popupPosition === 2 || notifService.popupPosition === 6
+        right:  notifService.popupPosition === 1 || notifService.popupPosition === 5
     }
-    margins {
-        top: 60
-        bottom: 60
-        left: 20
-        right: 20
-    }
+    margins { top: 60; bottom: 60; left: 20; right: 20 }
 
-
-
-    // Starts hidden
     visible: false
     exclusionMode: ExclusionMode.Ignore
-
-
 
     property var notifService: S.Notifications
     property var currentNotif: null
 
-    // --- LOGIC ---
+    // Pozisyona göre giriş yönü
+    readonly property bool isLeft:   notifService.popupPosition === 2 || notifService.popupPosition === 6
+    readonly property bool isBottom: notifService.popupPosition === 4 || notifService.popupPosition === 5 || notifService.popupPosition === 6
 
+    // --- Animasyon kaynakları ---
+    property real slideStartX: isLeft ? -360 : 360
+    property real slideStartY: isBottom ? 80 : -80
+
+    // --- GİRİŞ ---
+    function playEnter() {
+        mainRect.opacity = 0;
+        mainRect.scale   = 0.82;
+        slideX.x = slideStartX;
+        slideY.y = slideStartY * 0.4;
+        enterAnim.restart();
+    }
+
+    // --- ÇIKIŞ ---
+    function playExit(callback) {
+        exitAnim.onFinishedCallback = callback;
+        exitAnim.restart();
+    }
+
+    ParallelAnimation {
+        id: enterAnim
+        NumberAnimation { target: mainRect;  property: "opacity"; from: 0;    to: 1;    duration: 380; easing.type: Easing.OutCubic }
+        NumberAnimation { target: mainRect;  property: "scale";   from: 0.82; to: 1.0;  duration: 420; easing.type: Easing.OutBack }
+        NumberAnimation { target: slideX;    property: "x";       to: 0;                duration: 400; easing.type: Easing.OutBack }
+        NumberAnimation { target: slideY;    property: "y";       to: 0;                duration: 380; easing.type: Easing.OutCubic }
+    }
+
+    ParallelAnimation {
+        id: exitAnim
+        property var onFinishedCallback: null
+        NumberAnimation { target: mainRect; property: "opacity"; to: 0;             duration: 260; easing.type: Easing.InCubic }
+        NumberAnimation { target: mainRect; property: "scale";   to: 0.88;          duration: 260; easing.type: Easing.InCubic }
+        NumberAnimation { target: slideX;   property: "x"; to: root.slideStartX * 0.6; duration: 260; easing.type: Easing.InCubic }
+        onFinished: {
+            root.visible = false;
+            if (onFinishedCallback) onFinishedCallback();
+        }
+    }
+
+    // --- BAĞLANTILAR ---
     Connections {
         target: notifService
         function onNewNotificationReceived(notif) {
@@ -55,18 +81,16 @@ PanelWindow {
                 currentNotif = notif;
                 root.visible = true;
                 hideTimer.restart();
+                root.playEnter();
             }
         }
     }
 
-    // Timer to auto-hide after displayDuration
     Timer {
         id: hideTimer
         interval: root.notifService.displayDuration
         repeat: false
-        onTriggered: {
-            root.visible = false;
-        }
+        onTriggered: root.playExit(null)
     }
 
     // --- UI ---
@@ -78,31 +102,57 @@ PanelWindow {
         radius: Theme.radius
         border.width: 1
         border.color: Theme.surface
+        opacity: 0
+        scale: 0.82
 
-        // Tıklayınca ilgili pencereye git
+        transform: [
+            Translate { id: slideX; x: root.slideStartX },
+            Translate { id: slideY; y: 0 }
+        ]
+
+        // Hover: zamanlayıcıyı durdur
+        HoverHandler {
+            id: toastHover
+            onHoveredChanged: {
+                if (hovered) {
+                    hideTimer.stop();
+                    // Hafif parlama
+                    hoverAnim.start();
+                } else {
+                    hideTimer.restart();
+                    unhoverAnim.start();
+                }
+            }
+        }
+
+        NumberAnimation { id: hoverAnim;   target: mainRect; property: "scale"; to: 1.03; duration: 180; easing.type: Easing.OutCubic }
+        NumberAnimation { id: unhoverAnim; target: mainRect; property: "scale"; to: 1.0;  duration: 180; easing.type: Easing.OutCubic }
+
+        // Tıklayınca kapat
         MouseArea {
             anchors.fill: parent
             cursorShape: Qt.PointingHandCursor
             z: 1
             onClicked: {
-                if (currentNotif && currentNotif.appName) {
-                    notifService.focusApp(currentNotif.appName);
-                }
-                root.visible = false;
+                hideTimer.stop();
+                root.playExit(function() {
+                    if (currentNotif && currentNotif.appName)
+                        notifService.focusApp(currentNotif.appName);
+                });
             }
         }
 
-        // Close Button (Top Right)
+        // Kapat butonu
         Text {
             anchors { top: parent.top; right: parent.right; margins: 8 }
-            text: ""
+            text: ""
             font.family: "JetBrainsMono Nerd Font"
             color: Theme.subtext
             z: 10
             MouseArea {
                 anchors.fill: parent
                 cursorShape: Qt.PointingHandCursor
-                onClicked: root.visible = false
+                onClicked: { hideTimer.stop(); root.playExit(null); }
             }
         }
 
@@ -111,7 +161,7 @@ PanelWindow {
             anchors { left: parent.left; top: parent.top; right: parent.right; margins: 12 }
             spacing: 12
 
-            // Icon
+            // İkon
             Rectangle {
                 width: 40; height: 40; radius: 10
                 color: Theme.base
@@ -123,10 +173,10 @@ PanelWindow {
                     fillMode: Image.PreserveAspectCrop
                     visible: source != ""
                 }
-                
+
                 Text {
                     anchors.centerIn: parent
-                    text: ""
+                    text: ""
                     font.family: "JetBrainsMono Nerd Font"
                     font.pixelSize: 20
                     color: Theme.text
@@ -134,22 +184,20 @@ PanelWindow {
                 }
             }
 
-            // Text Content
+            // İçerik
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 4
 
                 Text {
                     text: currentNotif ? currentNotif.appName : "System"
-                    font.bold: true
-                    font.pixelSize: 11
+                    font.bold: true; font.pixelSize: 11
                     color: Theme.subtext
                 }
 
                 Text {
                     text: currentNotif ? (notifService.privacyMode ? "New notification" : currentNotif.summary) : ""
-                    font.bold: true
-                    font.pixelSize: 13
+                    font.bold: true; font.pixelSize: 13
                     color: Theme.text
                     wrapMode: Text.Wrap
                     Layout.fillWidth: true
@@ -168,38 +216,17 @@ PanelWindow {
                 }
             }
         }
-        
-        // Progress Bar (Timer Indicator) - Optional but nice
-        Rectangle {
-            anchors { bottom: parent.bottom; left: parent.left; right: parent.right }
-            height: 2
-            radius: 1
-            color: Theme.primary
-            width: parent.width * (hideTimer.running ? (1 - (hideTimer.interval - hideTimer.time) / hideTimer.interval) : 0)
-            // Can't easily access timer remaining time in QML Timer without custom property hacks.
-            // Let's perform a simple animation instead.
-            visible: false 
-        }
-        
-        // Simple animation for the progress bar
+
+        // Progress bar (süre göstergesi)
         Rectangle {
             anchors { bottom: parent.bottom; left: parent.left }
             height: 3
             radius: 1.5
             color: Theme.primary
             width: root.visible ? parent.width : 0
-            
             Behavior on width {
                 enabled: root.visible
-                NumberAnimation {
-                    duration: root.notifService.displayDuration
-                    easing.type: Easing.Linear
-                }
-            }
-            
-            // Reset width when hidden
-            onWidthChanged: {
-                if (!root.visible) width = 0;
+                NumberAnimation { duration: root.notifService.displayDuration; easing.type: Easing.Linear }
             }
         }
     }
