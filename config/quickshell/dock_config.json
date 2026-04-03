@@ -60,7 +60,7 @@
     {
       "name": "VS Code",
       "icon": "codex",
-      "cmd": "__desktop__:codex",
+      "cmd": "__desktop__:codex-desktop",
       "appId": "Codex"
     },
     {

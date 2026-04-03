@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Shapes
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 ColumnLayout {
     id: diskPage
@@ -37,14 +38,14 @@ ColumnLayout {
             text: "Disk Management"
             font.bold: true
             font.pixelSize: 20
-            color: Theme.text
+            color: SettingsPalette.text
         }
         Item { Layout.fillWidth: true }
         // Yenile butonu
         Rectangle {
             width: 32; height: 32; radius: 16
-            color: refreshMA.containsMouse ? Theme.surface : "transparent"
-            Text { anchors.centerIn: parent; text: "↻"; color: Theme.text; font.pixelSize: 18 }
+            color: refreshMA.containsMouse ? SettingsPalette.surface : "transparent"
+            Text { anchors.centerIn: parent; text: "↻"; color: SettingsPalette.text; font.pixelSize: 18 }
             MouseArea {
                 id: refreshMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: diskService.refresh()
@@ -52,7 +53,7 @@ ColumnLayout {
         }
     }
 
-    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+    Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
     Rectangle {
         Layout.fillWidth: true
@@ -69,7 +70,7 @@ ColumnLayout {
             anchors.margins: 9
             wrapMode: Text.Wrap
             text: diskService.actionStatus
-            color: Theme.text
+            color: SettingsPalette.text
             font.pixelSize: 12
         }
     }
@@ -87,7 +88,7 @@ ColumnLayout {
             required property var modelData
             width: diskListView.width
             height: 112
-            color: Theme.surface
+            color: SettingsPalette.surface
             radius: 12
             // Sadece görsel çerçeve, interactive değil
             border.color: "transparent"
@@ -110,7 +111,7 @@ ColumnLayout {
                         Shape {
                             anchors.fill: parent
                             ShapePath {
-                                strokeColor: Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.1)
+                                strokeColor: Qt.rgba(245/255, 247/255, 255/255, 0.1)
                                 strokeWidth: 4
                                 fillColor: "transparent"
                                 capStyle: ShapePath.RoundCap
@@ -150,7 +151,7 @@ ColumnLayout {
                             text: modelData.usePercent ? modelData.usePercent : "?"
                             font.pixelSize: 10
                             font.bold: true
-                            color: Theme.text
+                            color: SettingsPalette.text
                         }
                     }
 
@@ -159,13 +160,13 @@ ColumnLayout {
                         visible: modelData.mountpoint === "" || modelData.fsused === ""
                         anchors.fill: parent
                         radius: 25
-                        color: Qt.rgba(Theme.subtext.r, Theme.subtext.g, Theme.subtext.b, 0.1)
+                        color: Qt.rgba(174/255, 184/255, 203/255, 0.1)
                         Text {
                             anchors.centerIn: parent
                             text: "󰋊"
                             font.family: "JetBrainsMono Nerd Font"
                             font.pixelSize: 24
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                         }
                     }
                 }
@@ -179,7 +180,7 @@ ColumnLayout {
                     RowLayout {
                         Text {
                             text: modelData.name
-                            color: Theme.text
+                            color: SettingsPalette.text
                             font.bold: true
                             font.pixelSize: 15
                         }
@@ -187,7 +188,7 @@ ColumnLayout {
                         Text {
                             visible: modelData.mountpoint !== ""
                             text: " (" + modelData.mountpoint + ")"
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 12
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -203,7 +204,7 @@ ColumnLayout {
                                 return "Capacity: " + modelData.size + " (Not Mounted)"
                             }
                         }
-                        color: modelData.mountpoint ? Theme.text : Theme.overlay2
+                        color: modelData.mountpoint ? SettingsPalette.text : SettingsPalette.overlay2
                         font.pixelSize: 12
                         opacity: 0.8
                     }
@@ -212,14 +213,14 @@ ColumnLayout {
                     Text {
                         visible: modelData.fstype !== ""
                         text: modelData.fstype.toUpperCase()
-                        color: Theme.overlay
+                        color: SettingsPalette.overlay
                         font.pixelSize: 10
                     }
 
                     Text {
                         visible: modelData.uuid !== ""
                         text: "UUID: " + modelData.uuid
-                        color: Theme.overlay2
+                        color: SettingsPalette.overlay2
                         font.pixelSize: 10
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -318,7 +319,7 @@ ColumnLayout {
                     Text {
                         visible: modelData.inFstab && modelData.fstabMountpoint !== ""
                         text: modelData.fstabMountpoint
-                        color: Theme.subtext
+                        color: SettingsPalette.subtext
                         font.pixelSize: 10
                         horizontalAlignment: Text.AlignRight
                     }
@@ -342,8 +343,8 @@ ColumnLayout {
         Rectangle {
             width: 520
             radius: 14
-            color: Theme.background
-            border.color: Theme.surface
+            color: SettingsPalette.background
+            border.color: SettingsPalette.surface
             border.width: 1
             anchors.centerIn: parent
             implicitHeight: dialogColumn.implicitHeight + 28
@@ -361,17 +362,17 @@ ColumnLayout {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Bind Disk to fstab"; color: Theme.text; font.pixelSize: 17; font.bold: true }
+                    Text { text: "Bind Disk to fstab"; color: SettingsPalette.text; font.pixelSize: 17; font.bold: true }
                     Item { Layout.fillWidth: true }
                     Text {
                         text: "✕"
-                        color: Theme.subtext
+                        color: SettingsPalette.subtext
                         font.pixelSize: 15
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: mountDialogVisible = false }
                     }
                 }
 
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+                Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
                 Text {
                     Layout.fillWidth: true
@@ -379,13 +380,13 @@ ColumnLayout {
                     text: selectedDisk
                         ? (selectedDisk.name + " • " + selectedDisk.fstype.toUpperCase() + " • UUID " + selectedDisk.uuid)
                         : ""
-                    color: Theme.subtext
+                    color: SettingsPalette.subtext
                     font.pixelSize: 11
                 }
 
                 Text {
                     text: "Mount Point"
-                    color: Theme.text
+                    color: SettingsPalette.text
                     font.pixelSize: 12
                     font.bold: true
                 }
@@ -406,7 +407,7 @@ ColumnLayout {
                         height: 34
                         radius: 8
                         color: Qt.rgba(255,255,255,0.08)
-                        Text { anchors.centerIn: parent; text: "Browse folders"; color: Theme.text; font.pixelSize: 12; font.bold: true }
+                        Text { anchors.centerIn: parent; text: "Browse folders"; color: SettingsPalette.text; font.pixelSize: 12; font.bold: true }
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
@@ -420,7 +421,7 @@ ColumnLayout {
                 Text {
                     Layout.fillWidth: true
                     wrapMode: Text.Wrap
-                    color: Theme.overlay2
+                    color: SettingsPalette.overlay2
                     font.pixelSize: 11
                     text: selectedDisk
                         ? ("Filesystem: " + diskService.mountFsTypeFor(selectedDisk) +
@@ -437,8 +438,8 @@ ColumnLayout {
                         width: 110
                         height: 36
                         radius: 10
-                        color: Theme.surface
-                        Text { anchors.centerIn: parent; text: "Cancel"; color: Theme.text; font.pixelSize: 12; font.bold: true }
+                        color: SettingsPalette.surface
+                        Text { anchors.centerIn: parent; text: "Cancel"; color: SettingsPalette.text; font.pixelSize: 12; font.bold: true }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: mountDialogVisible = false }
                     }
 

@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: soundPage
@@ -79,14 +80,14 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "󰕾"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "Sound Settings"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+            Text { text: "Sound Settings"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
         }
 
         // --- Parlaklık ---
         Rectangle {
             Layout.fillWidth: true
             height: 90
-            color: Theme.surface
+            color: SettingsPalette.surface
             radius: 10
             visible: brightness.available
 
@@ -98,7 +99,7 @@ Item {
                 RowLayout {
                     spacing: 8
                     Text { text: "󰃞"; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#f9e2af" }
-                    Text { text: "Brightness"; color: Theme.text; font.bold: true; font.pixelSize: 13; Layout.fillWidth: true }
+                    Text { text: "Brightness"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 13; Layout.fillWidth: true }
                     Text { text: brightness.value + "%"; color: "#f9e2af"; font.bold: true; font.pixelSize: 13 }
                 }
 
@@ -166,7 +167,7 @@ Item {
         }
 
         // --- Uygulamalar ---
-        Text { text: "Applications"; color: Theme.subtext; font.pixelSize: 12; font.bold: true }
+        Text { text: "Applications"; color: SettingsPalette.subtext; font.pixelSize: 12; font.bold: true }
 
         ListView {
             Layout.fillWidth: true
@@ -184,7 +185,7 @@ Item {
 
                 width: ListView.view.width
                 height: 50
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 8
 
                 RowLayout {
@@ -202,7 +203,7 @@ Item {
                         spacing: 4
                         Text {
                             text: appNode.properties["application.name"] || appNode.name || "Unknown"
-                            color: Theme.text; font.bold: true; font.pixelSize: 12; elide: Text.ElideRight
+                            color: SettingsPalette.text; font.bold: true; font.pixelSize: 12; elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
                         Rectangle {
@@ -221,7 +222,7 @@ Item {
 
                     Text {
                         text: Math.round(appNode.audio.volume * 100) + "%"
-                        color: Theme.subtext; font.pixelSize: 11
+                        color: SettingsPalette.subtext; font.pixelSize: 11
                     }
                 }
             }

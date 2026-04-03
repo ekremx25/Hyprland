@@ -1,8 +1,8 @@
 {
   "materialYou": true,
-  "wallpaperPath": "~/Pictures/wallpapers/rain-house-tree.jpg",
+  "wallpaperPath": "~/Pictures/Wal/MinnesotaWaters.jpg",
   "mode": "light",
-  "matugenType": "scheme-catppuccin",
+  "matugenType": "scheme-rainbow",
   "applyToKitty": true,
   "applyToGtk": false,
   "liveUpdate": true

@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import Quickshell
 import Quickshell.Io
 import "../../../Widgets"
@@ -20,7 +21,7 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             Text { text: "󰦝"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "VPN Management"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+            Text { text: "VPN Management"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
             Item { Layout.fillWidth: true }
 
             // Status indicator
@@ -32,11 +33,11 @@ Item {
                     id: statusRow
                     anchors.centerIn: parent
                     spacing: 6
-                    Rectangle { width: 8; height: 8; radius: 4; color: VpnService.connected ? Theme.green : Theme.overlay2 }
+                    Rectangle { width: 8; height: 8; radius: 4; color: VpnService.connected ? Theme.green : SettingsPalette.overlay2 }
                     Text {
                         text: VpnService.connected ? VpnService.activeName : "Disconnected"
                         font.pixelSize: 11
-                        color: VpnService.connected ? Theme.green : Theme.subtext
+                        color: VpnService.connected ? Theme.green : SettingsPalette.subtext
                     }
                 }
             }
@@ -79,7 +80,7 @@ Item {
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+        Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
         // Single VPN mode toggle
         Rectangle {
@@ -92,8 +93,8 @@ Item {
                 anchors.margins: 12
                 spacing: 8
 
-                Text { text: "Single VPN mode"; color: Theme.text; font.pixelSize: 13 }
-                Text { text: "(disconnect others when connecting)"; color: Theme.overlay2; font.pixelSize: 10 }
+                Text { text: "Single VPN mode"; color: SettingsPalette.text; font.pixelSize: 13 }
+                Text { text: "(disconnect others when connecting)"; color: SettingsPalette.overlay2; font.pixelSize: 10 }
                 Item { Layout.fillWidth: true }
 
                 Rectangle {
@@ -123,7 +124,7 @@ Item {
             text: VpnService.profiles.length > 0 ? "VPN Profiles (" + VpnService.profiles.length + ")" : "No VPN profiles configured"
             font.pixelSize: 13
             font.bold: VpnService.profiles.length > 0
-            color: VpnService.profiles.length > 0 ? Theme.text : Theme.overlay2
+            color: VpnService.profiles.length > 0 ? SettingsPalette.text : SettingsPalette.overlay2
         }
 
         Flickable {
@@ -177,12 +178,12 @@ Item {
                                     text: modelData.name
                                     font.pixelSize: 13
                                     font.bold: true
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                 }
                                 Text {
                                     text: modelData.type.toUpperCase() + (modelData.autoconnect ? " • Autoconnect" : "")
                                     font.pixelSize: 10
-                                    color: Theme.overlay2
+                                    color: SettingsPalette.overlay2
                                 }
                             }
 

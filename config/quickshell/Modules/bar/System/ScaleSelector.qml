@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: root
@@ -48,7 +49,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "-"
-                    color: root.canStepDown ? Theme.text : Theme.subtext
+                    color: root.canStepDown ? SettingsPalette.text : SettingsPalette.subtext
                     font.pixelSize: 16
                     font.bold: true
                 }
@@ -83,7 +84,7 @@ Item {
                             id: chipLabel
                             anchors.centerIn: parent
                             text: Math.round(modelData * 100) + "%"
-                            color: root.isSelected(modelData) ? Theme.primary : Theme.text
+                            color: root.isSelected(modelData) ? Theme.primary : SettingsPalette.text
                             font.pixelSize: 11
                             font.bold: root.isSelected(modelData)
                         }
@@ -108,7 +109,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     text: "+"
-                    color: root.canStepUp ? Theme.text : Theme.subtext
+                    color: root.canStepUp ? SettingsPalette.text : SettingsPalette.subtext
                     font.pixelSize: 16
                     font.bold: true
                 }
@@ -146,7 +147,7 @@ Item {
 
                     Text {
                         text: root.detailText
-                        color: Theme.subtext
+                        color: SettingsPalette.subtext
                         font.pixelSize: 10
                         Layout.alignment: Qt.AlignHCenter
                     }
@@ -156,7 +157,7 @@ Item {
 
         Text {
             text: root.helperText
-            color: Theme.subtext
+            color: SettingsPalette.subtext
             font.pixelSize: 10
             wrapMode: Text.WordWrap
             Layout.fillWidth: true

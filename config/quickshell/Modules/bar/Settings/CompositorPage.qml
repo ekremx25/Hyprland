@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import Quickshell
 import Quickshell.Io
 import "../../../Widgets"
@@ -18,7 +19,7 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             Text { text: ""; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "Compositor"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+            Text { text: "Compositor"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
         }
 
         // Niri info card
@@ -53,8 +54,8 @@ Item {
 
                     ColumnLayout {
                         spacing: 2
-                        Text { text: "Niri"; font.pixelSize: 18; font.bold: true; color: Theme.text }
-                        Text { text: "Scrolling Tiling Wayland Compositor"; font.pixelSize: 12; color: Theme.overlay2 }
+                        Text { text: "Niri"; font.pixelSize: 18; font.bold: true; color: SettingsPalette.text }
+                        Text { text: "Scrolling Tiling Wayland Compositor"; font.pixelSize: 12; color: SettingsPalette.overlay2 }
                     }
 
                     Item { Layout.fillWidth: true }
@@ -63,10 +64,10 @@ Item {
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+        Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
         // Details
-        Text { text: "Details"; font.pixelSize: 14; font.bold: true; color: Theme.text }
+        Text { text: "Details"; font.pixelSize: 14; font.bold: true; color: SettingsPalette.text }
 
         Repeater {
             model: [
@@ -84,16 +85,16 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12
-                    Text { text: modelData.label; font.pixelSize: 12; color: Theme.subtext; Layout.preferredWidth: 120 }
-                    Text { text: modelData.value; font.pixelSize: 12; color: Theme.text; Layout.fillWidth: true; elide: Text.ElideMiddle }
+                    Text { text: modelData.label; font.pixelSize: 12; color: SettingsPalette.subtext; Layout.preferredWidth: 120 }
+                    Text { text: modelData.value; font.pixelSize: 12; color: SettingsPalette.text; Layout.fillWidth: true; elide: Text.ElideMiddle }
                 }
             }
         }
 
-        Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+        Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
         // Connected Monitors
-        Text { text: "Connected Monitors"; font.pixelSize: 14; font.bold: true; color: Theme.text; visible: CompositorService.monitors.length > 0 }
+        Text { text: "Connected Monitors"; font.pixelSize: 14; font.bold: true; color: SettingsPalette.text; visible: CompositorService.monitors.length > 0 }
 
         Flickable {
             Layout.fillWidth: true
@@ -126,11 +127,11 @@ Item {
 
                             ColumnLayout {
                                 spacing: 2; Layout.fillWidth: true
-                                Text { text: modelData.name; font.pixelSize: 13; font.bold: true; color: Theme.text }
-                                Text { text: modelData.make + " " + modelData.model + " — " + modelData.width + "×" + modelData.height + " @ " + modelData.refreshRate + "Hz"; font.pixelSize: 10; color: Theme.overlay2 }
+                                Text { text: modelData.name; font.pixelSize: 13; font.bold: true; color: SettingsPalette.text }
+                                Text { text: modelData.make + " " + modelData.model + " — " + modelData.width + "×" + modelData.height + " @ " + modelData.refreshRate + "Hz"; font.pixelSize: 10; color: SettingsPalette.overlay2 }
                             }
 
-                            Text { text: modelData.scale + "×"; font.pixelSize: 11; color: Theme.subtext }
+                            Text { text: modelData.scale + "×"; font.pixelSize: 11; color: SettingsPalette.subtext }
                         }
                     }
                 }

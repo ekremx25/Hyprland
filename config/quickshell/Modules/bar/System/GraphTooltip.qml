@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 PopupWindow {
     id: root

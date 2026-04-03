@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Row {
     id: root
@@ -31,7 +32,7 @@ Row {
                 id: segText
                 anchors.centerIn: parent
                 text: modelData
-                color: index === root.selectedIndex ? "#1e1e2e" : Theme.text
+                color: index === root.selectedIndex ? "#1e1e2e" : SettingsPalette.text
                 font.pixelSize: 11
                 font.bold: index === root.selectedIndex
             }

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Rectangle {
     id: root
@@ -12,7 +13,7 @@ Rectangle {
 
     Layout.fillWidth: true
     height: 70
-    color: Theme.surface
+    color: SettingsPalette.surface
     radius: 12
 
     RowLayout {
@@ -23,8 +24,8 @@ Rectangle {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
-            Text { text: root.title; color: Theme.text; font.bold: true; font.pixelSize: 14 }
-            Text { text: root.description; color: Theme.subtext; font.pixelSize: 11 }
+            Text { text: root.title; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
+            Text { text: root.description; color: SettingsPalette.subtext; font.pixelSize: 11 }
         }
 
         Rectangle {

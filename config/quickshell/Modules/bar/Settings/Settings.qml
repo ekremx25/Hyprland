@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "."
+import "SettingsPalette.js" as SettingsPalette
 import "../../../Widgets"
 import "../System" as Sys
 
@@ -37,6 +38,10 @@ PanelWindow {
     property alias dockConfigPath: backend.dockConfigPath
     property alias dockLeftModulesList: backend.dockLeftModulesList
     property alias dockRightModulesList: backend.dockRightModulesList
+    readonly property color sidebarTitleColor: "#f5f7ff"
+    readonly property color sidebarMutedColor: Qt.rgba(245 / 255, 247 / 255, 255 / 255, 0.72)
+    readonly property color contentBackgroundColor: Qt.rgba(0, 0, 0, 0.92)
+    readonly property color contentPanelColor: SettingsPalette.background
 
     // Aktif sayfa
     property string currentPage: "bar"
@@ -129,8 +134,8 @@ PanelWindow {
         x: (parent.width - width) / 2
         y: (parent.height - height) / 2
 
-        color: Theme.background
-        border.color: Theme.surface
+        color: SettingsPalette.background
+        border.color: SettingsPalette.surface
         border.width: 1
         radius: Theme.radius
         clip: true
@@ -211,7 +216,7 @@ PanelWindow {
                             }
                             Text {
                                 text: "Settings"
-                                color: Theme.text
+                                color: sidebarTitleColor
                                 font.pixelSize: 16
                                 font.bold: true
                             }
@@ -220,7 +225,7 @@ PanelWindow {
                                 width: 24; height: 24; radius: 12
                                 color: closeMA.containsMouse ? Theme.red : "transparent"
                                 Behavior on color { ColorAnimation { duration: 150 } }
-                                Text { anchors.centerIn: parent; text: "✕"; color: Theme.text; font.pixelSize: 11 }
+                                Text { anchors.centerIn: parent; text: "✕"; color: sidebarTitleColor; font.pixelSize: 11 }
                                 MouseArea {
                                     id: closeMA; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -270,14 +275,14 @@ PanelWindow {
 
                                             Text {
                                                 text: categoryColumn.isExpanded ? "󰅔" : "󰅂" // Keyboard arrow down/right
-                                                color: headerMA.containsMouse ? Theme.text : Theme.overlay
+                                                color: headerMA.containsMouse ? sidebarTitleColor : sidebarMutedColor
                                                 font.pixelSize: 14
                                                 font.family: "JetBrainsMono Nerd Font"
                                             }
 
                                             Text {
                                                 text: modelData.title
-                                                color: headerMA.containsMouse ? Theme.text : Theme.overlay
+                                                color: headerMA.containsMouse ? sidebarTitleColor : sidebarMutedColor
                                                 font.pixelSize: 11
                                                 font.bold: true
                                                 Layout.fillWidth: true
@@ -333,12 +338,12 @@ PanelWindow {
                                                         text: modelData.icon
                                                         font.pixelSize: 15
                                                         font.family: "JetBrainsMono Nerd Font"
-                                                        color: settingsPopup.currentPage === modelData.key ? Theme.primary : Theme.subtext
+                                                        color: settingsPopup.currentPage === modelData.key ? Theme.primary : sidebarMutedColor
                                                     }
 
                                                     Text {
                                                         text: modelData.label
-                                                        color: settingsPopup.currentPage === modelData.key ? Theme.text : Theme.subtext
+                                                        color: settingsPopup.currentPage === modelData.key ? sidebarTitleColor : sidebarMutedColor
                                                         font.pixelSize: 13
                                                         font.bold: settingsPopup.currentPage === modelData.key
                                                         Layout.fillWidth: true
@@ -368,136 +373,147 @@ PanelWindow {
             Rectangle { width: 1; Layout.fillHeight: true; color: Qt.rgba(255,255,255,0.06) }
 
             // ═══ İÇERİK ═══
-            Item {
+            Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 clip: true
+                color: contentBackgroundColor
 
-                BarSettingsPage {
+                Rectangle {
                     anchors.fill: parent
-                    anchors.margins: 16
-                    visible: settingsPopup.currentPage === "bar"
-                    backend: backend
-                    barConfig: settingsPopup.barConfig
-                    leftModel: leftModel
-                    centerModel: centerModel
-                    rightModel: rightModel
-                    inactiveModel: inactiveModel
-                    dockLeftModel: dockLeftModel
-                    dockRightModel: dockRightModel
-                    dragLayer: settingsContent
-                    onBarConfigEdited: settingsPopup.barConfig = cfg
-                    onSaveRequested: {
-                        saveConfig();
-                        settingsPopup.closeSettings();
+                    anchors.margins: 12
+                    radius: Math.max(Theme.radius - 2, 10)
+                    color: contentPanelColor
+                    border.color: Qt.rgba(255, 255, 255, 0.06)
+                    border.width: 1
+                    clip: true
+
+                    BarSettingsPage {
+                        anchors.fill: parent
+                        anchors.margins: 16
+                        visible: settingsPopup.currentPage === "bar"
+                        backend: backend
+                        barConfig: settingsPopup.barConfig
+                        leftModel: leftModel
+                        centerModel: centerModel
+                        rightModel: rightModel
+                        inactiveModel: inactiveModel
+                        dockLeftModel: dockLeftModel
+                        dockRightModel: dockRightModel
+                        dragLayer: settingsContent
+                        onBarConfigEdited: settingsPopup.barConfig = cfg
+                        onSaveRequested: {
+                            saveConfig();
+                            settingsPopup.closeSettings();
+                        }
                     }
-                }
 
-                // ── WORKSPACES SAYFASI ──
-                WorkspacesPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "workspaces"
-                    settingsPopup: settingsPopup
-                }
-
-                // ── NOTIFICATIONS SAYFASI ──
-                NotificationsPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "notifications"
-                    settingsPopup: settingsPopup
-                }
-
-                // ── DOCK SAYFASI ──
-                DockPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "dock"
-                    settingsPopup: settingsPopup
-                }
-
-                // ── SİSTEM SAYFALARI ──
-                Sys.SystemInfoPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "sysinfo"
-                }
-
-                Sys.LockPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "lockscreen"
-                }
-
-                Sys.DiskPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "disks"
-                    settingsPopup: settingsPopup
-                }
-
-                Sys.WeatherPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "weather"
-                }
-
-                Sys.MonitorsPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "monitors"
-                }
-
-                Sys.MousePage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "mouse"
-                }
-
-                Sys.SoundPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "sound"
-                }
-
-                Sys.NetworkPage {
-                    id: networkPage
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "network"
-                    z: visible ? 100 : 0
-                }
-
-                // ── LAYOUT PRESETS ──
-                LayoutPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "layout"
-                    z: visible ? 100 : 0
-                    onPresetApplied: {
-                        loadConfig();
+                    // ── WORKSPACES SAYFASI ──
+                    WorkspacesPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "workspaces"
+                        settingsPopup: settingsPopup
                     }
-                }
+
+                    // ── NOTIFICATIONS SAYFASI ──
+                    NotificationsPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "notifications"
+                        settingsPopup: settingsPopup
+                    }
+
+                    // ── DOCK SAYFASI ──
+                    DockPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "dock"
+                        settingsPopup: settingsPopup
+                    }
+
+                    // ── SİSTEM SAYFALARI ──
+                    Sys.SystemInfoPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "sysinfo"
+                    }
+
+                    Sys.LockPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "lockscreen"
+                    }
+
+                    Sys.DiskPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "disks"
+                        settingsPopup: settingsPopup
+                    }
+
+                    Sys.WeatherPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "weather"
+                    }
+
+                    Sys.MonitorsPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "monitors"
+                    }
+
+                    Sys.MousePage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "mouse"
+                    }
+
+                    Sys.SoundPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "sound"
+                    }
+
+                    Sys.NetworkPage {
+                        id: networkPage
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "network"
+                        z: visible ? 100 : 0
+                    }
+
+                    // ── LAYOUT PRESETS ──
+                    LayoutPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "layout"
+                        z: visible ? 100 : 0
+                        onPresetApplied: {
+                            loadConfig();
+                        }
+                    }
 
 
 
-                // ── SCREEN PREFERENCES ──
-                ScreensPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "screens"
-                    z: visible ? 100 : 0
-                }
+                    // ── SCREEN PREFERENCES ──
+                    ScreensPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "screens"
+                        z: visible ? 100 : 0
+                    }
 
 
 
-                // ── MATERIAL YOU ──
-                MaterialYouPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "materialyou"
-                    z: visible ? 100 : 0
-                }
+                    // ── MATERIAL YOU ──
+                    MaterialYouPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "materialyou"
+                        z: visible ? 100 : 0
+                    }
 
-                // ── ABOUT ──
-                AboutPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "about"
-                    z: visible ? 100 : 0
-                }
+                    // ── ABOUT ──
+                    AboutPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "about"
+                        z: visible ? 100 : 0
+                    }
 
-                // ── BLUETOOTH ──
-                Sys.BluetoothPage {
-                    anchors.fill: parent
-                    visible: settingsPopup.currentPage === "bluetooth"
-                    z: visible ? 100 : 0
+                    // ── BLUETOOTH ──
+                    Sys.BluetoothPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "bluetooth"
+                        z: visible ? 100 : 0
+                    }
                 }
             }
         }

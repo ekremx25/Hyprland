@@ -1,6 +1,7 @@
 import QtQuick
 import Qt.labs.platform
 import "."
+import "SettingsPalette.js" as SettingsPalette
 import "../BarDefaults.js" as BarDefaults
 import "../../../Services/core" as Core
 import "../../../Services/core/Log.js" as Log

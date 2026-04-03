@@ -1,19 +1,19 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import "../../../Widgets"
 import "../../../Services"
 import Qt.labs.platform
 
 Item {
     id: materialPage
-    readonly property real bgLuma: (Theme.background.r * 0.299) + (Theme.background.g * 0.587) + (Theme.background.b * 0.114)
     readonly property real primaryLuma: (Theme.primary.r * 0.299) + (Theme.primary.g * 0.587) + (Theme.primary.b * 0.114)
-    readonly property bool uiIsLight: bgLuma > 0.62
-    readonly property bool darkAccentOnLight: uiIsLight && primaryLuma < 0.25
-    readonly property color chipIdleBg: uiIsLight ? Qt.rgba(15/255, 23/255, 42/255, 0.03) : Qt.rgba(255, 255, 255, 0.04)
-    readonly property color chipSelectedBg: darkAccentOnLight ? Qt.rgba(15/255, 23/255, 42/255, 0.08) : Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
-    readonly property color chipSelectedBorder: darkAccentOnLight ? Qt.rgba(15/255, 23/255, 42/255, 0.24) : Theme.primary
-    readonly property color chipSelectedText: darkAccentOnLight ? Theme.text : Theme.primary
+    readonly property bool uiIsLight: false
+    readonly property bool darkAccentOnLight: primaryLuma < 0.25
+    readonly property color chipIdleBg: Qt.rgba(255, 255, 255, 0.04)
+    readonly property color chipSelectedBg: Qt.rgba(Theme.primary.r, Theme.primary.g, Theme.primary.b, 0.18)
+    readonly property color chipSelectedBorder: Theme.primary
+    readonly property color chipSelectedText: SettingsPalette.text
 
     Flickable {
         anchors.fill: parent
@@ -31,7 +31,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { text: ""; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                Text { text: "Material You"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "Material You"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
                 Item { Layout.fillWidth: true }
 
                 // Availability badge
@@ -61,7 +61,7 @@ Item {
                     ColumnLayout {
                         spacing: 2
                         Text { text: "matugen is not installed"; font.pixelSize: 12; font.bold: true; color: Theme.yellow }
-                        Text { text: "Install with: cargo install matugen"; font.pixelSize: 10; color: Theme.overlay2 }
+                        Text { text: "Install with: cargo install matugen"; font.pixelSize: 10; color: SettingsPalette.overlay2 }
                     }
                 }
             }
@@ -78,8 +78,8 @@ Item {
                     Text { text: ""; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
                     ColumnLayout {
                         spacing: 1
-                        Text { text: "Enable Material You"; font.pixelSize: 13; color: Theme.text }
-                        Text { text: "Extract theme colors from wallpaper"; font.pixelSize: 10; color: Theme.overlay2 }
+                        Text { text: "Enable Material You"; font.pixelSize: 13; color: SettingsPalette.text }
+                        Text { text: "Extract theme colors from wallpaper"; font.pixelSize: 10; color: SettingsPalette.overlay2 }
                     }
                     Item { Layout.fillWidth: true }
 
@@ -106,10 +106,10 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+            Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
             // Dark / Light mode
-            Text { text: "Color Mode"; font.pixelSize: 13; font.bold: true; color: Theme.text }
+            Text { text: "Color Mode"; font.pixelSize: 13; font.bold: true; color: SettingsPalette.text }
 
             RowLayout {
                 Layout.fillWidth: true
@@ -130,8 +130,8 @@ Item {
 
                         RowLayout {
                             anchors.centerIn: parent; spacing: 8
-                            Text { text: modelData.icon; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: ColorPaletteService.mode === modelData.key ? materialPage.chipSelectedText : Theme.subtext }
-                            Text { text: modelData.label; font.pixelSize: 13; color: ColorPaletteService.mode === modelData.key ? Theme.text : Theme.subtext }
+                            Text { text: modelData.icon; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: ColorPaletteService.mode === modelData.key ? materialPage.chipSelectedText : SettingsPalette.subtext }
+                            Text { text: modelData.label; font.pixelSize: 13; color: ColorPaletteService.mode === modelData.key ? SettingsPalette.text : SettingsPalette.subtext }
                         }
 
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ColorPaletteService.setMode(modelData.key) }
@@ -140,7 +140,7 @@ Item {
             }
 
             // Matugen scheme type
-            Text { text: "Color Scheme Type"; font.pixelSize: 13; font.bold: true; color: Theme.text }
+            Text { text: "Color Scheme Type"; font.pixelSize: 13; font.bold: true; color: SettingsPalette.text }
 
             Flow {
                 Layout.fillWidth: true
@@ -160,7 +160,7 @@ Item {
                             id: schemeText; anchors.centerIn: parent
                             text: modelData.replace("scheme-", "")
                             font.pixelSize: 11
-                            color: ColorPaletteService.matugenType === modelData ? materialPage.chipSelectedText : Theme.subtext
+                            color: ColorPaletteService.matugenType === modelData ? materialPage.chipSelectedText : SettingsPalette.subtext
                         }
 
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ColorPaletteService.setMatugenType(modelData) }
@@ -171,7 +171,7 @@ Item {
             Item { height: 4 }
 
             // Wallpaper path input
-            Text { text: "Wallpaper Path"; font.pixelSize: 13; font.bold: true; color: Theme.text }
+            Text { text: "Wallpaper Path"; font.pixelSize: 13; font.bold: true; color: SettingsPalette.text }
 
             Rectangle {
                 Layout.fillWidth: true
@@ -187,7 +187,7 @@ Item {
                         id: wpInput
                         Layout.fillWidth: true
                         text: ColorPaletteService.wallpaperPath
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 12
                         clip: true
                         selectByMouse: true
@@ -211,7 +211,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Live"
                             font.pixelSize: 9; font.bold: true
-                            color: ColorPaletteService.liveUpdate ? "#1e1e2e" : Theme.text
+                            color: ColorPaletteService.liveUpdate ? "#1e1e2e" : SettingsPalette.text
                             visible: !ColorPaletteService.liveUpdate // Show text when off
                         }
 
@@ -231,8 +231,8 @@ Item {
                         RowLayout {
                             anchors.centerIn: parent
                             spacing: 4
-                            Text { text: "󰁯"; font.family: "JetBrainsMono Nerd Font"; color: Theme.text; font.pixelSize: 12 }
-                            Text { text: "Auto"; font.pixelSize: 11; font.bold: true; color: Theme.text }
+                            Text { text: "󰁯"; font.family: "JetBrainsMono Nerd Font"; color: SettingsPalette.text; font.pixelSize: 12 }
+                            Text { text: "Auto"; font.pixelSize: 11; font.bold: true; color: SettingsPalette.text }
                         }
 
                         MouseArea {
@@ -297,7 +297,7 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 10; spacing: 8
-                    Text { text: "Preview:"; font.pixelSize: 11; color: Theme.subtext }
+                    Text { text: "Preview:"; font.pixelSize: 11; color: SettingsPalette.subtext }
 
                     Repeater {
                         model: [

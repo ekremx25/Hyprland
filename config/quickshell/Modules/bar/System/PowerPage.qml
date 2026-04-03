@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: powerPage
@@ -31,7 +32,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "⏻"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "Güç Seçenekleri"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+            Text { text: "Güç Seçenekleri"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
         }
 
         Item { height: 8 }
@@ -54,7 +55,7 @@ Item {
                     radius: 12
                     color: pwMA.containsMouse
                         ? Qt.rgba(Qt.color(modelData.color).r, Qt.color(modelData.color).g, Qt.color(modelData.color).b, 0.15)
-                        : Theme.surface
+                        : SettingsPalette.surface
                     border.color: pwMA.containsMouse ? modelData.color : "transparent"
                     border.width: pwMA.containsMouse ? 1 : 0
 
@@ -74,7 +75,7 @@ Item {
 
                         Text {
                             text: modelData.label
-                            color: Theme.text
+                            color: SettingsPalette.text
                             font.pixelSize: 12
                             font.bold: true
                             Layout.alignment: Qt.AlignHCenter

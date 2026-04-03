@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 PanelWindow {
     id: root
@@ -41,10 +42,10 @@ PanelWindow {
         id: mainPanel
         width: 1100
         height: 700
-        color: Theme.background
+        color: SettingsPalette.background
         radius: Theme.radius
         border.width: 1
-        border.color: Theme.surface
+        border.color: SettingsPalette.surface
 
         // Initial Position (Top Right with margin)
         // We use x/y to allow movement within the transparent window
@@ -102,7 +103,7 @@ PanelWindow {
                             }
                             Text {
                                 text: "Settings"
-                                color: Theme.text
+                                color: SettingsPalette.text
                                 font.pixelSize: 16
                                 font.bold: true
                             }
@@ -112,7 +113,7 @@ PanelWindow {
                                 z: 999 // Force on top
                                 color: closeMA.containsMouse ? Theme.red : Qt.rgba(255,255,255,0.1)
                                 Behavior on color { ColorAnimation { duration: 150 } }
-                                Text { anchors.centerIn: parent; text: "✕"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                                Text { anchors.centerIn: parent; text: "✕"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                                 MouseArea {
                                     id: closeMA; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -164,12 +165,12 @@ PanelWindow {
                                     text: modelData.icon
                                     font.pixelSize: 16
                                     font.family: "JetBrainsMono Nerd Font"
-                                    color: root.currentPage === modelData.key ? Theme.primary : Theme.subtext
+                                    color: root.currentPage === modelData.key ? Theme.primary : SettingsPalette.subtext
                                 }
 
                                 Text {
                                     text: modelData.label
-                                    color: root.currentPage === modelData.key ? Theme.text : Theme.subtext
+                                    color: root.currentPage === modelData.key ? SettingsPalette.text : SettingsPalette.subtext
                                     font.pixelSize: 13
                                     font.bold: root.currentPage === modelData.key
                                     Layout.fillWidth: true

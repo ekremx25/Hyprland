@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 import "../../../Services"
 
 Item {
@@ -33,7 +34,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { text: "🖱"; font.pixelSize: 20; color: Theme.primary }
-                Text { text: "Mouse Settings"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "Mouse Settings"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
                 Item { Layout.fillWidth: true }
                 Rectangle {
                     radius: 8
@@ -45,7 +46,7 @@ Item {
                         anchors.centerIn: parent
                         spacing: 6
                         Text { text: mouseService.supported ? "●" : "●"; color: mouseService.supported ? Theme.green : Theme.red; font.pixelSize: 11 }
-                        Text { text: mouseService.supported ? "Hyprland" : "Unsupported"; color: Theme.text; font.pixelSize: 11; font.bold: true }
+                        Text { text: mouseService.supported ? "Hyprland" : "Unsupported"; color: SettingsPalette.text; font.pixelSize: 11; font.bold: true }
                     }
                 }
             }
@@ -53,7 +54,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 radius: 12
-                color: Theme.surface
+                color: SettingsPalette.surface
                 border.color: Qt.rgba(255,255,255,0.05)
                 border.width: 1
                 implicitHeight: previewRow.implicitHeight + 24
@@ -73,7 +74,7 @@ Item {
                             anchors.centerIn: parent
                             spacing: 4
                             Text { text: "🖱"; font.pixelSize: 34; horizontalAlignment: Text.AlignHCenter; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: "Pointer"; color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                            Text { text: "Pointer"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.alignment: Qt.AlignHCenter }
                             Text { text: mouseService.sensitivity.toFixed(2); color: Theme.primary; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter }
                         }
                     }
@@ -87,7 +88,7 @@ Item {
                             anchors.centerIn: parent
                             spacing: 4
                             Text { text: "↕"; font.pixelSize: 34; horizontalAlignment: Text.AlignHCenter; Layout.alignment: Qt.AlignHCenter }
-                            Text { text: "Wheel"; color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.alignment: Qt.AlignHCenter }
+                            Text { text: "Wheel"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.alignment: Qt.AlignHCenter }
                             Text { text: mouseService.scrollFactor.toFixed(2) + "x"; color: "#f9e2af"; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter }
                         }
                     }
@@ -103,8 +104,8 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.margins: 14
                             spacing: 4
-                            Text { text: "Acceleration Profile"; color: Theme.text; font.pixelSize: 13; font.bold: true }
-                            Text { text: mouseService.accelProfile === "flat" ? "Flat / raw response" : "Adaptive / libinput default"; color: Theme.subtext; font.pixelSize: 11 }
+                            Text { text: "Acceleration Profile"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true }
+                            Text { text: mouseService.accelProfile === "flat" ? "Flat / raw response" : "Adaptive / libinput default"; color: SettingsPalette.subtext; font.pixelSize: 11 }
                             Text { text: mouseService.managedByQuickshell ? "~/.config/quickshell/mouse_config.json" : "~/.config/hypr/custom/general.conf"; color: Theme.primary; font.pixelSize: 11 }
                         }
                     }
@@ -114,7 +115,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 radius: 12
-                color: Theme.surface
+                color: SettingsPalette.surface
                 implicitHeight: controlsColumn.implicitHeight + 28
 
                 ColumnLayout {
@@ -130,11 +131,11 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Pointer Speed"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Pointer Speed"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: mouseService.sensitivity.toFixed(2); color: Theme.primary; font.pixelSize: 12; font.bold: true }
                         }
-                        Text { text: "Controls Hyprland `input.sensitivity`."; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: "Controls Hyprland `input.sensitivity`."; color: SettingsPalette.subtext; font.pixelSize: 11 }
                         Slider {
                             Layout.fillWidth: true
                             from: -1.0
@@ -150,11 +151,11 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Wheel Scroll Speed"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Wheel Scroll Speed"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: mouseService.scrollFactor.toFixed(2) + "x"; color: "#f9e2af"; font.pixelSize: 12; font.bold: true }
                         }
-                        Text { text: "Controls Hyprland `input.scroll_factor`."; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: "Controls Hyprland `input.scroll_factor`."; color: SettingsPalette.subtext; font.pixelSize: 11 }
                         Slider {
                             Layout.fillWidth: true
                             from: 0.25
@@ -168,8 +169,8 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Text { text: "Acceleration"; color: Theme.text; font.pixelSize: 14; font.bold: true }
-                        Text { text: "Choose cursor acceleration profile."; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: "Acceleration"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
+                        Text { text: "Choose cursor acceleration profile."; color: SettingsPalette.subtext; font.pixelSize: 11 }
                         NetworkSegmentButton {
                             Layout.preferredWidth: 220
                             options: ["Adaptive", "Flat"]
@@ -185,11 +186,11 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Cursor Theme"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Cursor Theme"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: mouseService.cursorTheme; color: Theme.primary; font.pixelSize: 12; font.bold: true }
                         }
-                        Text { text: "Select which cursor icon pack Quickshell should apply."; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: "Select which cursor icon pack Quickshell should apply."; color: SettingsPalette.subtext; font.pixelSize: 11 }
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 12
@@ -214,7 +215,7 @@ Item {
                                     Text { text: "🖱"; font.pixelSize: 16 }
                                     Text {
                                         text: mouseService.cursorTheme || "Select theme"
-                                        color: Theme.text
+                                        color: SettingsPalette.text
                                         font.pixelSize: 12
                                         font.bold: true
                                         elide: Text.ElideRight
@@ -222,7 +223,7 @@ Item {
                                     }
                                     Text {
                                         text: mousePage.themeDropdownOpen ? "▴" : "▾"
-                                        color: Theme.subtext
+                                        color: SettingsPalette.subtext
                                         font.pixelSize: 11
                                     }
                                 }
@@ -281,7 +282,7 @@ Item {
                                                 Text { text: "🖱"; font.pixelSize: 14 }
                                                 Text {
                                                     text: modelData
-                                                    color: mouseService.cursorTheme === modelData ? Theme.primary : Theme.text
+                                                    color: mouseService.cursorTheme === modelData ? Theme.primary : SettingsPalette.text
                                                     font.pixelSize: 12
                                                     font.bold: mouseService.cursorTheme === modelData
                                                     elide: Text.ElideRight
@@ -317,11 +318,11 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Cursor Size"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Cursor Size"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: mouseService.cursorSize + " px"; color: "#cba6f7"; font.pixelSize: 12; font.bold: true }
                         }
-                        Text { text: "Applied using `hyprctl setcursor`."; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: "Applied using `hyprctl setcursor`."; color: SettingsPalette.subtext; font.pixelSize: 11 }
                         Slider {
                             Layout.fillWidth: true
                             from: 16
@@ -347,7 +348,7 @@ Item {
                     spacing: 6
                     Text {
                         text: mouseService.supported ? "Settings are applied live and saved for future Hyprland sessions." : "Mouse tuning is currently only implemented for Hyprland."
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 12
                         wrapMode: Text.Wrap
                         Layout.fillWidth: true
@@ -371,7 +372,7 @@ Item {
                     height: 36
                     radius: 8
                     color: reloadMA.containsMouse ? Qt.rgba(255,255,255,0.10) : Qt.rgba(255,255,255,0.06)
-                    Text { anchors.centerIn: parent; text: "Reload"; color: Theme.text; font.pixelSize: 12; font.bold: true }
+                    Text { anchors.centerIn: parent; text: "Reload"; color: SettingsPalette.text; font.pixelSize: 12; font.bold: true }
                     MouseArea {
                         id: reloadMA
                         anchors.fill: parent

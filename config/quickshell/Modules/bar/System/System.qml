@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Rectangle {
 	id: root
@@ -9,7 +10,7 @@ Rectangle {
 	implicitWidth: layout.implicitWidth + 24
 	implicitHeight: 30
 	radius: 15
-	color: sysMA.containsMouse ? Qt.lighter(Theme.surface, 1.2) : Theme.surface
+	color: sysMA.containsMouse ? Qt.lighter(SettingsPalette.surface, 1.2) : SettingsPalette.surface
 
 	Behavior on color { ColorAnimation { duration: 200 } }
 
@@ -22,7 +23,7 @@ Rectangle {
 			text: "⚙"
 			font.pixelSize: 16
 			font.family: "JetBrainsMono Nerd Font"
-			color: Theme.text
+			color: SettingsPalette.text
 		}
 
 		Text {
@@ -30,7 +31,7 @@ Rectangle {
 			font.bold: true
 			font.pixelSize: 12
 			font.family: "JetBrainsMono Nerd Font"
-			color: Theme.text
+			color: SettingsPalette.text
 		}
 	}
 

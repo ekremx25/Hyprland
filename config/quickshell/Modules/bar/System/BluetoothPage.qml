@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: bluetoothPage
@@ -98,7 +99,7 @@ Item {
             Layout.fillWidth: true
 
             Text { text: "󰂯"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "Bluetooth"; font.bold: true; font.pixelSize: 18; color: Theme.text; Layout.fillWidth: true }
+            Text { text: "Bluetooth"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text; Layout.fillWidth: true }
 
             // Power toggle
             Rectangle {
@@ -110,7 +111,7 @@ Item {
                     width: 22; height: 22; radius: 11
                     anchors.verticalCenter: parent.verticalCenter
                     x: bluetoothPage.powered ? parent.width - width - 3 : 3
-                    color: bluetoothPage.powered ? Theme.primary : Theme.subtext
+                    color: bluetoothPage.powered ? Theme.primary : SettingsPalette.subtext
                     Behavior on x { NumberAnimation { duration: 150 } }
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
@@ -127,7 +128,7 @@ Item {
         Text {
             visible: !bluetoothPage.powered && !bluetoothPage.loading
             text: "Bluetooth is off"
-            color: Theme.subtext
+            color: SettingsPalette.subtext
             font.pixelSize: 13
             Layout.alignment: Qt.AlignHCenter
         }
@@ -136,7 +137,7 @@ Item {
         Text {
             visible: bluetoothPage.loading
             text: "Loading..."
-            color: Theme.subtext
+            color: SettingsPalette.subtext
             font.pixelSize: 13
             Layout.alignment: Qt.AlignHCenter
         }
@@ -154,7 +155,7 @@ Item {
                 // Başlık
                 Text {
                     text: "Paired Devices"
-                    color: Theme.subtext
+                    color: SettingsPalette.subtext
                     font.pixelSize: 12
                     font.bold: true
                     bottomPadding: 4
@@ -176,7 +177,7 @@ Item {
                         required property var modelData
                         width: parent.width
                         height: 56
-                        color: Theme.surface
+                        color: SettingsPalette.surface
                         radius: 10
 
                         RowLayout {
@@ -194,7 +195,7 @@ Item {
                                     anchors.centerIn: parent
                                     font.pixelSize: 16
                                     font.family: "JetBrainsMono Nerd Font"
-                                    color: modelData.connected ? Theme.primary : Theme.subtext
+                                    color: modelData.connected ? Theme.primary : SettingsPalette.subtext
                                     text: {
                                         var ic = modelData.icon || ""
                                         if (ic.indexOf("audio") !== -1 || ic.indexOf("headset") !== -1 || ic.indexOf("headphone") !== -1) return "󰋋"
@@ -213,7 +214,7 @@ Item {
                                 spacing: 2
                                 Text {
                                     text: modelData.name
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                     font.bold: true
                                     font.pixelSize: 13
                                     elide: Text.ElideRight
@@ -221,7 +222,7 @@ Item {
                                 }
                                 Text {
                                     text: modelData.connected ? "Connected" : "Paired"
-                                    color: modelData.connected ? Theme.primary : Theme.subtext
+                                    color: modelData.connected ? Theme.primary : SettingsPalette.subtext
                                     font.pixelSize: 11
                                 }
                             }

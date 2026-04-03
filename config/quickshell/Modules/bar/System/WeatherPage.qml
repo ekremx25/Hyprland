@@ -2,6 +2,7 @@ import QtQuick
 import Qt.labs.platform
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: weatherPage
@@ -36,7 +37,7 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: "󰖕"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: "#f9e2af" }
-                Text { text: "Weather Settings"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "Weather Settings"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
             }
 
             // ═══ ENABLE WEATHER ═══
@@ -95,9 +96,9 @@ Item {
                     RowLayout {
                         spacing: 16
                         Layout.fillWidth: true
-                        Text { text: "📍 " + weatherPage.cityName; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+                        Text { text: "📍 " + weatherPage.cityName; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
                         Item { Layout.fillWidth: true }
-                        Text { text: weatherPage.customLat + "°, " + weatherPage.customLon + "°"; color: Theme.subtext; font.pixelSize: 11 }
+                        Text { text: weatherPage.customLat + "°, " + weatherPage.customLon + "°"; color: SettingsPalette.subtext; font.pixelSize: 11 }
                     }
                 }
             }
@@ -105,7 +106,7 @@ Item {
             // ═══ CUSTOM LOCATION ═══
             Text {
                 text: "Custom Location"
-                color: Theme.text; font.bold: true; font.pixelSize: 13
+                color: SettingsPalette.text; font.bold: true; font.pixelSize: 13
                 visible: !weatherPage.autoLocation
             }
 
@@ -117,7 +118,7 @@ Item {
                 // Latitude
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 4
-                    Text { text: "Latitude"; color: Theme.subtext; font.pixelSize: 11 }
+                    Text { text: "Latitude"; color: SettingsPalette.subtext; font.pixelSize: 11 }
                     Rectangle {
                         Layout.fillWidth: true; height: 40; radius: 8
                         color: Qt.rgba(49/255, 50/255, 68/255, 0.6)
@@ -128,7 +129,7 @@ Item {
                             id: latInput
                             anchors.fill: parent; anchors.margins: 10
                             text: weatherPage.customLat
-                            color: Theme.text; font.pixelSize: 13
+                            color: SettingsPalette.text; font.pixelSize: 13
                             verticalAlignment: TextInput.AlignVCenter
                             selectByMouse: true
                             onTextChanged: weatherPage.customLat = text
@@ -140,7 +141,7 @@ Item {
                 // Longitude
                 ColumnLayout {
                     Layout.fillWidth: true; spacing: 4
-                    Text { text: "Longitude"; color: Theme.subtext; font.pixelSize: 11 }
+                    Text { text: "Longitude"; color: SettingsPalette.subtext; font.pixelSize: 11 }
                     Rectangle {
                         Layout.fillWidth: true; height: 40; radius: 8
                         color: Qt.rgba(49/255, 50/255, 68/255, 0.6)
@@ -151,7 +152,7 @@ Item {
                             id: lonInput
                             anchors.fill: parent; anchors.margins: 10
                             text: weatherPage.customLon
-                            color: Theme.text; font.pixelSize: 13
+                            color: SettingsPalette.text; font.pixelSize: 13
                             verticalAlignment: TextInput.AlignVCenter
                             selectByMouse: true
                             onTextChanged: weatherPage.customLon = text
@@ -164,7 +165,7 @@ Item {
             // ═══ LOCATION SEARCH ═══
             Text {
                 text: "Search City"
-                color: Theme.text; font.bold: true; font.pixelSize: 13
+                color: SettingsPalette.text; font.bold: true; font.pixelSize: 13
                 visible: !weatherPage.autoLocation
             }
 
@@ -181,14 +182,14 @@ Item {
                     Text {
                         text: "🔍"
                         font.pixelSize: 14
-                        color: Theme.subtext
+                        color: SettingsPalette.subtext
                     }
 
                     TextInput {
                         id: searchInput
                         Layout.fillWidth: true
                             text: weatherPage.searchText
-                            color: Theme.text; font.pixelSize: 13
+                            color: SettingsPalette.text; font.pixelSize: 13
                             verticalAlignment: TextInput.AlignVCenter
                             selectByMouse: true
                             onTextChanged: weatherPage.searchText = text
@@ -196,7 +197,7 @@ Item {
                         Text {
                             anchors.fill: parent
                             text: "İstanbul, Ankara, London..."
-                            color: Theme.overlay
+                            color: SettingsPalette.overlay
                             font.pixelSize: 13
                             verticalAlignment: Text.AlignVCenter
                             visible: searchInput.text === "" && !searchInput.activeFocus
@@ -224,7 +225,7 @@ Item {
             // ═══ SEARCH RESULTS ═══
             Text {
                 text: weatherPage.searching ? "Searching..." : ""
-                color: Theme.subtext; font.pixelSize: 12
+                color: SettingsPalette.subtext; font.pixelSize: 12
                 visible: weatherPage.searching
             }
 
@@ -241,12 +242,12 @@ Item {
                         Text { text: "📍"; font.pixelSize: 14 }
                         Text {
                             text: modelData.name
-                            color: Theme.text; font.pixelSize: 13; font.bold: true
+                            color: SettingsPalette.text; font.pixelSize: 13; font.bold: true
                             Layout.fillWidth: true; elide: Text.ElideRight
                         }
                         Text {
                             text: modelData.lat + "°, " + modelData.lon + "°"
-                            color: Theme.subtext; font.pixelSize: 11
+                            color: SettingsPalette.subtext; font.pixelSize: 11
                         }
 
                         Rectangle {
@@ -275,7 +276,7 @@ Item {
                 Layout.fillWidth: true
                 Text {
                     text: "Weather will refresh after saving settings"
-                    color: Theme.overlay; font.pixelSize: 11
+                    color: SettingsPalette.overlay; font.pixelSize: 11
                 }
                 Item { Layout.fillWidth: true }
                 Rectangle {

@@ -4,8 +4,8 @@
 
 function createWorkspacesConfig() {
     return {
-        "format": "number",
-        "style": "pill",
+        "format": "roman",
+        "style": "underline",
         "transparent": true,
         "showApps": true,
         "groupApps": true,

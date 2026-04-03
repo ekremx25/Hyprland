@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import "../../../Widgets"
 
 Item {
@@ -64,7 +65,7 @@ Item {
                 text: "Bar Settings"
                 font.bold: true
                 font.pixelSize: 18
-                color: Theme.text
+                color: SettingsPalette.text
             }
         }
 
@@ -76,7 +77,7 @@ Item {
 
             Text {
                 text: "Position:"
-                color: Theme.subtext
+                color: SettingsPalette.subtext
                 font.pixelSize: 12
             }
 
@@ -111,7 +112,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: modelData.label
-                        color: (root.barConfig.barPosition || "top") === modelData.key ? Theme.primary : Theme.subtext
+                        color: (root.barConfig.barPosition || "top") === modelData.key ? Theme.primary : SettingsPalette.subtext
                         font.pixelSize: 11
                         font.bold: (root.barConfig.barPosition || "top") === modelData.key
                     }
@@ -133,7 +134,7 @@ Item {
 
         Text {
             text: "Drag and drop modules to reorder"
-            color: Theme.overlay2
+            color: SettingsPalette.overlay2
             font.pixelSize: 11
         }
 
@@ -154,7 +155,7 @@ Item {
                 onDragFinished: root.resetDragState()
             }
 
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
+            Rectangle { width: 1; Layout.fillHeight: true; color: SettingsPalette.surface }
 
             ModuleDropGroup {
                 groupName: "center"
@@ -168,7 +169,7 @@ Item {
                 onDragFinished: root.resetDragState()
             }
 
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
+            Rectangle { width: 1; Layout.fillHeight: true; color: SettingsPalette.surface }
 
             ModuleDropGroup {
                 groupName: "right"
@@ -182,7 +183,7 @@ Item {
                 onDragFinished: root.resetDragState()
             }
 
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
+            Rectangle { width: 1; Layout.fillHeight: true; color: SettingsPalette.surface }
 
             ModuleDropGroup {
                 groupName: "inactive"
@@ -196,7 +197,7 @@ Item {
                 onDragFinished: root.resetDragState()
             }
 
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
+            Rectangle { width: 1; Layout.fillHeight: true; color: SettingsPalette.surface }
 
             ModuleDropGroup {
                 groupName: "dockLeft"
@@ -210,7 +211,7 @@ Item {
                 onDragFinished: root.resetDragState()
             }
 
-            Rectangle { width: 1; Layout.fillHeight: true; color: Theme.surface }
+            Rectangle { width: 1; Layout.fillHeight: true; color: SettingsPalette.surface }
 
             ModuleDropGroup {
                 groupName: "dockRight"
@@ -228,7 +229,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: Theme.surface
+            color: SettingsPalette.surface
         }
 
         RowLayout {
@@ -236,7 +237,7 @@ Item {
 
             Text {
                 text: "Drag modules to move"
-                color: Theme.overlay
+                color: SettingsPalette.overlay
                 font.pixelSize: 11
             }
 

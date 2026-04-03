@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import "."
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 import "../../../Services"
 import "../../../Services/core/Log.js" as Log
 
@@ -573,7 +574,7 @@ Item {
 
                     Text {
                         text: "Displays"
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 20
                         font.bold: true
                     }
@@ -582,7 +583,7 @@ Item {
                             text: selectedOutput
                             ? (displayCountText() + " connected. Arrange your displays, choose the main screen, and tune resolution, scale, and color.")
                             : "No active display detected."
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 12
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
@@ -619,7 +620,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "R"
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 13
                         font.bold: true
                     }
@@ -645,7 +646,7 @@ Item {
                         id: identifyHeaderText
                         anchors.centerIn: parent
                         text: "Identify"
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -683,14 +684,14 @@ Item {
 
                         Text {
                             text: "Rearrange your displays"
-                            color: Theme.text
+                            color: SettingsPalette.text
                             font.pixelSize: 15
                             font.bold: true
                         }
 
                         Text {
                             text: "Drag the display tiles to match how your monitors are physically placed on your desk."
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 12
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
@@ -709,7 +710,7 @@ Item {
                             id: hintText
                             anchors.centerIn: parent
                             text: "Tip: select a display, then drag to snap"
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 11
                         }
                     }
@@ -942,14 +943,14 @@ Item {
 
                                 Text {
                                     text: page.selectedOutput ? page.selectedOutput.name : "No display selected"
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                     font.pixelSize: 19
                                     font.bold: true
                                 }
 
                                 Text {
                                     text: page.selectedOutput ? (page.selectedOutput.desc || "Connected display") : ""
-                                    color: Theme.subtext
+                                    color: SettingsPalette.subtext
                                     font.pixelSize: 12
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
@@ -957,7 +958,7 @@ Item {
 
                                 Text {
                                     text: page.selectedModeText()
-                                    color: page.selectedOutput ? Theme.text : Theme.subtext
+                                    color: page.selectedOutput ? SettingsPalette.text : SettingsPalette.subtext
                                     font.pixelSize: 12
                                     font.bold: page.selectedOutput !== null
                                 }
@@ -975,7 +976,7 @@ Item {
                                     id: mainDisplayText
                                     anchors.centerIn: parent
                                     text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "This is my main display" : "Make main"
-                                    color: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? Theme.primary : Theme.text
+                                    color: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? Theme.primary : SettingsPalette.text
                                     font.pixelSize: 12
                                     font.bold: true
                                 }
@@ -1008,8 +1009,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Mode"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedModeText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text { text: "Mode"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedModeText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                                 }
                             }
 
@@ -1026,8 +1027,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Scale"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedScaleText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text { text: "Scale"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedScaleText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                                 }
                             }
 
@@ -1044,9 +1045,9 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Layout"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedLayoutText(); color: Theme.text; font.pixelSize: 13; font.bold: true }
-                                    Text { text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "Main display" : "Secondary display"; color: Theme.subtext; font.pixelSize: 11 }
+                                    Text { text: "Layout"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedLayoutText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true }
+                                    Text { text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "Main display" : "Secondary display"; color: SettingsPalette.subtext; font.pixelSize: 11 }
                                 }
                             }
 
@@ -1063,8 +1064,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Color"; color: Theme.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedColorText(); color: Theme.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text { text: "Color"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
+                                    Text { text: page.selectedColorText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
                                 }
                             }
                         }
@@ -1103,7 +1104,7 @@ Item {
                                 Text {
                                     Layout.fillWidth: true
                                     text: page.selectedHintText()
-                                    color: Theme.subtext
+                                    color: SettingsPalette.subtext
                                     font.pixelSize: 11
                                     wrapMode: Text.WordWrap
                                 }
@@ -1131,7 +1132,7 @@ Item {
                                         id: chipLabel
                                         anchors.centerIn: parent
                                         text: page.identifyText(modelData, index)
-                                        color: page.selectedIdx === index ? Theme.primary : Theme.text
+                                        color: page.selectedIdx === index ? Theme.primary : SettingsPalette.text
                                         font.pixelSize: 11
                                         font.bold: page.selectedIdx === index
                                     }
@@ -1167,7 +1168,7 @@ Item {
 
                             Text {
                                 text: "Display settings"
-                                color: Theme.text
+                                color: SettingsPalette.text
                                 font.pixelSize: 15
                                 font.bold: true
                             }
@@ -1176,7 +1177,7 @@ Item {
                                 text: page.selectedOutput
                                     ? "Choose the sharpest mode first, then tune scale and placement."
                                     : "Select a display above to edit its settings."
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 11
                             }
                         }
@@ -1187,7 +1188,7 @@ Item {
 
                             Text {
                                 text: "Display resolution"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1215,7 +1216,7 @@ Item {
                                             anchors.left: parent.left
                                             anchors.leftMargin: 11
                                             text: modelData.replace("x", " x ")
-                                            color: page.selRes === modelData ? Theme.primary : Theme.text
+                                            color: page.selRes === modelData ? Theme.primary : SettingsPalette.text
                                             font.pixelSize: 12
                                             font.bold: page.selRes === modelData
                                         }
@@ -1263,7 +1264,7 @@ Item {
 
                             Text {
                                 text: "Refresh rate"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1289,7 +1290,7 @@ Item {
                                             id: refreshText
                                             anchors.centerIn: parent
                                             text: parseFloat(modelData.hz).toFixed(1) + " Hz"
-                                            color: page.selHz === modelData.hz ? Theme.primary : Theme.text
+                                            color: page.selHz === modelData.hz ? Theme.primary : SettingsPalette.text
                                             font.pixelSize: 12
                                             font.bold: page.selHz === modelData.hz
                                         }
@@ -1310,7 +1311,7 @@ Item {
 
                             Text {
                                 text: "Scale"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1336,7 +1337,7 @@ Item {
 
                             Text {
                                 text: "Position"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1365,7 +1366,7 @@ Item {
                                         Text {
                                             anchors.centerIn: parent
                                             text: modelData.label
-                                            color: Theme.text
+                                            color: SettingsPalette.text
                                             font.pixelSize: 11
                                             font.bold: true
                                         }
@@ -1394,7 +1395,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "X: " + page.selPosX
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                     font.pixelSize: 11
                                     font.bold: true
                                 }
@@ -1411,7 +1412,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "Y: " + page.selPosY
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                     font.pixelSize: 11
                                     font.bold: true
                                 }
@@ -1428,7 +1429,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     text: "Reset Y"
-                                    color: Theme.text
+                                    color: SettingsPalette.text
                                     font.pixelSize: 11
                                     font.bold: true
                                 }
@@ -1462,7 +1463,7 @@ Item {
 
                         Text {
                             text: "Advanced color"
-                            color: Theme.text
+                            color: SettingsPalette.text
                             font.pixelSize: 15
                             font.bold: true
                         }
@@ -1473,7 +1474,7 @@ Item {
 
                             Text {
                                 text: "HDR"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1510,7 +1511,7 @@ Item {
 
                             Text {
                                 text: page.selHdr ? "High dynamic range is enabled" : "Use SDR for a more stable desktop"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 11
                             }
                         }
@@ -1521,7 +1522,7 @@ Item {
 
                             Text {
                                 text: "Bit depth"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1542,7 +1543,7 @@ Item {
                                     Text {
                                         anchors.centerIn: parent
                                         text: modelData + "-bit"
-                                        color: page.selBitdepth === modelData ? Theme.primary : Theme.text
+                                        color: page.selBitdepth === modelData ? Theme.primary : SettingsPalette.text
                                         font.pixelSize: 11
                                         font.bold: page.selBitdepth === modelData
                                     }
@@ -1562,7 +1563,7 @@ Item {
 
                             Text {
                                 text: "Variable refresh rate"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1588,7 +1589,7 @@ Item {
                                         id: vrrLabel
                                         anchors.centerIn: parent
                                         text: modelData.label
-                                        color: page.selVrr === modelData.value ? Theme.primary : Theme.text
+                                        color: page.selVrr === modelData.value ? Theme.primary : SettingsPalette.text
                                         font.pixelSize: 11
                                         font.bold: page.selVrr === modelData.value
                                     }
@@ -1608,7 +1609,7 @@ Item {
 
                             Text {
                                 text: "Color profile"
-                                color: Theme.subtext
+                                color: SettingsPalette.subtext
                                 font.pixelSize: 12
                                 font.bold: true
                                 Layout.preferredWidth: 130
@@ -1640,7 +1641,7 @@ Item {
                                             id: profileText
                                             anchors.centerIn: parent
                                             text: modelData.label
-                                            color: page.selColorManagement === modelData.value ? Theme.primary : Theme.text
+                                            color: page.selColorManagement === modelData.value ? Theme.primary : SettingsPalette.text
                                             font.pixelSize: 11
                                             font.bold: page.selColorManagement === modelData.value
                                         }
@@ -1670,7 +1671,7 @@ Item {
 
                                 Text {
                                     text: "SDR luminance"
-                                    color: Theme.subtext
+                                    color: SettingsPalette.subtext
                                     font.pixelSize: 12
                                     font.bold: true
                                     Layout.preferredWidth: 130
@@ -1734,7 +1735,7 @@ Item {
 
                                 Text {
                                     text: "SDR brightness"
-                                    color: Theme.subtext
+                                    color: SettingsPalette.subtext
                                     font.pixelSize: 12
                                     font.bold: true
                                     Layout.preferredWidth: 130
@@ -1798,7 +1799,7 @@ Item {
 
                                 Text {
                                     text: "SDR saturation"
-                                    color: Theme.subtext
+                                    color: SettingsPalette.subtext
                                     font.pixelSize: 12
                                     font.bold: true
                                     Layout.preferredWidth: 130
@@ -1880,7 +1881,7 @@ Item {
 
                     Text {
                         text: pendingChanges() ? "Review your changes before applying them." : "Your current display configuration is saved."
-                        color: Theme.text
+                        color: SettingsPalette.text
                         font.pixelSize: 13
                         font.bold: true
                     }
@@ -1889,7 +1890,7 @@ Item {
                         text: page.selectedOutput
                             ? ("Selected display: " + page.selectedOutput.name + " | Position " + page.selPosX + ", " + page.selPosY)
                             : "No display selected."
-                        color: Theme.subtext
+                        color: SettingsPalette.subtext
                         font.pixelSize: 11
                     }
                 }
@@ -1907,7 +1908,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: "Revert"
-                        color: revertArea.enabled ? Theme.text : Theme.subtext
+                        color: revertArea.enabled ? SettingsPalette.text : SettingsPalette.subtext
                         font.pixelSize: 12
                         font.bold: true
                     }
@@ -1935,7 +1936,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: pendingChanges() ? "Apply" : "Saved"
-                        color: applyArea.enabled ? "#11151b" : Theme.subtext
+                        color: applyArea.enabled ? "#11151b" : SettingsPalette.subtext
                         font.pixelSize: 13
                         font.bold: true
                     }

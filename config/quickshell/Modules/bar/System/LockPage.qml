@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: lockPage
@@ -34,7 +35,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { text: "󰌾"; font.family: "JetBrainsMono Nerd Font"; font.pixelSize: 20; color: Theme.primary }
-                Text { text: "Lock Screen"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "Lock Screen"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
                 Item { Layout.fillWidth: true }
                 Rectangle {
                     radius: 8
@@ -46,7 +47,7 @@ Item {
                         anchors.centerIn: parent
                         spacing: 6
                         Text { text: "●"; color: lockService.hyprlandActive ? Theme.green : "#f9e2af"; font.pixelSize: 11 }
-                        Text { text: lockService.hyprlandActive ? "Hyprland active" : "Saved for Hyprland"; color: Theme.text; font.pixelSize: 11; font.bold: true }
+                        Text { text: lockService.hyprlandActive ? "Hyprland active" : "Saved for Hyprland"; color: SettingsPalette.text; font.pixelSize: 11; font.bold: true }
                     }
                 }
             }
@@ -54,7 +55,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 radius: 12
-                color: Theme.surface
+                color: SettingsPalette.surface
                 border.color: Qt.rgba(255,255,255,0.05)
                 border.width: 1
                 implicitHeight: previewRow.implicitHeight + 24
@@ -102,11 +103,11 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Text { text: "Background"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                        Text { text: "Background"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                         Text {
                             Layout.fillWidth: true
                             text: lockService.backgroundPath
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 11
                             elide: Text.ElideMiddle
                         }
@@ -116,7 +117,7 @@ Item {
                             Rectangle {
                                 width: 110; height: 34; radius: 8
                                 color: Qt.rgba(137/255, 180/255, 250/255, 0.18)
-                                Text { anchors.centerIn: parent; text: "Browse"; color: Theme.text; font.bold: true; font.pixelSize: 12 }
+                                Text { anchors.centerIn: parent; text: "Browse"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 12 }
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
@@ -126,7 +127,7 @@ Item {
                             Rectangle {
                                 width: 110; height: 34; radius: 8
                                 color: Qt.rgba(255,255,255,0.08)
-                                Text { anchors.centerIn: parent; text: "Lock now"; color: Theme.text; font.bold: true; font.pixelSize: 12 }
+                                Text { anchors.centerIn: parent; text: "Lock now"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 12 }
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
@@ -141,7 +142,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 radius: 12
-                color: Theme.surface
+                color: SettingsPalette.surface
                 implicitHeight: controlsColumn.implicitHeight + 28
 
                 ColumnLayout {
@@ -157,7 +158,7 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Dim screen"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Dim screen"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: lockService.dimTimeoutMinutes + " min"; color: Theme.primary; font.pixelSize: 12; font.bold: true }
                         }
@@ -176,7 +177,7 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Lock session"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Lock session"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: lockService.lockTimeoutMinutes + " min"; color: "#f9e2af"; font.pixelSize: 12; font.bold: true }
                         }
@@ -195,7 +196,7 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Screen off"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Screen off"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: lockService.screenOffTimeoutMinutes + " min"; color: "#94e2d5"; font.pixelSize: 12; font.bold: true }
                         }
@@ -214,7 +215,7 @@ Item {
                         spacing: 8
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Suspend"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Suspend"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Text { text: lockService.suspendTimeoutMinutes + " min"; color: "#cba6f7"; font.pixelSize: 12; font.bold: true }
                         }
@@ -234,7 +235,7 @@ Item {
 
                         RowLayout {
                             Layout.fillWidth: true
-                            Text { text: "Lock during media playback"; color: Theme.text; font.pixelSize: 14; font.bold: true }
+                            Text { text: "Lock during media playback"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true }
                             Item { Layout.fillWidth: true }
                             Rectangle {
                                 width: 52
@@ -248,7 +249,7 @@ Item {
                                     radius: 11
                                     y: 3
                                     x: lockService.ignoreMediaInhibit ? 27 : 3
-                                    color: lockService.ignoreMediaInhibit ? "#1e1e2e" : Theme.text
+                                    color: lockService.ignoreMediaInhibit ? "#1e1e2e" : SettingsPalette.text
                                 }
 
                                 MouseArea {
@@ -262,7 +263,7 @@ Item {
                         Text {
                             Layout.fillWidth: true
                             text: lockService.ignoreMediaInhibit ? "Auto lock runs even if YouTube or other apps request idle inhibit." : "Media playback can temporarily prevent auto lock."
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             font.pixelSize: 11
                             wrapMode: Text.Wrap
                         }
@@ -291,7 +292,7 @@ Item {
                     anchors.margins: 12
                     text: lockService.statusMessage.length > 0 ? lockService.statusMessage : (lockService.hyprlandActive ? "Settings are written to hyprlock.conf and hypridle.conf, then hypridle is reloaded." : "Settings are written for the next Hyprland session.")
                     wrapMode: Text.Wrap
-                    color: Theme.subtext
+                    color: SettingsPalette.subtext
                     font.pixelSize: 12
                 }
             }
@@ -302,7 +303,7 @@ Item {
                 Rectangle {
                     width: 110; height: 38; radius: 10
                     color: Qt.rgba(255,255,255,0.10)
-                    Text { anchors.centerIn: parent; text: "Reload"; color: Theme.text; font.pixelSize: 13; font.bold: true }
+                    Text { anchors.centerIn: parent; text: "Reload"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor

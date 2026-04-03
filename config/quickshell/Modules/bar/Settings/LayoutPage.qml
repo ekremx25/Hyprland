@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import Quickshell
 import Qt.labs.platform
 import "../../../Widgets"
@@ -62,13 +63,13 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { text: ""; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                Text { text: "Layout Presets"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "Layout Presets"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
                 Item { Layout.fillWidth: true }
             }
 
             Text {
                 text: "Select a preset to change your bar layout. Your current config will be overwritten."
-                color: Theme.overlay2
+                color: SettingsPalette.overlay2
                 font.pixelSize: 12
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -80,7 +81,7 @@ Item {
                 height: 38
                 radius: 10
                 color: saveCustMA.containsMouse ? Qt.rgba(255,255,255,0.08) : Qt.rgba(255,255,255,0.04)
-                border.color: Theme.surface
+                border.color: SettingsPalette.surface
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -89,7 +90,7 @@ Item {
                     anchors.margins: 10
                     spacing: 8
                     Text { text: "💾"; font.pixelSize: 14 }
-                    Text { text: "Save current layout as Custom"; color: Theme.text; font.pixelSize: 13 }
+                    Text { text: "Save current layout as Custom"; color: SettingsPalette.text; font.pixelSize: 13 }
                 }
 
                 MouseArea {
@@ -101,7 +102,7 @@ Item {
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+            Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
             // Preset grid
             GridLayout {
@@ -139,13 +140,13 @@ Item {
                                     text: modelData.icon
                                     font.pixelSize: 20
                                     font.family: "JetBrainsMono Nerd Font"
-                                    color: layoutPage.activePreset === modelData.key ? Theme.primary : Theme.subtext
+                                    color: layoutPage.activePreset === modelData.key ? Theme.primary : SettingsPalette.subtext
                                 }
                                 Text {
                                     text: modelData.name
                                     font.pixelSize: 14
                                     font.bold: true
-                                    color: layoutPage.activePreset === modelData.key ? Theme.text : Theme.subtext
+                                    color: layoutPage.activePreset === modelData.key ? SettingsPalette.text : SettingsPalette.subtext
                                 }
 
                                 Item { Layout.fillWidth: true }
@@ -161,7 +162,7 @@ Item {
                             Text {
                                 text: modelData.desc
                                 font.pixelSize: 10
-                                color: Theme.overlay2
+                                color: SettingsPalette.overlay2
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 maximumLineCount: 2

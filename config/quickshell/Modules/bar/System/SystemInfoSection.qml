@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Rectangle {
     id: root
@@ -17,7 +18,7 @@ Rectangle {
 
     Layout.fillWidth: true
     implicitHeight: contentCol.implicitHeight + 24
-    color: useSurfaceColor ? Theme.surface : Qt.rgba(49/255, 50/255, 68/255, 0.4)
+    color: useSurfaceColor ? SettingsPalette.surface : Qt.rgba(49/255, 50/255, 68/255, 0.4)
     radius: 12
 
     ColumnLayout {
@@ -31,7 +32,7 @@ Rectangle {
         RowLayout {
             spacing: 8
             Text { text: root.iconText; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: root.accentColor }
-            Text { text: root.title; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+            Text { text: root.title; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
             Item { Layout.fillWidth: true }
             Text {
                 visible: root.badgeText !== ""
@@ -54,14 +55,14 @@ Rectangle {
 
                 Text {
                     text: modelData.label + ":"
-                    color: Theme.subtext
+                    color: SettingsPalette.subtext
                     font.pixelSize: 12
                     Layout.preferredWidth: root.preferredLabelWidth
                 }
 
                 Text {
                     text: modelData.value || "..."
-                    color: Theme.text
+                    color: SettingsPalette.text
                     font.pixelSize: 12
                     font.bold: true
                     Layout.fillWidth: true

@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import Qt.labs.platform
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: sysInfoPage
@@ -76,14 +77,14 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Text { text: "󰻀"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                Text { text: "System Info"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "System Info"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
             }
 
             // ═══ USER + HOST CARD ═══
             Rectangle {
                 Layout.fillWidth: true
                 height: 90
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
 
                 RowLayout {
@@ -145,7 +146,7 @@ Item {
                         spacing: 4
                         Text {
                             text: sysInfoPage.username || "..."
-                            color: Theme.text; font.bold: true; font.pixelSize: 18
+                            color: SettingsPalette.text; font.bold: true; font.pixelSize: 18
                         }
                         Text {
                             text: "@" + (sysInfoPage.hostname || "...")
@@ -201,11 +202,11 @@ Item {
                             RowLayout {
                                 spacing: 6
                                 Text { text: modelData.icon; font.pixelSize: 13; font.family: "JetBrainsMono Nerd Font"; color: modelData.color }
-                                Text { text: modelData.label; color: Theme.subtext; font.pixelSize: 11 }
+                                Text { text: modelData.label; color: SettingsPalette.subtext; font.pixelSize: 11 }
                             }
                             Text {
                                 text: modelData.value || "..."
-                                color: Theme.text; font.pixelSize: 12; font.bold: true
+                                color: SettingsPalette.text; font.pixelSize: 12; font.bold: true
                                 Layout.fillWidth: true
                                 elide: Text.ElideRight
                             }
@@ -244,7 +245,7 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: "󰍛"; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#a6e3a1" }
-                        Text { text: "Memory (RAM)"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+                        Text { text: "Memory (RAM)"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
                         Item { Layout.fillWidth: true }
                         Text {
                             text: Math.round(sysInfoPage.memPercent * 100) + "%"
@@ -277,16 +278,16 @@ Item {
                             required property var modelData
                             Layout.fillWidth: true
                             spacing: 8
-                            Text { text: modelData.label + ":"; color: Theme.subtext; font.pixelSize: 12; Layout.preferredWidth: 100 }
-                            Text { text: modelData.value || "..."; color: Theme.text; font.pixelSize: 12; font.bold: true }
+                            Text { text: modelData.label + ":"; color: SettingsPalette.subtext; font.pixelSize: 12; Layout.preferredWidth: 100 }
+                            Text { text: modelData.value || "..."; color: SettingsPalette.text; font.pixelSize: 12; font.bold: true }
                         }
                     }
 
                     // Swap
                     RowLayout {
                         spacing: 8
-                        Text { text: "Swap:"; color: Theme.subtext; font.pixelSize: 12; Layout.preferredWidth: 100 }
-                        Text { text: (sysInfoPage.swapUsed || "...") + " / " + (sysInfoPage.swapTotal || "..."); color: Theme.text; font.pixelSize: 12; font.bold: true }
+                        Text { text: "Swap:"; color: SettingsPalette.subtext; font.pixelSize: 12; Layout.preferredWidth: 100 }
+                        Text { text: (sysInfoPage.swapUsed || "...") + " / " + (sysInfoPage.swapTotal || "..."); color: SettingsPalette.text; font.pixelSize: 12; font.bold: true }
                     }
                 }
             }

@@ -32,11 +32,15 @@ Item {
     property bool isLoaded: false
 
     // ─── colors (matching NotificationsPage pattern) ────────────
-    property color colorText:       "#cdd6f4"
-    property color colorSubtext:    "#a6adc8"
-    property color colorSurface:    "#313244"
-    property color colorPrimary:    "#cba6f7"
-    property color colorBackground: "#1e1e2e"
+    property color colorText:       "#f5f7ff"
+    property color colorSubtext:    "#aeb8cb"
+    property color colorSurface:    "#2a3140"
+    property color colorPrimary:    Theme.primary
+    property color colorBackground: "#11141b"
+    property color colorCard:       "#171b24"
+    property color colorCardStrong: "#232938"
+    property color colorBorder:     "#2d3544"
+    property color colorTrack:      "#303848"
 
     JsonFileStore {
         id: dockConfigStore
@@ -109,6 +113,12 @@ Item {
         function onVisibleChanged() { if (settingsPopup.visible) loadConfig() }
     }
 
+    Rectangle {
+        anchors.fill: parent
+        color: colorBackground
+        radius: 12
+    }
+
     // ─── UI (Flickable + ColumnLayout — same pattern as NotificationsPage) ──
     Flickable {
         anchors.fill: parent
@@ -132,7 +142,9 @@ Item {
             // ═══ POSITION ═══
             Rectangle {
                 Layout.fillWidth: true; height: 90
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -150,7 +162,7 @@ Item {
                             }
                             delegate: Rectangle {
                                 width: 80; height: 30; radius: 6
-                                color: root.cfg_dockPosition === model.val ? colorPrimary : Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.8)
+                                color: root.cfg_dockPosition === model.val ? colorPrimary : colorCardStrong
                                 Text {
                                     anchors.centerIn: parent
                                     text: root.cfg_dockPosition === model.val ? "✓ " + model.name : model.name
@@ -169,7 +181,9 @@ Item {
             // Alignment (Left / Center / Right)
             Rectangle {
                 Layout.fillWidth: true; height: 90
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -186,7 +200,7 @@ Item {
                             }
                             delegate: Rectangle {
                                 width: 80; height: 30; radius: 6
-                                color: root.cfg_dockAlignment === model.val ? colorPrimary : Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.8)
+                                color: root.cfg_dockAlignment === model.val ? colorPrimary : colorCardStrong
                                 Text {
                                     anchors.centerIn: parent
                                     text: root.cfg_dockAlignment === model.val ? "✓ " + model.name : model.name
@@ -207,7 +221,9 @@ Item {
             // Show Dock
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -219,7 +235,7 @@ Item {
                         onToggled: { root.cfg_showDock = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }
@@ -230,7 +246,9 @@ Item {
             // Auto-hide
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -242,7 +260,7 @@ Item {
                         onToggled: { root.cfg_autoHide = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }
@@ -253,7 +271,9 @@ Item {
             // Intelligent Auto-hide
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -265,7 +285,7 @@ Item {
                         onToggled: { root.cfg_intelligentAutoHide = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }
@@ -278,7 +298,9 @@ Item {
             // Dock Scale
             Rectangle {
                 Layout.fillWidth: true; height: 80
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -296,7 +318,7 @@ Item {
                         onValueChanged: { root.cfg_dockScale = Math.round(value * 10) / 10; save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -312,7 +334,9 @@ Item {
             // Icon Size
             Rectangle {
                 Layout.fillWidth: true; height: 80
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -330,7 +354,7 @@ Item {
                         onValueChanged: { root.cfg_iconSize = Math.round(value); save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -348,7 +372,9 @@ Item {
             // Show Background
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -360,7 +386,7 @@ Item {
                         onToggled: { root.cfg_showBackground = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }
@@ -372,7 +398,9 @@ Item {
             Rectangle {
                 Layout.fillWidth: true; height: 80
                 visible: root.cfg_showBackground
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -390,7 +418,7 @@ Item {
                         onValueChanged: { root.cfg_dockTransparency = Math.round(value * 20) / 20; save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -406,7 +434,9 @@ Item {
             // Show Border
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -418,7 +448,7 @@ Item {
                         onToggled: { root.cfg_showBorder = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }
@@ -431,7 +461,9 @@ Item {
             // Padding
             Rectangle {
                 Layout.fillWidth: true; height: 80
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -449,7 +481,7 @@ Item {
                         onValueChanged: { root.cfg_dockPadding = Math.round(value); save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -465,7 +497,9 @@ Item {
             // Item Spacing
             Rectangle {
                 Layout.fillWidth: true; height: 80
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -483,7 +517,7 @@ Item {
                         onValueChanged: { root.cfg_itemSpacing = Math.round(value); save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -499,7 +533,9 @@ Item {
             // Bottom Margin
             Rectangle {
                 Layout.fillWidth: true; height: 80
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 4
                     RowLayout {
@@ -517,7 +553,7 @@ Item {
                         onValueChanged: { root.cfg_bottomMargin = Math.round(value); save() }
                         background: Rectangle {
                             x: parent.leftPadding; y: parent.topPadding + parent.availableHeight / 2 - height / 2
-                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorSurface
+                            implicitWidth: 200; implicitHeight: 4; width: parent.availableWidth; height: implicitHeight; radius: 2; color: colorTrack
                             Rectangle { width: parent.parent.visualPosition * parent.width; height: parent.height; color: colorPrimary; radius: 2 }
                         }
                         handle: Rectangle {
@@ -535,7 +571,9 @@ Item {
             // Indicator Style
             Rectangle {
                 Layout.fillWidth: true; height: 90
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 ColumnLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 8
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -551,7 +589,7 @@ Item {
                             }
                             delegate: Rectangle {
                                 width: 80; height: 30; radius: 6
-                                color: root.cfg_indicatorStyle === model.val ? colorPrimary : Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.8)
+                                color: root.cfg_indicatorStyle === model.val ? colorPrimary : colorCardStrong
                                 Text {
                                     anchors.centerIn: parent
                                     text: root.cfg_indicatorStyle === model.val ? "✓ " + model.name : model.name
@@ -570,7 +608,9 @@ Item {
             // Show Launcher
             Rectangle {
                 Layout.fillWidth: true; height: 70
-                color: Qt.rgba(colorSurface.r, colorSurface.g, colorSurface.b, 0.3); radius: 10
+                color: colorCard; radius: 10
+                border.color: colorBorder
+                border.width: 1
                 RowLayout {
                     anchors.fill: parent; anchors.margins: 12; spacing: 16
                     ColumnLayout { Layout.fillWidth: true; spacing: 2
@@ -582,7 +622,7 @@ Item {
                         onToggled: { root.cfg_showLauncher = checked; save() }
                         indicator: Rectangle {
                             implicitWidth: 40; implicitHeight: 20; radius: 10
-                            color: parent.checked ? colorPrimary : colorSurface
+                            color: parent.checked ? colorPrimary : colorCardStrong
                             border.color: Qt.rgba(255,255,255,0.1)
                             Rectangle { x: parent.parent.checked ? parent.width - width - 2 : 2; width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; color: "#ffffff"; Behavior on x { NumberAnimation { duration: 100 } } }
                         }

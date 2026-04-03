@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import "../../../Widgets"
 
 ColumnLayout {
@@ -101,7 +102,7 @@ ColumnLayout {
 
                         Text {
                             text: "⠿"
-                            color: Theme.overlay
+                            color: SettingsPalette.overlay
                             font.pixelSize: 16
                         }
 
@@ -114,7 +115,7 @@ ColumnLayout {
 
                         Text {
                             text: delegateRoot.info.label
-                            color: Theme.text
+                            color: SettingsPalette.text
                             font.pixelSize: 12
                             font.bold: true
                             Layout.fillWidth: true

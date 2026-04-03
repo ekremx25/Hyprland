@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import "SettingsPalette.js" as SettingsPalette
 import Quickshell
 import "../../../Widgets"
 import "../../../Services"
@@ -49,7 +50,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 8
                 Text { text: ""; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                Text { text: "About"; font.bold: true; font.pixelSize: 18; color: Theme.text }
+                Text { text: "About"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
             }
 
             // Logo / branding
@@ -74,14 +75,14 @@ Item {
                     Text {
                         text: "Quickshell Config"
                         font.pixelSize: 18; font.bold: true
-                        color: Theme.text
+                        color: SettingsPalette.text
                         Layout.alignment: Qt.AlignHCenter
                     }
 
                 }
             }
 
-            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.surface }
+            Rectangle { Layout.fillWidth: true; height: 1; color: SettingsPalette.surface }
 
             // Info rows
             Repeater {
@@ -117,13 +118,13 @@ Item {
                         Text {
                             text: modelData.label
                             font.pixelSize: 12; font.bold: true
-                            color: Theme.subtext
+                            color: SettingsPalette.subtext
                             Layout.preferredWidth: 120
                         }
                         Text {
                             text: modelData.value
                             font.pixelSize: 12
-                            color: Theme.text
+                            color: SettingsPalette.text
                             Layout.fillWidth: true
                             elide: Text.ElideMiddle
                         }

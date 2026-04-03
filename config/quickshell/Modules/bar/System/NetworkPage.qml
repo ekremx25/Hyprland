@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: networkPage
@@ -53,7 +54,7 @@ Item {
                 id: ethCard
                 Layout.fillWidth: true
                 height: ethCol.height + 28
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
                 border.color: Qt.rgba(255,255,255,0.04)
                 border.width: 1
@@ -68,7 +69,7 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: connType === "wifi" ? "󰖩" : "󰈀"; font.pixelSize: 18; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-                        Text { text: connType === "wifi" ? "WiFi" : "Ethernet"; font.bold: true; font.pixelSize: 16; color: Theme.text }
+                        Text { text: connType === "wifi" ? "WiFi" : "Ethernet"; font.bold: true; font.pixelSize: 16; color: SettingsPalette.text }
                     }
 
                     // Info line
@@ -77,10 +78,10 @@ Item {
                         color: Qt.rgba(49/255, 50/255, 68/255, 0.4); radius: 8
                         RowLayout {
                             anchors.fill: parent; anchors.margins: 10; spacing: 12
-                            Text { text: "Interface:"; color: Theme.subtext; font.pixelSize: 12 }
-                            Text { text: networkPage.ifaceName || "—"; color: Theme.text; font.bold: true; font.pixelSize: 12; font.family: "JetBrainsMono Nerd Font" }
-                            Text { text: "IP:"; color: Theme.subtext; font.pixelSize: 12 }
-                            Text { text: networkPage.ipAddr || "—"; color: Theme.text; font.bold: true; font.pixelSize: 12; font.family: "JetBrainsMono Nerd Font" }
+                            Text { text: "Interface:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
+                            Text { text: networkPage.ifaceName || "—"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 12; font.family: "JetBrainsMono Nerd Font" }
+                            Text { text: "IP:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
+                            Text { text: networkPage.ipAddr || "—"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 12; font.family: "JetBrainsMono Nerd Font" }
                             Item { Layout.fillWidth: true }
                         }
                     }
@@ -125,7 +126,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: dnsCol.height + 28
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
                 border.color: Qt.rgba(255,255,255,0.04)
                 border.width: 1
@@ -139,12 +140,12 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: "󰇧"; font.pixelSize: 18; font.family: "JetBrainsMono Nerd Font"; color: "#cba6f7" }
-                        Text { text: "DNS Configuration"; font.bold: true; font.pixelSize: 16; color: Theme.text }
+                        Text { text: "DNS Configuration"; font.bold: true; font.pixelSize: 16; color: SettingsPalette.text }
                     }
 
                     RowLayout {
                         spacing: 10
-                        Text { text: "DNS Method:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "DNS Method:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
                         NetworkSegmentButton {
                             options: ["Automatic", "Manual"]
                             selectedIndex: networkPage.dnsMethod === "auto" ? 0 : 1
@@ -160,7 +161,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: ipCol.height + 28
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
                 border.color: Qt.rgba(255,255,255,0.04)
                 border.width: 1
@@ -174,14 +175,14 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: ""; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#fab387" }
-                        Text { text: "IP Configuration"; font.bold: true; font.pixelSize: 16; color: Theme.text }
+                        Text { text: "IP Configuration"; font.bold: true; font.pixelSize: 16; color: SettingsPalette.text }
                     }
 
                     // IPv4
-                    Text { text: "IPv4"; color: Theme.text; font.bold: true; font.pixelSize: 13 }
+                    Text { text: "IPv4"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 13 }
                     RowLayout {
                         spacing: 10
-                        Text { text: "Method:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "Method:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
                         NetworkSegmentButton {
                             options: ["Automatic", "Manual", "Link-Local"]
                             selectedIndex: networkPage.ipv4Method === "auto" ? 0 : networkPage.ipv4Method === "manual" ? 1 : 2
@@ -193,10 +194,10 @@ Item {
 
                     // IPv6
                     Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255,255,255,0.04) }
-                    Text { text: "IPv6"; color: Theme.text; font.bold: true; font.pixelSize: 13 }
+                    Text { text: "IPv6"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 13 }
                     RowLayout {
                         spacing: 10
-                        Text { text: "Method:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "Method:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
                         NetworkSegmentButton {
                             options: ["Automatic", "Manual", "Ignore"]
                             selectedIndex: networkPage.ipv6Method === "auto" ? 0 : networkPage.ipv6Method === "manual" ? 1 : 2
@@ -212,7 +213,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: proxyCol.height + 28
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
                 border.color: Qt.rgba(255,255,255,0.04)
                 border.width: 1
@@ -226,12 +227,12 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: ""; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#89b4fa" }
-                        Text { text: "Proxy Configuration"; font.bold: true; font.pixelSize: 16; color: Theme.text }
+                        Text { text: "Proxy Configuration"; font.bold: true; font.pixelSize: 16; color: SettingsPalette.text }
                     }
 
                     RowLayout {
                         spacing: 10
-                        Text { text: "Proxy Method:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "Proxy Method:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
                         NetworkSegmentButton {
                             options: ["None", "Manual", "Automatic"]
                             selectedIndex: networkPage.proxyMethod === "none" ? 0 : networkPage.proxyMethod === "manual" ? 1 : 2
@@ -247,7 +248,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 height: advancedCol.height + 28
-                color: Theme.surface
+                color: SettingsPalette.surface
                 radius: 12
                 border.color: Qt.rgba(255,255,255,0.04)
                 border.width: 1
@@ -261,14 +262,14 @@ Item {
                     RowLayout {
                         spacing: 8
                         Text { text: ""; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#f5c2e7" }
-                        Text { text: "Advanced Settings"; font.bold: true; font.pixelSize: 16; color: Theme.text }
+                        Text { text: "Advanced Settings"; font.bold: true; font.pixelSize: 16; color: SettingsPalette.text }
                     }
 
                     // MTU
                     RowLayout {
                         Layout.fillWidth: true; spacing: 12
 
-                        Text { text: "MTU:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "MTU:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
 
                         Rectangle {
                             width: 100; height: 36; radius: 8
@@ -280,14 +281,14 @@ Item {
                                 id: mtuInput
                                 anchors.fill: parent; anchors.margins: 8
                                 text: networkPage.mtuValue
-                                color: Theme.text; font.pixelSize: 13
+                                color: SettingsPalette.text; font.pixelSize: 13
                                 verticalAlignment: TextInput.AlignVCenter
                                 selectByMouse: true
                                 onTextChanged: networkPage.mtuValue = text
                             }
                         }
 
-                        Text { text: "(576-9000, default: 1500)"; color: Theme.overlay; font.pixelSize: 11 }
+                        Text { text: "(576-9000, default: 1500)"; color: SettingsPalette.overlay; font.pixelSize: 11 }
                         Item { Layout.fillWidth: true }
 
                         Rectangle {
@@ -312,7 +313,7 @@ Item {
                     RowLayout {
                         Layout.fillWidth: true; spacing: 12
 
-                        Text { text: "MAC Address:"; color: Theme.subtext; font.pixelSize: 12 }
+                        Text { text: "MAC Address:"; color: SettingsPalette.subtext; font.pixelSize: 12 }
 
                         NetworkSegmentButton {
                             options: ["Default", "Cloned"]
@@ -344,7 +345,7 @@ Item {
                     // Show current MAC
                     Text {
                         text: "Current: " + (networkPage.macAddr || "—")
-                        color: Theme.overlay; font.pixelSize: 11; font.family: "JetBrainsMono Nerd Font"
+                        color: SettingsPalette.overlay; font.pixelSize: 11; font.family: "JetBrainsMono Nerd Font"
                     }
                 }
             }
@@ -356,13 +357,13 @@ Item {
 
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: "Available Networks"; color: Theme.subtext; font.pixelSize: 12; font.bold: true }
+                Text { text: "Available Networks"; color: SettingsPalette.subtext; font.pixelSize: 12; font.bold: true }
                 Item { Layout.fillWidth: true }
 
                 Rectangle {
                     width: 24; height: 24; radius: 6
-                    color: refreshMa.containsMouse ? Theme.surface : "transparent"
-                    Text { anchors.centerIn: parent; text: "󰑐"; font.family: "JetBrainsMono Nerd Font"; color: Theme.subtext; font.pixelSize: 14 }
+                    color: refreshMa.containsMouse ? SettingsPalette.surface : "transparent"
+                    Text { anchors.centerIn: parent; text: "󰑐"; font.family: "JetBrainsMono Nerd Font"; color: SettingsPalette.subtext; font.pixelSize: 14 }
                     MouseArea {
                         id: refreshMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: {
@@ -395,21 +396,21 @@ Item {
 
                         Text {
                             text: "󰖩"; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"
-                            color: modelData.active ? Theme.primary : Theme.text
+                            color: modelData.active ? Theme.primary : SettingsPalette.text
                         }
                         ColumnLayout {
                             spacing: 2
                             Text {
-                                text: modelData.ssid; color: modelData.active ? Theme.primary : Theme.text
+                                text: modelData.ssid; color: modelData.active ? Theme.primary : SettingsPalette.text
                                 font.bold: modelData.active; font.pixelSize: 13; Layout.fillWidth: true; elide: Text.ElideRight
                             }
                             Text {
                                 text: (modelData.security !== "" ? "🔒 " + modelData.security : "Açık") + " • " + modelData.signal + "%"
-                                color: Theme.subtext; font.pixelSize: 10
+                                color: SettingsPalette.subtext; font.pixelSize: 10
                             }
                         }
                         Item { Layout.fillWidth: true }
-                        Text { text: modelData.bars; color: modelData.active ? Theme.primary : Theme.subtext; font.family: "DejaVu Sans" }
+                        Text { text: modelData.bars; color: modelData.active ? Theme.primary : SettingsPalette.subtext; font.family: "DejaVu Sans" }
                     }
 
                     MouseArea {
@@ -428,13 +429,13 @@ Item {
                         Item { Layout.fillWidth: true }
                         Rectangle {
                             width: 120; height: 36; radius: 6
-                            color: networkPage.connectingSsid === modelData.ssid ? Theme.surface
+                            color: networkPage.connectingSsid === modelData.ssid ? SettingsPalette.surface
                                  : wifiConnMA.containsMouse ? Qt.darker(Theme.primary, 1.1) : Theme.primary
 
                             Text {
                                 anchors.centerIn: parent
                                 text: networkPage.connectingSsid === modelData.ssid ? "Bağlanıyor..." : "Bağlan"
-                                color: networkPage.connectingSsid === modelData.ssid ? Theme.subtext : "#1e1e2e"
+                                color: networkPage.connectingSsid === modelData.ssid ? SettingsPalette.subtext : "#1e1e2e"
                                 font.bold: true; font.pixelSize: 12
                             }
                             MouseArea {
@@ -499,9 +500,9 @@ Item {
                 // Header
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "Edit Connection"; color: Theme.text; font.bold: true; font.pixelSize: 16 }
+                    Text { text: "Edit Connection"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 16 }
                     Item { Layout.fillWidth: true }
-                    Text { text: "✕"; color: Theme.subtext; font.pixelSize: 16; MouseArea { anchors.fill: parent; onClicked: editConnPopup.close(); cursorShape: Qt.PointingHandCursor } }
+                    Text { text: "✕"; color: SettingsPalette.subtext; font.pixelSize: 16; MouseArea { anchors.fill: parent; onClicked: editConnPopup.close(); cursorShape: Qt.PointingHandCursor } }
                 }
 
                 Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255,255,255,0.1) }
@@ -518,7 +519,7 @@ Item {
                         TextInput { 
                             anchors.fill: parent; anchors.margins: 12
                             text: networkPage.connName || "Unknown Connection"
-                            color: Theme.subtext; font.italic: true
+                            color: SettingsPalette.subtext; font.italic: true
                             readOnly: true
                             verticalAlignment: TextInput.AlignVCenter
                         }
@@ -527,11 +528,11 @@ Item {
                     // IPv4 Section
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 12
-                        Text { text: "IPv4 Configuration"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+                        Text { text: "IPv4 Configuration"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
                         
                         RowLayout {
                             spacing: 12
-                            Text { text: "Method:"; color: Theme.subtext; Layout.preferredWidth: 80 }
+                            Text { text: "Method:"; color: SettingsPalette.subtext; Layout.preferredWidth: 80 }
                             NetworkSegmentButton {
                                 options: ["Automatic", "Manual", "Link-Local"]
                                 selectedIndex: networkPage.ipv4Method === "auto" ? 0 : networkPage.ipv4Method === "manual" ? 1 : 2
@@ -546,21 +547,21 @@ Item {
                             
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "IP Address:"; color: Theme.subtext; Layout.preferredWidth: 80 }
+                                Text { text: "IP Address:"; color: SettingsPalette.subtext; Layout.preferredWidth: 80 }
                                 Rectangle {
                                     Layout.fillWidth: true; height: 36; radius: 8
                                     color: Qt.rgba(0,0,0,0.2); border.color: ipv4AddrInput.activeFocus ? Theme.primary : "transparent"; border.width: 1
-                                    TextInput { id: ipv4AddrInput; anchors.fill: parent; anchors.margins: 8; color: Theme.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true }
+                                    TextInput { id: ipv4AddrInput; anchors.fill: parent; anchors.margins: 8; color: SettingsPalette.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true }
                                 }
                             }
 
                             RowLayout {
                                 Layout.fillWidth: true
-                                Text { text: "Gateway:"; color: Theme.subtext; Layout.preferredWidth: 80 }
+                                Text { text: "Gateway:"; color: SettingsPalette.subtext; Layout.preferredWidth: 80 }
                                 Rectangle {
                                     Layout.fillWidth: true; height: 36; radius: 8
                                     color: Qt.rgba(0,0,0,0.2); border.color: ipv4GwInput.activeFocus ? Theme.primary : "transparent"; border.width: 1
-                                    TextInput { id: ipv4GwInput; anchors.fill: parent; anchors.margins: 8; color: Theme.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true }
+                                    TextInput { id: ipv4GwInput; anchors.fill: parent; anchors.margins: 8; color: SettingsPalette.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true }
                                 }
                             }
                         }
@@ -571,11 +572,11 @@ Item {
                     // IPv6 Section (Simplified)
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 12
-                        Text { text: "IPv6 Configuration"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+                        Text { text: "IPv6 Configuration"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
                         
                         RowLayout {
                             spacing: 12
-                            Text { text: "Method:"; color: Theme.subtext; Layout.preferredWidth: 80 }
+                            Text { text: "Method:"; color: SettingsPalette.subtext; Layout.preferredWidth: 80 }
                             NetworkSegmentButton {
                                 options: ["Automatic", "Manual", "Ignore"]
                                 selectedIndex: networkPage.ipv6Method === "auto" ? 0 : networkPage.ipv6Method === "manual" ? 1 : 2
@@ -589,14 +590,14 @@ Item {
                     // DNS Section
                     ColumnLayout {
                         Layout.fillWidth: true; spacing: 12
-                        Text { text: "DNS Configuration"; color: Theme.text; font.bold: true; font.pixelSize: 14 }
+                        Text { text: "DNS Configuration"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 14 }
                         
                         Rectangle {
                             Layout.fillWidth: true; height: 36; radius: 8
                             color: Qt.rgba(0,0,0,0.2); border.color: dnsInput.activeFocus ? Theme.primary : "transparent"; border.width: 1
                             TextInput { 
-                                id: dnsInput; anchors.fill: parent; anchors.margins: 8; color: Theme.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true
-                                Text { text: "Otomatik (Boş Bırakın)"; visible: parent.text === "" && !parent.activeFocus; color: Theme.overlay; anchors.verticalCenter: parent.verticalCenter }
+                                id: dnsInput; anchors.fill: parent; anchors.margins: 8; color: SettingsPalette.text; verticalAlignment: TextInput.AlignVCenter; selectByMouse: true
+                                Text { text: "Otomatik (Boş Bırakın)"; visible: parent.text === "" && !parent.activeFocus; color: SettingsPalette.overlay; anchors.verticalCenter: parent.verticalCenter }
                             }
                         }
                     }
@@ -612,7 +613,7 @@ Item {
                     Rectangle {
                         width: 80; height: 36; radius: 8
                         color: Qt.rgba(255,255,255,0.1)
-                        Text { anchors.centerIn: parent; text: "Cancel"; color: Theme.text }
+                        Text { anchors.centerIn: parent; text: "Cancel"; color: SettingsPalette.text }
                         MouseArea { anchors.fill: parent; onClicked: editConnPopup.close(); cursorShape: Qt.PointingHandCursor }
                     }
 

@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
+import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Rectangle {
     id: root
@@ -18,7 +19,7 @@ Rectangle {
 
     Layout.fillWidth: true
     height: 90
-    color: Theme.surface
+    color: SettingsPalette.surface
     radius: 10
 
     ColumnLayout {
@@ -31,7 +32,7 @@ Rectangle {
             Text { text: root.iconText; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: root.accentColor }
             Text {
                 text: root.title
-                color: Theme.text
+                color: SettingsPalette.text
                 font.bold: true
                 font.pixelSize: 13
                 elide: Text.ElideRight

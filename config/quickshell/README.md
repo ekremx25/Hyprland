@@ -119,7 +119,7 @@ This script expects these commands to exist in `PATH`:
     ```bash
     quickshell
     ```
-    My youtube channel : https://www.youtube.com/@Linux-Windows-LifeX
+    My youtube channel : https://www.youtube.com/@Kernel-Windows
 
 ## Configuration
 
