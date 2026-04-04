@@ -423,7 +423,7 @@ Item {
                     }
                 }
 
-                applySavedOverlay(outObj, false, true);
+                applySavedOverlay(outObj, true, true);
                 outs.push(outObj);
             }
             finalizeOutputs(outs);
@@ -677,14 +677,15 @@ Item {
             var monPosY = Math.round(mon.posY);
 
             if (CompositorService.isHyprland) {
-                var monHdr = isSelected ? selHdr : (mon.hdr || false);
-                var monBitdepth = isSelected ? selBitdepth : (mon.bitdepth || 8);
-                var monVrr = isSelected ? selVrr : (mon.vrr || 0);
-                var monSdrLum = isSelected ? selSdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450);
-                var monSdrBri = isSelected ? selSdrBrightness : (mon.sdrBrightness || 1.0);
-                var monSdrSat = isSelected ? selSdrSaturation : (mon.sdrSaturation || 1.0);
-                var monCm = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
-                var monEotf = isSelected ? selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
+                var savedMon = backend.savedConfig[mon.name] || {};
+                var monHdr = isSelected ? selHdr : (savedMon.hdr !== undefined ? savedMon.hdr : (mon.hdr || false));
+                var monBitdepth = isSelected ? selBitdepth : (savedMon.bitdepth !== undefined ? savedMon.bitdepth : (mon.bitdepth || 8));
+                var monVrr = isSelected ? selVrr : (savedMon.vrr !== undefined ? savedMon.vrr : (mon.vrr || 0));
+                var monSdrLum = isSelected ? selSdrLuminance : (savedMon.sdrLuminance !== undefined ? savedMon.sdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450));
+                var monSdrBri = isSelected ? selSdrBrightness : (savedMon.sdrBrightness !== undefined ? savedMon.sdrBrightness : (mon.sdrBrightness || 1.0));
+                var monSdrSat = isSelected ? selSdrSaturation : (savedMon.sdrSaturation !== undefined ? savedMon.sdrSaturation : (mon.sdrSaturation || 1.0));
+                var monCm = isSelected ? selColorManagement : (savedMon.colorManagement !== undefined ? savedMon.colorManagement : (mon.colorManagement || "srgb"));
+                var monEotf = isSelected ? selSdrEotf : (savedMon.sdrEotf !== undefined ? savedMon.sdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1));
                 var monCmd = "hyprctl keyword monitor " + mon.name + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale;
 
                 if (isRiskyColorMode(monCm)) monVrr = 0;
@@ -728,28 +729,34 @@ Item {
                     + "\"");
             }
 
-            var monHdrSave = isSelected ? selHdr : (mon.hdr || false);
-            var monBdSave = isSelected ? selBitdepth : (mon.bitdepth || 8);
-            var monVrrSave = isSelected ? selVrr : (mon.vrr || 0);
-            var monLumSave = isSelected ? selSdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450);
-            var monBriSave = isSelected ? selSdrBrightness : (mon.sdrBrightness || 1.0);
-            var monSatSave = isSelected ? selSdrSaturation : (mon.sdrSaturation || 1.0);
-            var monCmSave = isSelected ? selColorManagement : (mon.colorManagement || "srgb");
-            var monEotfSave = isSelected ? selSdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1);
             var monDefaultSave = (mon.name === defaultOutputName);
+            var saved = backend.savedConfig[mon.name] || {};
+            var monHdrSave = isSelected ? selHdr : (saved.hdr !== undefined ? saved.hdr : (mon.hdr || false));
+            var monBdSave = isSelected ? selBitdepth : (saved.bitdepth !== undefined ? saved.bitdepth : (mon.bitdepth || 8));
+            var monVrrSave = isSelected ? selVrr : (saved.vrr !== undefined ? saved.vrr : (mon.vrr || 0));
+            var monLumSave = isSelected ? selSdrLuminance : (saved.sdrLuminance !== undefined ? saved.sdrLuminance : ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450));
+            var monBriSave = isSelected ? selSdrBrightness : (saved.sdrBrightness !== undefined ? saved.sdrBrightness : (mon.sdrBrightness || 1.0));
+            var monSatSave = isSelected ? selSdrSaturation : (saved.sdrSaturation !== undefined ? saved.sdrSaturation : (mon.sdrSaturation || 1.0));
+            var monCmSave = isSelected ? selColorManagement : (saved.colorManagement !== undefined ? saved.colorManagement : (mon.colorManagement || "srgb"));
+            var monEotfSave = isSelected ? selSdrEotf : (saved.sdrEotf !== undefined ? saved.sdrEotf : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1));
+            var monResSave = isSelected ? monRes : (saved.res || monRes);
+            var monHzSave = isSelected ? monHz : (saved.hz || monHz);
+            var monScaleSave = isSelected ? monScale : (saved.scale || monScale);
+            var monPosXSave = isSelected ? String(monPosX) : (saved.posX !== undefined ? String(saved.posX) : String(monPosX));
+            var monPosYSave = isSelected ? String(monPosY) : (saved.posY !== undefined ? String(saved.posY) : String(monPosY));
             var jqFilter = ".[" + JSON.stringify(mon.name) + "] = {"
-                + "\"res\": " + JSON.stringify(monRes) + ", "
-                + "\"hz\": " + JSON.stringify(monHz) + ", "
-                + "\"scale\": " + JSON.stringify(monScale) + ", "
-                + "\"posX\": " + JSON.stringify(String(monPosX)) + ", "
-                + "\"posY\": " + JSON.stringify(String(monPosY)) + ", "
+                + "\"res\": " + JSON.stringify(monResSave) + ", "
+                + "\"hz\": " + JSON.stringify(monHzSave) + ", "
+                + "\"scale\": " + JSON.stringify(monScaleSave) + ", "
+                + "\"posX\": " + JSON.stringify(monPosXSave) + ", "
+                + "\"posY\": " + JSON.stringify(monPosYSave) + ", "
                 + "\"default\": " + (monDefaultSave ? "true" : "false") + ", "
                 + "\"hdr\": " + (monHdrSave ? "true" : "false") + ", "
                 + "\"bitdepth\": " + monBdSave + ", "
                 + "\"vrr\": " + monVrrSave + ", "
                 + "\"sdrLuminance\": " + monLumSave + ", "
-                + "\"sdrBrightness\": " + monBriSave.toFixed(1) + ", "
-                + "\"sdrSaturation\": " + monSatSave.toFixed(1) + ", "
+                + "\"sdrBrightness\": " + parseFloat(monBriSave).toFixed(1) + ", "
+                + "\"sdrSaturation\": " + parseFloat(monSatSave).toFixed(1) + ", "
                 + "\"colorManagement\": " + JSON.stringify(monCmSave) + ", "
                 + "\"sdrEotf\": " + monEotfSave
                 + "}";
@@ -759,8 +766,8 @@ Item {
         var fullCmdParts = [];
         if (cmds.length > 0) fullCmdParts.push(cmds.join(" && "));
         if (saveCmds.length > 0) fullCmdParts.push(saveCmds.join(" && "));
-        var fullCmd = fullCmdParts.join(" && ");
-        if (CompositorService.isHyprland && defaultOutputName) fullCmd += " && hyprctl dispatch focusmonitor " + defaultOutputName;
+        var fullCmd = fullCmdParts.join(" ; ");
+        if (CompositorService.isHyprland && defaultOutputName) fullCmd += " ; hyprctl dispatch focusmonitor " + defaultOutputName;
         if (CompositorService.isMango) fullCmd += " && mmsg -d reload_config";
         return { command: fullCmd, updatedOutputs: updatedOutputs };
     }

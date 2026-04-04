@@ -30,54 +30,73 @@ fi
 MONITORS=$(jq -r 'keys[]' "$CONFIG_FILE" 2>/dev/null)
 DEFAULT_MONITOR=$(jq -r 'to_entries[] | select(.value.default == true) | .key' "$CONFIG_FILE" 2>/dev/null | head -n1)
 
-if [ $IS_HYPRLAND -eq 1 ]; then
-    CONNECTED_MONITORS=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[].name' 2>/dev/null)
-fi
+apply_monitors() {
+    local MISSING_MONITORS=""
 
-while IFS= read -r MON; do
-    [ -n "$MON" ] || continue
+    if [ $IS_HYPRLAND -eq 1 ]; then
+        CONNECTED_MONITORS=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[].name' 2>/dev/null)
+    fi
 
-    RES=$(jq -r --arg mon "$MON" '.[$mon].res' "$CONFIG_FILE")
-    HZ=$(jq -r --arg mon "$MON" '.[$mon].hz' "$CONFIG_FILE")
-    SCALE=$(jq -r --arg mon "$MON" '.[$mon].scale' "$CONFIG_FILE")
-    POS_X=$(jq -r --arg mon "$MON" '.[$mon].posX' "$CONFIG_FILE")
-    POS_Y=$(jq -r --arg mon "$MON" '.[$mon].posY' "$CONFIG_FILE")
+    while IFS= read -r MON; do
+        [ -n "$MON" ] || continue
 
-    if [ "$RES" != "null" ] && [ "$HZ" != "null" ] && [ "$SCALE" != "null" ] && [ "$RES" != "0x0" ]; then
-        if [ $IS_HYPRLAND -eq 1 ]; then
-            if ! printf '%s\n' "$CONNECTED_MONITORS" | grep -Fxq "$MON"; then
-                continue
-            fi
-            # hyprctl keyword monitor name,res@hz,XxY,scale[,extra_params]
-            HDR=$(jq -r --arg mon "$MON" '.[$mon].hdr // false' "$CONFIG_FILE")
-            BITDEPTH=$(jq -r --arg mon "$MON" '.[$mon].bitdepth // 8' "$CONFIG_FILE")
-            VRR=$(jq -r --arg mon "$MON" '.[$mon].vrr // 0' "$CONFIG_FILE")
-            SDR_BRI=$(jq -r --arg mon "$MON" '.[$mon].sdrBrightness // 1.0' "$CONFIG_FILE")
-            SDR_SAT=$(jq -r --arg mon "$MON" '.[$mon].sdrSaturation // 1.0' "$CONFIG_FILE")
-            COLOR_MGMT=$(jq -r --arg mon "$MON" '.[$mon].colorManagement // "srgb"' "$CONFIG_FILE")
+        RES=$(jq -r --arg mon "$MON" '.[$mon].res' "$CONFIG_FILE")
+        HZ=$(jq -r --arg mon "$MON" '.[$mon].hz' "$CONFIG_FILE")
+        SCALE=$(jq -r --arg mon "$MON" '.[$mon].scale' "$CONFIG_FILE")
+        POS_X=$(jq -r --arg mon "$MON" '.[$mon].posX' "$CONFIG_FILE")
+        POS_Y=$(jq -r --arg mon "$MON" '.[$mon].posY' "$CONFIG_FILE")
 
-            MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
-            if [ "$HDR" = "true" ] || [[ "$COLOR_MGMT" =~ ^hdr ]]; then
-                if [ "$COLOR_MGMT" = "hdredid" ]; then
-                    APPLIED_CM="hdredid"
-                else
-                    APPLIED_CM="hdr"
+        if [ "$RES" != "null" ] && [ "$HZ" != "null" ] && [ "$SCALE" != "null" ] && [ "$RES" != "0x0" ]; then
+            if [ $IS_HYPRLAND -eq 1 ]; then
+                if ! printf '%s\n' "$CONNECTED_MONITORS" | grep -Fxq "$MON"; then
+                    MISSING_MONITORS="$MISSING_MONITORS $MON"
+                    continue
                 fi
-                MON_CMD="$MON_CMD,cm,$APPLIED_CM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
-            elif [ "$COLOR_MGMT" != "default" ] && [ "$COLOR_MGMT" != "srgb" ] && [ "$COLOR_MGMT" != "null" ]; then
-                MON_CMD="$MON_CMD,cm,$COLOR_MGMT"
-            fi
-            hyprctl keyword monitor "$MON_CMD"
-        elif [ $IS_NIRI -eq 1 ]; then
-            if [ "$POS_X" != "null" ] && [ "$POS_Y" != "null" ]; then
-                wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE" --pos "${POS_X},${POS_Y}"
-            else
-                wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE"
+                # hyprctl keyword monitor name,res@hz,XxY,scale[,extra_params]
+                HDR=$(jq -r --arg mon "$MON" '.[$mon].hdr // false' "$CONFIG_FILE")
+                BITDEPTH=$(jq -r --arg mon "$MON" '.[$mon].bitdepth // 8' "$CONFIG_FILE")
+                VRR=$(jq -r --arg mon "$MON" '.[$mon].vrr // 0' "$CONFIG_FILE")
+                SDR_BRI=$(jq -r --arg mon "$MON" '.[$mon].sdrBrightness // 1.0' "$CONFIG_FILE")
+                SDR_SAT=$(jq -r --arg mon "$MON" '.[$mon].sdrSaturation // 1.0' "$CONFIG_FILE")
+                COLOR_MGMT=$(jq -r --arg mon "$MON" '.[$mon].colorManagement // "srgb"' "$CONFIG_FILE")
+
+                MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
+                if [ "$HDR" = "true" ] || [[ "$COLOR_MGMT" =~ ^hdr ]]; then
+                    if [ "$COLOR_MGMT" = "hdredid" ]; then
+                        APPLIED_CM="hdredid"
+                    else
+                        APPLIED_CM="hdr"
+                    fi
+                    MON_CMD="$MON_CMD,cm,$APPLIED_CM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
+                elif [ "$COLOR_MGMT" != "default" ] && [ "$COLOR_MGMT" != "srgb" ] && [ "$COLOR_MGMT" != "null" ]; then
+                    MON_CMD="$MON_CMD,cm,$COLOR_MGMT"
+                fi
+                hyprctl keyword monitor "$MON_CMD"
+            elif [ $IS_NIRI -eq 1 ]; then
+                if [ "$POS_X" != "null" ] && [ "$POS_Y" != "null" ]; then
+                    wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE" --pos "${POS_X},${POS_Y}"
+                else
+                    wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE"
+                fi
             fi
         fi
-    fi
-done <<< "$MONITORS"
+    done <<< "$MONITORS"
 
-if [ $IS_HYPRLAND -eq 1 ] && [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
-    hyprctl dispatch focusmonitor "$DEFAULT_MONITOR" >/dev/null 2>&1
-fi
+    if [ $IS_HYPRLAND -eq 1 ] && [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
+        hyprctl dispatch focusmonitor "$DEFAULT_MONITOR" >/dev/null 2>&1
+    fi
+
+    echo "$MISSING_MONITORS"
+}
+
+# First attempt
+MISSING=$(apply_monitors)
+
+# Retry up to 3 times for monitors not yet connected (e.g. slow USB-C/dock displays)
+RETRY=0
+MAX_RETRY=3
+while [ -n "$(echo "$MISSING" | tr -d ' ')" ] && [ $RETRY -lt $MAX_RETRY ]; do
+    RETRY=$((RETRY + 1))
+    sleep 2
+    MISSING=$(apply_monitors)
+done
