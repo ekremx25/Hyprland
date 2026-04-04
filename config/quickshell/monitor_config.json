@@ -10,8 +10,8 @@
     "bitdepth": 10,
     "vrr": 0,
     "sdrLuminance": 80,
-    "sdrBrightness": 1.0,
-    "sdrSaturation": 1.0,
+    "sdrBrightness": 1,
+    "sdrSaturation": 1,
     "colorManagement": "srgb",
     "sdrEotf": 1
   },
@@ -26,8 +26,8 @@
     "bitdepth": 10,
     "vrr": 0,
     "sdrLuminance": 80,
-    "sdrBrightness": 1.0,
-    "sdrSaturation": 1.0,
+    "sdrBrightness": 1,
+    "sdrSaturation": 1,
     "colorManagement": "srgb",
     "sdrEotf": 1
   }

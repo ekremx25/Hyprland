@@ -1,6 +1,8 @@
 #!/bin/bash
 
 # Applies monitor settings from monitor_config.json
+# Uses hyprctl --batch for single-refresh application
+# Skips monitors already matching desired config to avoid flicker
 
 CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 CONFIG_FILE="$CONFIG_HOME/quickshell/monitor_config.json"
@@ -32,9 +34,12 @@ DEFAULT_MONITOR=$(jq -r 'to_entries[] | select(.value.default == true) | .key' "
 
 apply_monitors() {
     local MISSING_MONITORS=""
+    local BATCH_CMDS=""
 
     if [ $IS_HYPRLAND -eq 1 ]; then
-        CONNECTED_MONITORS=$(hyprctl monitors all -j 2>/dev/null | jq -r '.[].name' 2>/dev/null)
+        # Get current monitor state as JSON for comparison
+        CURRENT_STATE=$(hyprctl monitors all -j 2>/dev/null)
+        CONNECTED_MONITORS=$(echo "$CURRENT_STATE" | jq -r '.[].name' 2>/dev/null)
     fi
 
     while IFS= read -r MON; do
@@ -52,7 +57,28 @@ apply_monitors() {
                     MISSING_MONITORS="$MISSING_MONITORS $MON"
                     continue
                 fi
-                # hyprctl keyword monitor name,res@hz,XxY,scale[,extra_params]
+
+                # Check if monitor already matches desired config
+                CURR_RES=$(echo "$CURRENT_STATE" | jq -r --arg m "$MON" '.[] | select(.name==$m) | "\(.width)x\(.height)"' 2>/dev/null)
+                CURR_HZ=$(echo "$CURRENT_STATE" | jq -r --arg m "$MON" '.[] | select(.name==$m) | .refreshRate' 2>/dev/null)
+                CURR_SCALE=$(echo "$CURRENT_STATE" | jq -r --arg m "$MON" '.[] | select(.name==$m) | .scale' 2>/dev/null)
+                CURR_X=$(echo "$CURRENT_STATE" | jq -r --arg m "$MON" '.[] | select(.name==$m) | .x' 2>/dev/null)
+                CURR_Y=$(echo "$CURRENT_STATE" | jq -r --arg m "$MON" '.[] | select(.name==$m) | .y' 2>/dev/null)
+
+                # Compare: skip if res, position, and scale already match
+                WANT_HZ_INT=$(printf "%.0f" "$HZ" 2>/dev/null)
+                CURR_HZ_INT=$(printf "%.0f" "$CURR_HZ" 2>/dev/null)
+                WANT_SCALE_2=$(printf "%.2f" "$SCALE" 2>/dev/null)
+                CURR_SCALE_2=$(printf "%.2f" "$CURR_SCALE" 2>/dev/null)
+
+                if [ "$CURR_RES" = "$RES" ] && \
+                   [ "$CURR_HZ_INT" = "$WANT_HZ_INT" ] && \
+                   [ "$CURR_SCALE_2" = "$WANT_SCALE_2" ] && \
+                   [ "$CURR_X" = "$POS_X" ] && \
+                   [ "$CURR_Y" = "$POS_Y" ]; then
+                    continue
+                fi
+
                 HDR=$(jq -r --arg mon "$MON" '.[$mon].hdr // false' "$CONFIG_FILE")
                 BITDEPTH=$(jq -r --arg mon "$MON" '.[$mon].bitdepth // 8' "$CONFIG_FILE")
                 VRR=$(jq -r --arg mon "$MON" '.[$mon].vrr // 0' "$CONFIG_FILE")
@@ -62,16 +88,13 @@ apply_monitors() {
 
                 MON_CMD="$MON,$RES@$HZ,${POS_X}x${POS_Y},$SCALE,bitdepth,$BITDEPTH,vrr,$VRR"
                 if [ "$HDR" = "true" ] || [[ "$COLOR_MGMT" =~ ^hdr ]]; then
-                    if [ "$COLOR_MGMT" = "hdredid" ]; then
-                        APPLIED_CM="hdredid"
-                    else
-                        APPLIED_CM="hdr"
-                    fi
+                    local APPLIED_CM="hdr"
+                    [ "$COLOR_MGMT" = "hdredid" ] && APPLIED_CM="hdredid"
                     MON_CMD="$MON_CMD,cm,$APPLIED_CM,sdrbrightness,$SDR_BRI,sdrsaturation,$SDR_SAT"
                 elif [ "$COLOR_MGMT" != "default" ] && [ "$COLOR_MGMT" != "srgb" ] && [ "$COLOR_MGMT" != "null" ]; then
                     MON_CMD="$MON_CMD,cm,$COLOR_MGMT"
                 fi
-                hyprctl keyword monitor "$MON_CMD"
+                BATCH_CMDS="${BATCH_CMDS}keyword monitor ${MON_CMD} ; "
             elif [ $IS_NIRI -eq 1 ]; then
                 if [ "$POS_X" != "null" ] && [ "$POS_Y" != "null" ]; then
                     wlr-randr --output "$MON" --mode "${RES}@${HZ}Hz" --scale "$SCALE" --pos "${POS_X},${POS_Y}"
@@ -82,8 +105,12 @@ apply_monitors() {
         fi
     done <<< "$MONITORS"
 
-    if [ $IS_HYPRLAND -eq 1 ] && [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
-        hyprctl dispatch focusmonitor "$DEFAULT_MONITOR" >/dev/null 2>&1
+    # Hyprland: apply all changed monitors in a single batch call
+    if [ $IS_HYPRLAND -eq 1 ] && [ -n "$BATCH_CMDS" ]; then
+        if [ -n "$DEFAULT_MONITOR" ] && [ "$DEFAULT_MONITOR" != "null" ]; then
+            BATCH_CMDS="${BATCH_CMDS}dispatch focusmonitor ${DEFAULT_MONITOR}"
+        fi
+        hyprctl --batch "$BATCH_CMDS"
     fi
 
     echo "$MISSING_MONITORS"

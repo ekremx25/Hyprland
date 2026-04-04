@@ -700,11 +700,12 @@ Item {
                 }
 
                 var changed = monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY, monHdr, monBitdepth, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf);
-                if (isSelected && monCm !== (mon.colorManagement || "srgb")) {
+                var needsCmReset = isSelected && monCm !== (mon.colorManagement || "srgb");
+                if (needsCmReset) {
                     var resetCmd = "hyprctl keyword monitor " + mon.name + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale + ",bitdepth,10,vrr,0,cm,srgb";
                     monCmd = resetCmd + " && sleep 0.2 && " + monCmd;
                 }
-                if (isSelected || changed) cmds.push(monCmd);
+                if (isSelected || changed) cmds.push({ cmd: monCmd, batchable: !needsCmReset });
             } else if (CompositorService.isMango) {
                 var resParts = monRes.split("x");
                 var monRefresh = Math.round(parseFloat(monHz));
@@ -764,10 +765,29 @@ Item {
         }
 
         var fullCmdParts = [];
-        if (cmds.length > 0) fullCmdParts.push(cmds.join(" && "));
+        if (CompositorService.isHyprland && cmds.length > 0) {
+            var batchable = [];
+            var nonBatchable = [];
+            for (var ci = 0; ci < cmds.length; ci++) {
+                if (cmds[ci].batchable) batchable.push(cmds[ci].cmd.replace(/^hyprctl /, ""));
+                else nonBatchable.push(cmds[ci].cmd);
+            }
+            if (nonBatchable.length > 0) fullCmdParts.push(nonBatchable.join(" && "));
+            if (batchable.length > 0) {
+                if (defaultOutputName) batchable.push("dispatch focusmonitor " + defaultOutputName);
+                fullCmdParts.push("hyprctl --batch " + backend.shellQuote(batchable.join(" ; ")));
+            } else if (defaultOutputName) {
+                fullCmdParts.push("hyprctl dispatch focusmonitor " + defaultOutputName);
+            }
+        } else {
+            if (cmds.length > 0) {
+                var plainCmds = cmds.map(function(c) { return c.cmd || c; });
+                fullCmdParts.push(plainCmds.join(" && "));
+            }
+            if (defaultOutputName && CompositorService.isHyprland) fullCmdParts.push("hyprctl dispatch focusmonitor " + defaultOutputName);
+        }
         if (saveCmds.length > 0) fullCmdParts.push(saveCmds.join(" && "));
         var fullCmd = fullCmdParts.join(" ; ");
-        if (CompositorService.isHyprland && defaultOutputName) fullCmd += " ; hyprctl dispatch focusmonitor " + defaultOutputName;
         if (CompositorService.isMango) fullCmd += " && mmsg -d reload_config";
         return { command: fullCmd, updatedOutputs: updatedOutputs };
     }
