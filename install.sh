@@ -11,7 +11,7 @@ WALLPAPER_DIR="$HOME/Pictures/wallpapers"
 BUILD_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/dotfiles-setup"
 DOTFILES_REPO_URL="https://github.com/ekremx25/Hyprland.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
-GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff amd_pstate=passive)
+GRUB_KERNEL_PARAMS=(amdgpu.ppfeaturemask=0xffffffff)
 
 PACMAN_PACKAGES=(
   archlinux-xdg-menu
