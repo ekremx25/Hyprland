@@ -20,7 +20,6 @@ PACMAN_PACKAGES=(
   bc
   bison
   cpio
-  cpupower
   discord
   dolphin
   dnsmasq
