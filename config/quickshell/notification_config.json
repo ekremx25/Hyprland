@@ -10,5 +10,6 @@
   "historyRetentionMs": 300000,
   "filteredApps": [
     "Spotify"
-  ]
+  ],
+  "notificationServerEnabled": true
 }

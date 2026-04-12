@@ -234,8 +234,30 @@ Singleton {
     }
 
     // Setters
-    function setEnabled(v) { root.enabled = v; saveConfig(); }
-    function setMode(m) { root.mode = m; saveConfig(); if (root.fullPalette && root.fullPalette.colors) applyPalette(root.fullPalette); }
+    function setEnabled(v) {
+        root.enabled = v;
+        saveConfig();
+        if (!v) {
+            root.themeApplied();
+            return;
+        }
+        if (root.fullPalette && root.fullPalette.colors) {
+            applyPalette(root.fullPalette);
+        } else if (root.wallpaperPath.length > 0) {
+            root.generateFromWallpaper(root.wallpaperPath);
+        } else {
+            root.detectCurrentWallpaper();
+        }
+    }
+
+    function setMode(m) {
+        root.mode = m;
+        if (root.fullPalette && root.fullPalette.colors) {
+            applyPalette(root.fullPalette);
+        } else {
+            saveConfig();
+        }
+    }
     // Static (non-matugen) scheme types
     readonly property var staticTypes: ["scheme-catppuccin", "scheme-kanagawa", "scheme-tokyo-night"]
     function isStaticType(t) { return staticTypes.indexOf(t) >= 0; }
@@ -322,6 +344,14 @@ Singleton {
             root.applyToKitty = cfg.applyToKitty !== undefined ? cfg.applyToKitty : true;
             root.applyToGtk = cfg.applyToGtk !== undefined ? cfg.applyToGtk : false;
             root.liveUpdate = cfg.liveUpdate !== undefined ? cfg.liveUpdate : false;
+
+            if (root.enabled) {
+                if (root.wallpaperPath.length > 0) {
+                    root.generateFromWallpaper(root.wallpaperPath);
+                } else {
+                    root.detectCurrentWallpaper();
+                }
+            }
         }
         onFailed: function(phase, exitCode, details) {
             if (phase === "parse") Log.warn("ColorPaletteService", "Config parse error: " + details);

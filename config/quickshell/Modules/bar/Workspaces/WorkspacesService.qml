@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Io
 import "../../../Services"
+import "../../../Services/core" as Core
 import "../../../Services/core/Log.js" as Log
 
 Item {
@@ -351,9 +352,80 @@ Item {
         }
     }
 
+    // ----------------------------------------------------------------
+    // Hyprland: .socket2 event stream (event-driven, polling yok)
+    // ----------------------------------------------------------------
+    // Hyprland socket'ten gelen olayları dinler; workspace/pencere
+    // değişikliklerinde 50ms debounce ile refresh() çağırır.
+    // Bağlantı koparsaysa 1s sonra otomatik yeniden bağlanır.
+    // socat/nc bulunamazsa (exit 127) polling fallback devreye girer.
+    property bool _hyprFallback: false
+
+    Process {
+        id: hyprEventProc
+        running: CompositorService.isHyprland && !service._hyprFallback
+        command: CompositorService.isHyprland
+            ? ["bash", Core.PathService.configPath("scripts/hypr_events.sh")]
+            : []
+
+        stdout: SplitParser {
+            onRead: data => {
+                var line = data.trim();
+                if (!line) return;
+                // Workspace veya pencere değişikliğini tetikleyen olaylar
+                if (line.startsWith("workspace>>")   ||
+                    line.startsWith("openwindow>>")  ||
+                    line.startsWith("closewindow>>") ||
+                    line.startsWith("movewindow>>")  ||
+                    line.startsWith("activewindow>>") ||
+                    line.startsWith("focusedmon>>")  ||
+                    line.startsWith("windowtitle>>")) {
+                    hyprDebounce.restart();
+                }
+            }
+        }
+
+        onExited: exitCode => {
+            if (!CompositorService.isHyprland) return;
+            if (exitCode === 127) {
+                // socat/nc yok → polling fallback
+                Log.warn("WorkspacesService", "Hyprland event stream kullanılamıyor, polling moduna geçiliyor");
+                service._hyprFallback = true;
+                return;
+            }
+            // Geçici kopukluk (compositor restart vb.) → 1s sonra yeniden bağlan
+            Log.info("WorkspacesService", "Hyprland event stream kapandı (kod: " + exitCode + "), yeniden bağlanılıyor");
+            hyprReconnectTimer.restart();
+        }
+    }
+
+    Timer {
+        id: hyprDebounce
+        interval: 50
+        repeat: false
+        onTriggered: service.refresh()
+    }
+
+    Timer {
+        id: hyprReconnectTimer
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            if (CompositorService.isHyprland && !hyprEventProc.running) {
+                hyprEventProc.running = true;
+            }
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Hyprland fallback + MangoWC: polling (700ms)
+    // Hyprland: sadece socat/nc yoksa aktif olur.
+    // MangoWC: her zaman aktif (event stream API yok).
+    // Niri: Niri.qml event stream kullandığından hiç çalışmaz.
+    // ----------------------------------------------------------------
     Timer {
         interval: 700
-        running: true
+        running: CompositorService.isMango || (CompositorService.isHyprland && service._hyprFallback)
         repeat: true
         onTriggered: service.refresh()
     }

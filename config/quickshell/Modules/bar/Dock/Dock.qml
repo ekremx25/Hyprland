@@ -102,6 +102,10 @@ Variants {
             id: dockBackend
             is4K: dockWindow.is4K
             suspendHotReload: dockWindow.isDragging
+            windowTrackingEnabled: dockWindow.visible
+            Component.onCompleted: {
+                windowRefreshInterval = 2500
+            }
         }
 
         // ── State ──

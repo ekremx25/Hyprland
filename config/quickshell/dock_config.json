@@ -52,16 +52,16 @@
       "appId": "google-chrome-stable"
     },
     {
-      "name": "Iriunwebcam",
-      "icon": "iriunwebcam",
-      "cmd": "iriunwebcam",
-      "appId": "iriunwebcam"
-    },
-    {
       "name": "VS Code",
       "icon": "codex",
       "cmd": "__desktop__:codex-desktop",
       "appId": "Codex"
+    },
+    {
+      "name": "Iriunwebcam",
+      "icon": "iriunwebcam",
+      "cmd": "iriunwebcam",
+      "appId": "iriunwebcam"
     },
     {
       "name": "OBS Studio",

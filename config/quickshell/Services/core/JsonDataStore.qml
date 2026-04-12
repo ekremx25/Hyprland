@@ -50,14 +50,22 @@ Item {
                 root.value = JSON.parse(text);
                 root.loadedValue(root.value, root.rawText);
             } catch (e) {
+                // Parse hatası: default değeri kullan, hata sinyalini path ile birlikte ilet
                 root.value = root.cloneValue(root.defaultValue);
-                root.failed("parse", -1, String(e));
+                root.failed("parse", -1, String(e) + " [path=" + root.path + "]");
                 root.loadedValue(root.value, root.rawText);
             }
         }
         onSaved: {
             root.savedValue(root.value);
         }
-        onFailed: (phase, exitCode, details) => root.failed(phase, exitCode, details)
+        // Okuma/yazma hatasına dosya yolunu ekle; loglarda hangi config
+        // dosyasının sorun çıkardığı anında görünür hale gelir.
+        onFailed: (phase, exitCode, details) => {
+            const info = details.length > 0
+                ? details + " [path=" + root.path + "]"
+                : "[path=" + root.path + "]";
+            root.failed(phase, exitCode, info);
+        }
     }
 }

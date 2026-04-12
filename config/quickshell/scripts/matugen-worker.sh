@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # matugen-worker.sh — Generate Material You colors from wallpaper
 # Adapted from Event Horizon dotfiles for personal Quickshell config
 # Dependencies: matugen, jq
@@ -20,23 +20,33 @@ if ! command -v matugen &>/dev/null; then
     exit 1
 fi
 
-# Generate colors
-COLORS=$(matugen image "$WALLPAPER" --json "$TYPE" 2>/dev/null)
+# Generate colors in the token.mode.color shape consumed by the shell.
+COLORS=$(matugen image "$WALLPAPER" -t "$TYPE" --json hex --source-color-index 0 2>/dev/null)
 
 if [ -z "$COLORS" ]; then
     echo "Error: matugen returned empty output"
     exit 1
 fi
 
-# Extract primary color for external use
-PRIMARY=$(echo "$COLORS" | jq -r ".colors.${MODE}.primary // empty" 2>/dev/null)
-SURFACE=$(echo "$COLORS" | jq -r ".colors.${MODE}.surface // empty" 2>/dev/null)
-ON_SURFACE=$(echo "$COLORS" | jq -r ".colors.${MODE}.on_surface // empty" 2>/dev/null)
+color_from_palette() {
+    local token="$1"
+    jq -r --arg token "$token" --arg mode "$MODE" '
+        .colors[$token][$mode].color
+        // .colors[$mode][$token]
+        // empty
+    ' 2>/dev/null
+}
 
-echo "Generated colors (mode: $MODE, type: $TYPE)"
-echo "  Primary: $PRIMARY"
-echo "  Surface: $SURFACE"
-echo "  On Surface: $ON_SURFACE"
+PRIMARY=$(printf '%s' "$COLORS" | color_from_palette "primary")
+SURFACE=$(printf '%s' "$COLORS" | color_from_palette "surface")
+ON_SURFACE=$(printf '%s' "$COLORS" | color_from_palette "on_surface")
+
+{
+    echo "Generated colors (mode: $MODE, type: $TYPE)"
+    echo "  Primary: $PRIMARY"
+    echo "  Surface: $SURFACE"
+    echo "  On Surface: $ON_SURFACE"
+} >&2
 
 # Apply to Kitty terminal if requested
 if [ "$APPLY_KITTY" = "true" ] && command -v kitty &>/dev/null; then
@@ -50,4 +60,4 @@ if [ "$APPLY_KITTY" = "true" ] && command -v kitty &>/dev/null; then
 fi
 
 # Output JSON for Quickshell to consume
-echo "$COLORS"
+printf '%s\n' "$COLORS"

@@ -47,7 +47,8 @@ Singleton {
     property int animationSpeed: 1 // 0: None, 1: Short, 2: Medium, 3: Long, 4: Custom
     property int historyRetentionMs: 300000
     property var filteredApps: ["Spotify"]
-    property bool notificationServerEnabled: false
+    property bool notificationServerEnabled: true
+    property bool notificationServerReady: false
 
     function stripHtml(html) {
         if (!html) return ""
@@ -111,7 +112,7 @@ Singleton {
     }
 
     property Loader serverLoader: Loader {
-        active: root.notificationServerEnabled
+        active: root.notificationServerEnabled && root.notificationServerReady
         sourceComponent: notificationServerComponent
     }
 
@@ -220,15 +221,25 @@ Singleton {
             privacyMode: root.privacyMode,
             animationSpeed: root.animationSpeed,
             historyRetentionMs: root.historyRetentionMs,
-            filteredApps: root.filteredApps
+            filteredApps: root.filteredApps,
+            notificationServerEnabled: root.notificationServerEnabled
         };
         configStore.save(obj);
+    }
+
+    function syncNotificationServer() {
+        notificationServerStartTimer.stop()
+        if (!root.notificationServerEnabled) {
+            root.notificationServerReady = false
+            return
+        }
+        if (root.notificationServerReady) return
+        notificationServerStartTimer.restart()
     }
 
     // Load on start
     Component.onCompleted: {
         configStore.load();
-        notificationServerStartTimer.start();
     }
 
     // Save on change
@@ -242,6 +253,10 @@ Singleton {
     onAnimationSpeedChanged: saveConfigTimer.restart()
     onHistoryRetentionMsChanged: saveConfigTimer.restart()
     onFilteredAppsChanged: saveConfigTimer.restart()
+    onNotificationServerEnabledChanged: {
+        root.syncNotificationServer()
+        saveConfigTimer.restart()
+    }
 
     // Debounce save
     Timer {
@@ -255,7 +270,7 @@ Singleton {
         id: notificationServerStartTimer
         interval: 1200
         repeat: false
-        onTriggered: root.notificationServerEnabled = true
+        onTriggered: root.notificationServerReady = true
     }
 
     Core.JsonDataStore {
@@ -271,7 +286,8 @@ Singleton {
             privacyMode: false,
             animationSpeed: 1,
             historyRetentionMs: 300000,
-            filteredApps: ["Spotify"]
+            filteredApps: ["Spotify"],
+            notificationServerEnabled: true
         })
         onLoadedValue: function(cfg) {
             root.displayDuration = cfg.displayDuration || 5000;
@@ -284,6 +300,8 @@ Singleton {
             root.animationSpeed = cfg.animationSpeed !== undefined ? cfg.animationSpeed : 1;
             root.historyRetentionMs = cfg.historyRetentionMs !== undefined ? cfg.historyRetentionMs : 300000;
             root.filteredApps = Array.isArray(cfg.filteredApps) ? cfg.filteredApps : ["Spotify"];
+            root.notificationServerEnabled = cfg.notificationServerEnabled !== undefined ? cfg.notificationServerEnabled : true;
+            root.syncNotificationServer();
         }
         onFailed: function(phase, exitCode, details) {
             if (phase === "parse") Log.warn("Notifications", "Config parse error: " + details);

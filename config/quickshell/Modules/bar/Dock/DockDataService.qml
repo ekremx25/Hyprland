@@ -26,6 +26,8 @@ Item {
     property var desktopEntries: ({})
     property string lastDockConfigContent: ""
     property bool windowRefreshRunning: false
+    property bool windowTrackingEnabled: true
+    property int windowRefreshInterval: 2500
 
     function parseDesktopMetadata(raw) {
         var parts = [];
@@ -69,7 +71,58 @@ Item {
         return obj;
     }
 
+    function normalizeModuleList(list) {
+        var normalized = [];
+        if (!Array.isArray(list)) return normalized;
+
+        var allowed = ({
+            "Launcher": true,
+            "Weather": true,
+            "Volume": true,
+            "Tray": true,
+            "Notepad": true,
+            "Power": true,
+            "Clipboard": true,
+            "Media": true
+        });
+        var seen = ({});
+
+        for (var i = 0; i < list.length; i++) {
+            var name = list[i];
+            if (!allowed[name] || seen[name]) continue;
+            seen[name] = true;
+            normalized.push(name);
+        }
+
+        return normalized;
+    }
+
+    function normalizeDockConfig(cfg) {
+        var normalized = cfg || {};
+        var legacyModules = normalizeModuleList(normalized.modules || []);
+        var left = normalizeModuleList(normalized.leftModules || []);
+        var right = normalizeModuleList(normalized.rightModules || []);
+
+        if (left.length === 0 && right.length === 0 && legacyModules.length > 0) {
+            left = legacyModules.indexOf("Weather") !== -1 ? ["Weather"] : [];
+            right = legacyModules.filter(function(name) {
+                return name !== "Weather" && name !== "Launcher";
+            });
+        }
+
+        normalized.leftModules = left;
+        normalized.rightModules = right;
+        delete normalized.modules;
+
+        if (normalized.showDock === undefined) normalized.showDock = true;
+        if (normalized.showBackground === undefined) normalized.showBackground = true;
+        if (normalized.dockScale === undefined) normalized.dockScale = 1.0;
+        if (normalized.autoHide === undefined) normalized.autoHide = false;
+        return normalized;
+    }
+
     function applyDockConfig(cfg, rawContent) {
+        cfg = normalizeDockConfig(cfg);
         service.lastDockConfigContent = rawContent || service.lastDockConfigContent;
         service.dockConfigData = cfg;
         service.pinnedApps = cfg.pinned || [];
@@ -127,6 +180,7 @@ Item {
         obj.pinned = nextPinnedApps || [];
         obj.leftModules = nextLeftModules || [];
         obj.rightModules = nextRightModules || [];
+        obj = normalizeDockConfig(obj);
 
         var nextContent = JSON.stringify(obj, null, 2);
         applyDockConfig(obj, nextContent);
@@ -201,13 +255,107 @@ Item {
         }
     }
 
+    // ----------------------------------------------------------------
+    // Hyprland: pencere event stream (event-driven, polling yok)
+    // hypr_events.sh → openwindow/closewindow/movewindow olaylarında
+    // 80ms debounce ile refreshWindows() çağırır.
+    // ----------------------------------------------------------------
+    property bool _hyprFallback: false
+
+    Process {
+        id: hyprWinEventProc
+        running: S.CompositorService.isHyprland && service.windowTrackingEnabled && !service._hyprFallback
+        command: ["bash", Core.PathService.configPath("scripts/hypr_events.sh")]
+        stdout: SplitParser {
+            onRead: data => {
+                var line = data.trim();
+                if (line.startsWith("openwindow>>")  ||
+                    line.startsWith("closewindow>>") ||
+                    line.startsWith("movewindow>>")  ||
+                    line.startsWith("activewindow>>")) {
+                    dockWinDebounce.restart();
+                }
+            }
+        }
+        onExited: exitCode => {
+            if (!S.CompositorService.isHyprland) return;
+            if (exitCode === 127) {
+                service._hyprFallback = true;
+                return;
+            }
+            hyprWinReconnect.restart();
+        }
+    }
+
     Timer {
-        interval: 1500
-        running: true
-        repeat: true
-        triggeredOnStart: true
+        id: hyprWinReconnect
+        interval: 1000; repeat: false
+        onTriggered: {
+            if (S.CompositorService.isHyprland && !hyprWinEventProc.running)
+                hyprWinEventProc.running = true;
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Niri: pencere event stream (event-driven, polling yok)
+    // WindowsChanged ve WindowFocusChanged olaylarında günceller.
+    // ----------------------------------------------------------------
+    Process {
+        id: niriWinEventProc
+        running: S.CompositorService.isNiri && service.windowTrackingEnabled
+        command: ["niri", "msg", "--json", "event-stream"]
+        stdout: SplitParser {
+            onRead: data => {
+                try {
+                    var event = JSON.parse(data.trim());
+                    if (event.WindowsChanged || event.WindowFocusChanged) {
+                        dockWinDebounce.restart();
+                    }
+                } catch (e) {}
+            }
+        }
+        onExited: exitCode => {
+            if (S.CompositorService.isNiri) niriWinReconnect.restart();
+        }
+    }
+
+    Timer {
+        id: niriWinReconnect
+        interval: 2000; repeat: false
+        onTriggered: {
+            if (S.CompositorService.isNiri && !niriWinEventProc.running)
+                niriWinEventProc.running = true;
+        }
+    }
+
+    // ----------------------------------------------------------------
+    // Debounce — hızlı ardışık olayları tek refresh'e indirger
+    // ----------------------------------------------------------------
+    Timer {
+        id: dockWinDebounce
+        interval: 80
+        repeat: false
         onTriggered: service.refreshWindows()
     }
 
-    Component.onCompleted: dockConfigStore.load()
+    // ----------------------------------------------------------------
+    // Polling fallback
+    // MangoWC: her zaman (event API yok)
+    // Hyprland: sadece hypr_events.sh çalışmazsa (socat/nc yok)
+    // ----------------------------------------------------------------
+    Timer {
+        interval: service.windowRefreshInterval
+        running: service.windowTrackingEnabled && (
+            S.CompositorService.isMango ||
+            (S.CompositorService.isHyprland && service._hyprFallback)
+        )
+        repeat: true
+        onTriggered: service.refreshWindows()
+    }
+
+    Component.onCompleted: {
+        dockConfigStore.load();
+        // Event stream başlamadan önce mevcut pencere listesini al
+        service.refreshWindows();
+    }
 }

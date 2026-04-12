@@ -70,7 +70,10 @@ Singleton {
 
     Process {
         id: snapshotProc
-        command: ["/bin/bash", "-lc", "STATE_FILE=\"${XDG_STATE_HOME:-$HOME/.local/state}/quickshell/eq_filter_chain.state\"; DEFAULT_SINK=$(/usr/bin/pactl info | /usr/bin/sed -n \"s/^Default Sink: //p\" | /usr/bin/head -n1); RUNNING_SINK=$(/usr/bin/pactl list short sinks | /usr/bin/awk '$5 == \"RUNNING\" {print $2}' | /usr/bin/grep -v '^effect_input\\.eq$' | /usr/bin/head -n1); STATE_SINK=''; if [ -f \"$STATE_FILE\" ]; then STATE_SINK=$(/usr/bin/awk -F'=' '/^BASE_SINK=/{print $2; exit}' \"$STATE_FILE\"); fi; CONTROL=\"$DEFAULT_SINK\"; TARGET=\"$DEFAULT_SINK\"; if [ -z \"$DEFAULT_SINK\" ]; then CONTROL='@DEFAULT_SINK@'; fi; if [ -z \"$TARGET\" ] || [ \"$TARGET\" = \"effect_input.eq\" ]; then if [ -n \"$RUNNING_SINK\" ]; then TARGET=\"$RUNNING_SINK\"; elif [ -n \"$STATE_SINK\" ]; then TARGET=\"$STATE_SINK\"; else TARGET='@DEFAULT_SINK@'; fi; fi; if [ -z \"$CONTROL\" ]; then CONTROL=\"$TARGET\"; fi; VOL=$(/usr/bin/pactl get-sink-volume \"$CONTROL\" 2>/dev/null | /usr/bin/sed -n \"s/.* \\([0-9]\\+\\)%.*/\\1/p\" | /usr/bin/head -n1); MUTE=$(/usr/bin/pactl get-sink-mute \"$CONTROL\" 2>/dev/null | /usr/bin/awk '{print $2}'); [ -z \"$VOL\" ] && VOL=0; [ -z \"$MUTE\" ] && MUTE=no; echo \"SINK=$CONTROL\"; echo \"VOL=$VOL\"; echo \"MUTE=$MUTE\""]
+        // Bash env var genişletmesiyle script path'ini hesaplar.
+        // PathService bağımlılığı yok → Singleton yükleme sırası sorunu olmaz.
+        command: ["/bin/bash", "-lc",
+            "exec \"${XDG_CONFIG_HOME:-$HOME/.config}/quickshell/scripts/volume_snapshot.sh\""]
         running: false
         property string out: ""
         stdout: SplitParser { onRead: data => { snapshotProc.out += data + "\n" } }

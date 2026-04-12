@@ -5,40 +5,48 @@ import Quickshell.Io
 import QtQuick
 import "./core/Log.js" as Log
 
+// Niri compositor workspace event stream entegrasyonu.
+// Event stream beklenmedik şekilde kapanırsa (compositor yeniden başlama,
+// IPC hatası vb.) 2 saniye bekleyip otomatik yeniden bağlanır.
 Singleton {
+    // _reconnect: false yapılırsa process durur, timer true'ya getirince
+    // binding yeniden değerlendirilerek process otomatik başlar.
+    property bool _reconnect: true
+
     property ListModel workspaces: ListModel {}
 
+    // ------------------------------------------------------------------
+    // Workspace listesini güncelle
+    // ------------------------------------------------------------------
     function updateWorkspaces(workspacesEvent) {
         const workspaceList = workspacesEvent.workspaces;
-        
-        // 1. 排序
+
+        // İndekse göre sırala
         workspaceList.sort((a, b) => a.idx - b.idx);
-        
+
         workspaces.clear();
         for (const workspace of workspaceList) {
             workspaces.append({
-                // 【修复1】 强制转为字符串，防止 JS 数字精度丢失导致 ID 错乱
-                wsId: String(workspace.id), 
-                
+                // ID'yi string'e çevir: JS sayı hassasiyeti kaybını önler
+                wsId: String(workspace.id),
                 idx: workspace.idx,
                 isActive: workspace.is_active,
-                
-                // 【修复2】 这里的 || "" 是关键！
-                // 如果 name 是 null，就用空字符串代替，防止 ListModel 崩溃
-                name: workspace.name || "", 
+                // name null ise boş string kullan: ListModel çökmesini önler
+                name: workspace.name || "",
                 output: workspace.output || ""
             });
         }
     }
 
+    // ------------------------------------------------------------------
+    // Aktif workspace'i güncelle
+    // ------------------------------------------------------------------
     function activateWorkspace(workspacesEvent) {
-        // ID 也要转成字符串来对比
+        // String karşılaştırması: sayı dönüşüm hatalarına karşı güvenli
         const activeId = String(workspacesEvent.id);
 
         for (let i = 0; i < workspaces.count; i++) {
             const item = workspaces.get(i);
-            
-            // 字符串对比，绝对安全
             const isNowActive = (item.wsId === activeId);
 
             if (item.isActive !== isNowActive) {
@@ -47,26 +55,54 @@ Singleton {
         }
     }
 
+    // ------------------------------------------------------------------
+    // Yeniden bağlanma zamanlayıcısı
+    // Process kapandığında 2 saniye bekleyip _reconnect = true yapar;
+    // bu binding'i tetikleyerek process'i yeniden başlatır.
+    // ------------------------------------------------------------------
+    Timer {
+        id: reconnectTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            if (CompositorService.isNiri) {
+                Log.info("Niri", "Event stream'e yeniden bağlanılıyor...");
+                _reconnect = true;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // Niri event stream process
+    // ------------------------------------------------------------------
     Process {
         id: niriEvents
-        running: CompositorService.isNiri
-        // 监听事件
+        running: CompositorService.isNiri && _reconnect
         command: ["niri", "msg", "--json", "event-stream"]
 
         stdout: SplitParser {
             onRead: data => {
                 try {
                     const event = JSON.parse(data.trim());
-                    
+
                     if (event.WorkspacesChanged) {
                         updateWorkspaces(event.WorkspacesChanged);
-                    } 
-                    else if (event.WorkspaceActivated) {
+                    } else if (event.WorkspaceActivated) {
                         activateWorkspace(event.WorkspaceActivated);
                     }
                 } catch (e) {
-                    Log.warn("Niri", "Event parse error: " + e);
+                    Log.warn("Niri", "Event parse hatası: " + e);
                 }
+            }
+        }
+
+        // Beklenmedik çıkışlarda (crash, IPC kopması, yeniden başlama)
+        // kısa bir bekleme süresi sonra otomatik yeniden bağlan.
+        onExited: exitCode => {
+            if (CompositorService.isNiri) {
+                Log.warn("Niri", "Event stream kapandı (kod: " + exitCode + "), 2s sonra yeniden bağlanılıyor");
+                _reconnect = false;
+                reconnectTimer.restart();
             }
         }
     }
