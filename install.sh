@@ -36,6 +36,8 @@ PACMAN_PACKAGES=(
   hyprlock
   hyprpolkitagent
   hyprshot
+  inotify-tools
+  socat
   keepassxc
   kmod
   kitty
