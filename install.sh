@@ -38,6 +38,7 @@ PACMAN_PACKAGES=(
   hyprshot
   inotify-tools
   socat
+  power-profiles-daemon
   keepassxc
   kmod
   kitty
@@ -395,6 +396,7 @@ post_install() {
   configure_grub_kernel_params
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
+  sudo systemctl enable --now power-profiles-daemon.service >/dev/null 2>&1 || true
   log "Setting Dolphin as default file manager"
   need_cmd xdg-mime && xdg-mime default org.kde.dolphin.desktop inode/directory || true
   log "Refreshing desktop caches"
