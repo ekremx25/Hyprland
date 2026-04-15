@@ -27,10 +27,10 @@ Item {
 
     CommandValue {
         id: systemInfoReader
-        command: ["sh", "-c", "cat /etc/os-release 2>/dev/null | grep PRETTY_NAME | cut -d= -f2 | tr -d '\"' || echo 'Unknown OS'"]
-        fallback: "Unknown"
+        command: ["grep", "^PRETTY_NAME=", "/etc/os-release"]
+        fallback: "Unknown OS"
         onLoaded: value => {
-            aboutPage.systemInfo = value;
+            aboutPage.systemInfo = value.replace(/^PRETTY_NAME=["']?/, "").replace(/["']$/, "").trim() || "Unknown OS";
         }
     }
 

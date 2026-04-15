@@ -65,30 +65,29 @@ Item {
         "Power", "PowerGroup", "SysInfoGroup", "RamModule", "Media"
     ]
 
-    JsonFileStore {
+    Core.JsonDataStore {
         id: barConfigStore
         path: backend.configPath
-        onLoaded: function(text) {
-            var raw = (text || "").trim();
-            if (raw === "") {
-                var seeded = backend.normalizeBarConfig(BarDefaults.clone(backend.initialBarConfig));
-                backend.applyBarConfig(seeded);
-                barConfigStore.write(JSON.stringify(seeded, null, 2));
-                customPresetStore.write(JSON.stringify(seeded, null, 2));
-                defaultsStore.write(backend.renderBarDefaults(seeded));
-                return;
+        defaultValue: BarDefaults.clone(backend.initialBarConfig)
+        onLoadedValue: function(value, rawText) {
+            var cfg = backend.normalizeBarConfig(value);
+            backend.applyBarConfig(cfg);
+            if (rawText.trim() === "") {
+                // İlk çalıştırma: normalize edilmiş config'i diske yaz.
+                barConfigStore.save(cfg);
+                customPresetStore.save(cfg);
+                defaultsStore.write(backend.renderBarDefaults(cfg));
             }
-
-            backend.applyBarConfig(backend.parseJsonObject(text, BarDefaults.clone(backend.initialBarConfig)));
         }
     }
 
-    JsonFileStore {
+    Core.JsonDataStore {
         id: dockConfigStore
         path: backend.dockConfigPath
-        onLoaded: function(text) {
-            backend.applyDockModuleLists(backend.parseJsonObject(text, {}));
-            barConfigStore.read();
+        defaultValue: ({})
+        onLoadedValue: function(value) {
+            backend.applyDockModuleLists(value);
+            barConfigStore.load();
         }
     }
 
@@ -97,10 +96,10 @@ Item {
         path: backend.dockConfigPath
         interval: 800
         active: true
-        onChanged: dockConfigStore.read()
+        onChanged: dockConfigStore.load()
     }
 
-    JsonFileStore {
+    Core.JsonDataStore {
         id: customPresetStore
         path: backend.customPresetPath
     }
@@ -110,16 +109,6 @@ Item {
         path: backend.defaultsPath
     }
 
-    function parseJsonObject(text, fallback) {
-        var raw = (text || "").trim();
-        if (raw === "") return fallback;
-        try {
-            return JSON.parse(raw);
-        } catch (e) {
-            Log.warn("SettingsBackend", "Settings parse error: " + e);
-            return fallback;
-        }
-    }
 
     function cloneValue(value) {
         return JSON.parse(JSON.stringify(value));
@@ -320,20 +309,20 @@ Item {
     }
 
     function loadConfig() {
-        dockConfigStore.read();
+        dockConfigStore.load();
     }
 
     function saveConfig(onSaved) {
         var cfg = buildBarConfigFromModels();
         Log.debug("SettingsBackend", "Saving config to " + configPath);
         barConfig = cfg;
-        barConfigStore.write(JSON.stringify(cfg, null, 2));
-        customPresetStore.write(JSON.stringify(cfg, null, 2));
+        barConfigStore.save(cfg);
+        customPresetStore.save(cfg);
         defaultsStore.write(backend.renderBarDefaults(cfg));
 
         var dockCfg = buildDockConfigFromModels();
         dockConfig = dockCfg;
-        dockConfigStore.write(JSON.stringify(dockCfg, null, 2));
+        dockConfigStore.save(dockCfg);
 
         if (onSaved) onSaved(cfg);
     }

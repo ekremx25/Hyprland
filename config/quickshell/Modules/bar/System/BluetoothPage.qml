@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
 import "../../../Widgets"
+import "../../../Services/core" as Core
 import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
@@ -23,19 +24,18 @@ Item {
     }
 
     function togglePower() {
-        var cmd = powered ? "bluetoothctl power off" : "bluetoothctl power on"
-        Quickshell.execDetached(["/bin/bash", "-lc", cmd])
+        Quickshell.execDetached(["bluetoothctl", "power", powered ? "off" : "on"])
         refreshTimer.restart()
     }
 
     function connect(mac) {
-        Quickshell.execDetached(["/bin/bash", "-lc", "bluetoothctl connect " + mac])
+        Quickshell.execDetached(["bluetoothctl", "connect", mac])
         refreshTimer.interval = 3000
         refreshTimer.restart()
     }
 
     function disconnect(mac) {
-        Quickshell.execDetached(["/bin/bash", "-lc", "bluetoothctl disconnect " + mac])
+        Quickshell.execDetached(["bluetoothctl", "disconnect", mac])
         refreshTimer.interval = 1500
         refreshTimer.restart()
     }
@@ -43,16 +43,7 @@ Item {
     // ── Processes ──────────────────────────────────────────────────────────
     Process {
         id: statusProc
-        // Get power status + paired devices with connection status
-        command: ["/bin/bash", "-lc",
-            "POWER=$(bluetoothctl show 2>/dev/null | awk '/Powered:/{print $2}'); " +
-            "echo \"POWERED=$POWER\"; " +
-            "bluetoothctl paired-devices 2>/dev/null | awk '{print $2}' | while read MAC; do " +
-            "  NAME=$(bluetoothctl info \"$MAC\" 2>/dev/null | awk -F': ' '/^\\tName:/{print $2}'); " +
-            "  CONN=$(bluetoothctl info \"$MAC\" 2>/dev/null | awk '/Connected:/{print $2}'); " +
-            "  TYPE=$(bluetoothctl info \"$MAC\" 2>/dev/null | awk -F': ' '/Icon:/{print $2}'); " +
-            "  echo \"DEVICE=$MAC|$NAME|$CONN|$TYPE\"; " +
-            "done"]
+        command: [Core.PathService.configPath("Modules/bar/System/bt_status.sh")]
         running: true
         property string out: ""
         stdout: SplitParser { onRead: data => statusProc.out += data + "\n" }

@@ -165,7 +165,7 @@ Item {
     function importProfileImage(selectedFile) {
         if (!selectedFile || selectedFile === "" || avatarPath === "") return
         var targetDir = homeDir + "/.config/quickshell/assets"
-        copyProfileProc.command = ["sh", "-c", "mkdir -p '" + targetDir + "' && cp '" + selectedFile + "' '" + avatarPath + "'"]
+        copyProfileProc.command = ["sh", "-c", "mkdir -p \"$1\" && cp \"$2\" \"$3\"", "--", targetDir, selectedFile, avatarPath]
         copyProfileProc.running = true
     }
 

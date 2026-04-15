@@ -13,6 +13,34 @@ Item {
     property var value: ({})
     property string rawText: ""
 
+    // Şema versiyonlama:
+    // - schemaVersion: bu store'un beklediği versiyon numarası (varsayılan 0 = versiyonsuz)
+    // - migrate(data, fromVersion): eski config'i güncel şemaya dönüştürmek için override et
+    //   Örnek kullanım:
+    //     schemaVersion: 2
+    //     function migrate(data, from) {
+    //         if (from < 1) data.newField = "default";
+    //         if (from < 2) data.renamedField = data.oldField; delete data.oldField;
+    //         return data;
+    //     }
+    property int schemaVersion: 0
+
+    function migrate(data, fromVersion) {
+        // Alt sınıflar override etsin. Varsayılan: dönüşüm yok.
+        return data;
+    }
+
+    // Yüklenen veriyi doğrular. Geçersiz bir değer varsa düzeltilmiş veriyi döndür.
+    // Alt sınıflar override edebilir:
+    //   function validate(data) {
+    //       if (data.timeout < 0) data.timeout = 0;
+    //       if (data.timeout > 3600) data.timeout = 3600;
+    //       return data;
+    //   }
+    function validate(data) {
+        return data;
+    }
+
     signal loadedValue(var value, string rawText)
     signal savedValue(var value)
     signal failed(string phase, int exitCode, string details)
@@ -47,7 +75,19 @@ Item {
             }
 
             try {
-                root.value = JSON.parse(text);
+                var parsed = JSON.parse(text);
+
+                // Şema versiyonu kontrolü: config'deki versiyon mevcut beklentiden düşükse migrate et.
+                var fileVersion = (typeof parsed._schemaVersion === "number") ? parsed._schemaVersion : 0;
+                if (root.schemaVersion > 0 && fileVersion < root.schemaVersion) {
+                    parsed = root.migrate(parsed, fileVersion);
+                    parsed._schemaVersion = root.schemaVersion;
+                    // Migrasyon sonucunu hemen diske yaz.
+                    root.rawText = JSON.stringify(parsed, null, 2);
+                    textStore.write(root.rawText);
+                }
+
+                root.value = root.validate(parsed);
                 root.loadedValue(root.value, root.rawText);
             } catch (e) {
                 // Parse hatası: default değeri kullan, hata sinyalini path ile birlikte ilet

@@ -17,7 +17,7 @@ Item {
     Process {
         id: proc
         command: root.sourcePath.length > 0 && root.targetPath.length > 0
-            ? ["sh", "-c", "mkdir -p \"$(dirname \"" + root.targetPath + "\")\" && cp \"" + root.sourcePath + "\" \"" + root.targetPath + "\""]
+            ? ["sh", "-c", "mkdir -p \"$(dirname \"$2\")\" && cp \"$1\" \"$2\"", "--", root.sourcePath, root.targetPath]
             : []
         running: false
         onExited: exitCode => {

@@ -10,6 +10,15 @@ QtObject {
     property string currentThemeName: currentTheme
     property string lastMaterialSyncSignature: ""
 
+    // --- ANİMASYON SÜRELERİ ---
+    // Yeni component yazarken bu sabitleri kullan; böylece tüm hızları
+    // tek yerden kontrol edebilirsin.
+    readonly property int animInstant:  50   // anlık geri bildirim (hover vb.)
+    readonly property int animFast:    100   // hızlı geçişler
+    readonly property int animNormal:  150   // standart UI geçişleri
+    readonly property int animMedium:  250   // panel aç/kapat
+    readonly property int animSlow:    400   // sayfa girişi, büyük geçişler
+
     // --- TEMALAR ---
     readonly property var themes: ({
         "Catppuccin Mocha": {

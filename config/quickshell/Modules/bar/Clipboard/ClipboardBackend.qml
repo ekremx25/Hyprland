@@ -59,8 +59,8 @@ Item {
     }
 
     function copyToClipboard(text) {
-        var safeText = text.replace(/'/g, "'\\''");
-        copyProc.command = ["sh", "-c", "printf '%s' '" + safeText + "' | wl-copy"];
+        // wl-copy argüman olarak metin alır — shell'e gerek yok, injection riski sıfır.
+        copyProc.command = ["wl-copy", "--", text];
         copyProc.running = false;
         copyProc.running = true;
         currentClip = text;

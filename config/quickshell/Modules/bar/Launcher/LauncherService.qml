@@ -33,12 +33,12 @@ Item {
 
     Process {
         id: distroProc
-        command: ["sh", "-c", "grep '^PRETTY_NAME=' /etc/os-release | cut -d'\"' -f2"]
+        command: ["grep", "^PRETTY_NAME=", "/etc/os-release"]
         property string buf: ""
         stdout: SplitParser { onRead: data => { distroProc.buf = data.trim(); } }
         running: true
         onExited: {
-            service.distroName = distroProc.buf;
+            service.distroName = distroProc.buf.replace(/^PRETTY_NAME=["']?/, "").replace(/["']$/, "").trim();
             distroProc.buf = "";
         }
     }

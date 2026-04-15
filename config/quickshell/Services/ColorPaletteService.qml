@@ -80,11 +80,11 @@ Singleton {
 
     Process {
         id: cargoBinCheck
-        command: ["sh", "-c", "test -x $HOME/.cargo/bin/matugen"]
+        command: ["sh", "-c", "test -x \"$1\"", "--", (Quickshell.env("HOME") || "") + "/.cargo/bin/matugen"]
         running: false
         onExited: (exitCode) => {
             if (exitCode === 0) {
-                root.binPath = "$HOME/.cargo/bin/matugen";
+                root.binPath = (Quickshell.env("HOME") || "") + "/.cargo/bin/matugen";
                 root.available = true;
             } else {
                 root.available = false;
@@ -133,9 +133,7 @@ Singleton {
 
         root.isBusy = true;
 
-        // Escape single quotes primarily, as we wraps the path in single quotes for bash
-        var escaped = "'" + root.wallpaperPath.replace(/'/g, "'\\''") + "'";
-        matugenProc.command = ["bash", "-c", root.binPath + " image " + escaped + " -t " + root.matugenType + " --json hex --source-color-index 0 2>/dev/null"];
+        matugenProc.command = [root.binPath, "image", root.wallpaperPath, "-t", root.matugenType, "--json", "hex", "--source-color-index", "0"];
         matugenProc.buf = "";
         matugenProc.running = true;
     }
@@ -150,8 +148,7 @@ Singleton {
         root.isBusy = true;
         root.errorMessage = "";
 
-        var escaped = "'" + hexColor.replace(/'/g, "'\\''") + "'";
-        matugenProc.command = ["bash", "-c", root.binPath + " color hex " + escaped + " -t " + root.matugenType + " --json hex 2>/dev/null"];
+        matugenProc.command = [root.binPath, "color", "hex", hexColor, "-t", root.matugenType, "--json", "hex"];
         matugenProc.buf = "";
         matugenProc.running = true;
     }
@@ -327,6 +324,7 @@ Singleton {
     Core.JsonDataStore {
         id: configStore
         path: root.configPath
+        schemaVersion: 1
         defaultValue: ({
             materialYou: false,
             wallpaperPath: "",
@@ -336,6 +334,14 @@ Singleton {
             applyToGtk: false,
             liveUpdate: false
         })
+        function validate(data) {
+            if (data.mode !== "dark" && data.mode !== "light") data.mode = "dark";
+            if (typeof data.materialYou !== "boolean") data.materialYou = !!data.materialYou;
+            if (typeof data.applyToKitty !== "boolean") data.applyToKitty = !!data.applyToKitty;
+            if (typeof data.applyToGtk !== "boolean") data.applyToGtk = !!data.applyToGtk;
+            if (typeof data.liveUpdate !== "boolean") data.liveUpdate = !!data.liveUpdate;
+            return data;
+        }
         onLoadedValue: function(cfg) {
             root.enabled = cfg.materialYou || false;
             root.wallpaperPath = Core.PathService.expandHome(cfg.wallpaperPath || "");

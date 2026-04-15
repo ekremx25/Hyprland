@@ -173,10 +173,6 @@ Expected healthy output:
 
 ## Troubleshooting & Helpful Scripts
 
-- **MangoWC Auto Layout**: If you hotplug monitors under MangoWC, Mango might default the new screens to the `(0,0)` coordinate causing overlapping displays. You can dynamically snap them side-by-side using the provided Python script.
-  - **Manual use**: `python3 ~/.config/quickshell/scripts/mango_auto_layout.py`
-  - **Auto-start**: Add `python3 ~/.config/quickshell/scripts/mango_auto_layout.py &` to your `~/.config/mango/autostart.sh`
-  - **Keybind**: Add `bind=SUPER,p,spawn,python3 ~/.config/quickshell/scripts/mango_auto_layout.py` to your `~/.config/mango/config.conf`
 - **Global/portable EQ module (PipeWire native)**:
   - Script: `scripts/eq_filter_chain.sh`
   - Works with `XDG_CONFIG_HOME` automatically (default: `~/.config`)

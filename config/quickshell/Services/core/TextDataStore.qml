@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 
 // Dosya okuma/yazma servisi.
@@ -27,15 +28,11 @@ Item {
     property string pendingText: ""
     // Mevcut yazma biterken yeni bir write() gelirse true yapılır.
     property bool _writeQueued: false
+    readonly property string _coreDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/Services/core"
 
     signal loaded(string text)
     signal saved(string text)
     signal failed(string phase, int exitCode, string details)
-
-    // Tek tırnak içindeki tek tırnakları güvenli şekilde escape eder.
-    function shellQuote(text) {
-        return "'" + String(text).replace(/'/g, "'\\''") + "'";
-    }
 
     function read() {
         if (root.path.length === 0 || readProc.running) return;
@@ -60,15 +57,11 @@ Item {
     // ------------------------------------------------------------------
     Process {
         id: readProc
-        command: root.path.length > 0
-            ? ["sh", "-c", "cat " + root.shellQuote(root.path) + " 2>/dev/null || true"]
-            : []
+        command: root.path.length > 0 ? ["cat", "--", root.path] : []
         running: false
         stdout: SplitParser { onRead: data => { root.readBuffer += data; } }
         onExited: exitCode => {
-            if (exitCode !== 0) {
-                root.failed("read", exitCode, "");
-            }
+            // Exit code != 0 is normal for non-existent files (first run).
             root.loaded(root.readBuffer);
             root.readBuffer = "";
         }
@@ -79,19 +72,11 @@ Item {
     // ------------------------------------------------------------------
     Process {
         id: writeProc
-        command: root.path.length > 0 ? [
-            "sh", "-c",
-            // 1. Hedef dizini oluştur
-            // 2. Geçici dosya aç (aynı dizinde, mv atomik olsun)
-            // 3. İçeriği geçiciğye yaz
-            // 4. Hedefe taşı (atomik)
-            // 5. Herhangi bir adım başarısız olursa geçiciyi temizle
-            "d=$(dirname " + root.shellQuote(root.path) + ") && " +
-            "mkdir -p \"$d\" && " +
-            "tmp=$(mktemp \"$d/.XXXXXX\") && " +
-            "{ printf '%s' " + root.shellQuote(root.pendingText) + " > \"$tmp\" && " +
-            "mv -- \"$tmp\" " + root.shellQuote(root.path) + "; } || { rm -f \"$tmp\"; exit 1; }"
-        ] : []
+        // Atomic write via helper script: content passes as argv $2,
+        // never through shell interpretation. Zero sh -c in this file.
+        command: root.path.length > 0
+            ? [root._coreDir + "/atomic_write.sh", root.path, root.pendingText]
+            : []
         running: false
         onExited: exitCode => {
             if (exitCode === 0) {

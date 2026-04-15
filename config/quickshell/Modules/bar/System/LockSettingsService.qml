@@ -174,6 +174,7 @@ Item {
     Core.JsonDataStore {
         id: configStore
         path: service.lockConfigPath
+        schemaVersion: 1
         defaultValue: ({
             backgroundPath: service.defaultBackgroundPath,
             dimTimeoutMinutes: 20,
@@ -182,6 +183,15 @@ Item {
             suspendTimeoutMinutes: 33,
             ignoreMediaInhibit: true
         })
+        function validate(data) {
+            function clamp(v, lo, hi) { var n = parseInt(v); return isNaN(n) ? lo : Math.max(lo, Math.min(hi, n)); }
+            data.dimTimeoutMinutes       = clamp(data.dimTimeoutMinutes, 1, 240);
+            data.lockTimeoutMinutes      = clamp(data.lockTimeoutMinutes, 1, 240);
+            data.screenOffTimeoutMinutes = clamp(data.screenOffTimeoutMinutes, 1, 240);
+            data.suspendTimeoutMinutes   = clamp(data.suspendTimeoutMinutes, 1, 480);
+            if (typeof data.ignoreMediaInhibit !== "boolean") data.ignoreMediaInhibit = !!data.ignoreMediaInhibit;
+            return data;
+        }
         onLoadedValue: function(cfg, rawText) {
             if (String(rawText || "").trim().length === 0) {
                 service.loadLegacyConfigs()

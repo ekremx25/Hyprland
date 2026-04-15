@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import "../../../Widgets"
+import "../../../Services/core" as Core
 import "../../../Services/core/Log.js" as Log
 
 Item {
@@ -42,7 +43,7 @@ Item {
     property color colorBorder:     "#2d3544"
     property color colorTrack:      "#303848"
 
-    JsonFileStore {
+    Core.TextDataStore {
         id: dockConfigStore
         path: settingsPopup ? settingsPopup.dockConfigPath : ""
 

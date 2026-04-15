@@ -200,22 +200,34 @@ Item {
 
     Process {
         id: ipProc
-        command: ["sh", "-c", "ip -4 addr show | grep 'inet ' | grep -v '127.0.0.1' | head -1 | awk '{print $2}'"]
+        command: ["ip", "-4", "-o", "addr", "show"]
         property string buf: ""
-        stdout: SplitParser { onRead: data => ipProc.buf = data.trim() }
+        stdout: SplitParser { onRead: data => ipProc.buf += data + "\n" }
         onExited: {
-            ipAddr = ipProc.buf;
+            var lines = ipProc.buf.split("\n");
+            var addr = "";
+            for (var i = 0; i < lines.length; i++) {
+                var parts = lines[i].trim().split(/\s+/);
+                var inetIdx = parts.indexOf("inet");
+                if (inetIdx >= 0 && inetIdx + 1 < parts.length) {
+                    var cidr = parts[inetIdx + 1];
+                    if (cidr.indexOf("127.") !== 0) { addr = cidr; break; }
+                }
+            }
+            ipAddr = addr;
             ipProc.buf = "";
         }
     }
 
     Process {
         id: gwProc
-        command: ["sh", "-c", "ip route | grep default | awk '{print $3}' | head -1"]
+        command: ["ip", "-4", "route", "list", "default"]
         property string buf: ""
-        stdout: SplitParser { onRead: data => gwProc.buf = data.trim() }
+        stdout: SplitParser { onRead: data => { if (!gwProc.buf) gwProc.buf = data.trim(); } }
         onExited: {
-            gateway = gwProc.buf;
+            var parts = gwProc.buf.split(/\s+/);
+            var viaIdx = parts.indexOf("via");
+            gateway = (viaIdx >= 0 && viaIdx + 1 < parts.length) ? parts[viaIdx + 1] : "";
             gwProc.buf = "";
         }
     }
@@ -223,24 +235,24 @@ Item {
     Process {
         id: macProc
         property string iface: ""
-        command: iface.length > 0
-            ? ["sh", "-c", "cat \"$1\" 2>/dev/null || echo '--'", "sh", "/sys/class/net/" + iface + "/address"]
-            : ["sh", "-c", "echo '--'"]
+        command: iface.length > 0 ? ["cat", "/sys/class/net/" + iface + "/address"] : []
         property string buf: ""
         stdout: SplitParser { onRead: data => macProc.buf = data.trim() }
         onExited: {
-            macAddr = macProc.buf;
+            macAddr = macProc.buf || "--";
             macProc.buf = "";
         }
     }
 
     Process {
         id: dnsProc
-        command: ["sh", "-c", "nmcli -t -f IP4.DNS connection show --active 2>/dev/null | head -1 | cut -d: -f2"]
+        command: ["nmcli", "-t", "-f", "IP4.DNS", "connection", "show", "--active"]
         property string buf: ""
-        stdout: SplitParser { onRead: data => dnsProc.buf = data.trim() }
+        stdout: SplitParser { onRead: data => { if (!dnsProc.buf) dnsProc.buf = data.trim(); } }
         onExited: {
-            dns = dnsProc.buf || "Automatic";
+            var line = dnsProc.buf;
+            var idx = line.indexOf(":");
+            dns = (idx >= 0 ? line.substring(idx + 1) : line) || "Automatic";
             dnsProc.buf = "";
         }
     }

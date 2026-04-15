@@ -57,8 +57,8 @@ Singleton {
         for (var i = 0; i < lines.length; i++) {
             var parts = lines[i].split(':');
             if (parts.length >= 3 && (parts[2] === "vpn" || parts[2] === "wireguard")) {
-                var autoconnect = parts.length >= 5 ? (parts[4] === "yes") : false;
-                out.push({ name: parts[0], uuid: parts[1], type: parts[2], serviceType: parts[3] || "", autoconnect: autoconnect });
+                var autoconnect = parts.length >= 4 ? (parts[3] === "yes") : false;
+                out.push({ name: parts[0], uuid: parts[1], type: parts[2], autoconnect: autoconnect });
             }
         }
         return out;
@@ -110,7 +110,7 @@ Singleton {
 
     Process {
         id: getProfiles
-        command: ["bash", "-lc", "nmcli -t -f NAME,UUID,TYPE connection show | while IFS=: read -r name uuid type; do case \"$type\" in vpn) autoconnect=$(nmcli -g connection.autoconnect connection show uuid \"$uuid\" 2>/dev/null || echo 'no'); echo \"$name:$uuid:$type::$autoconnect\" ;; wireguard) autoconnect=$(nmcli -g connection.autoconnect connection show uuid \"$uuid\" 2>/dev/null || echo 'no'); echo \"$name:$uuid:$type::$autoconnect\" ;; *) : ;; esac; done"]
+        command: ["nmcli", "-t", "-f", "NAME,UUID,TYPE,AUTOCONNECT", "connection", "show"]
         running: false
         property string buf: ""
         stdout: SplitParser { onRead: data => { getProfiles.buf += data + "\n"; } }
@@ -177,8 +177,20 @@ Singleton {
         return s && s.indexOf('-') !== -1 && s.length >= 8;
     }
 
-    function _escapeShellArg(s) {
-        return "'" + String(s).replace(/'/g, "'\\''") + "'";
+    property var _vpnStepQueue: []
+    property int _vpnStepIdx: 0
+
+    function _runNextVpnStep() {
+        if (_vpnStepIdx >= _vpnStepQueue.length) {
+            root.isBusy = false;
+            _vpnStepQueue = [];
+            _vpnStepIdx = 0;
+            refreshAll();
+            return;
+        }
+        var step = _vpnStepQueue[_vpnStepIdx];
+        _vpnStepIdx++;
+        runVpnCommand(vpnSwitch, step);
     }
 
     function connect(uuidOrName) {
@@ -191,13 +203,18 @@ Singleton {
         root.isBusy = true;
         root.errorMessage = "";
 
-        if (root.singleActive) {
-            var escaped = _escapeShellArg(uuidOrName);
-            var upCmd = _looksLikeUuid(uuidOrName) ? "nmcli connection up uuid " + escaped : "nmcli connection up id " + escaped;
-            var script = "set -e\n" +
-                         "nmcli -t -f UUID,TYPE connection show --active | awk -F: '$2 ~ /^(vpn|wireguard)$/ {print $1}' | while read u; do [ -n \"$u\" ] && nmcli connection down uuid \"$u\" || true; done\n" +
-                         upCmd + "\n";
-            runVpnCommand(vpnSwitch, ["bash", "-lc", script]);
+        if (root.singleActive && root.activeUuids.length > 0) {
+            // Build a step queue: disconnect each active VPN, then connect the new one
+            var steps = [];
+            for (var i = 0; i < root.activeUuids.length; i++) {
+                steps.push(["nmcli", "connection", "down", "uuid", root.activeUuids[i]]);
+            }
+            steps.push(_looksLikeUuid(uuidOrName)
+                ? ["nmcli", "connection", "up", "uuid", uuidOrName]
+                : ["nmcli", "connection", "up", "id", uuidOrName]);
+            _vpnStepQueue = steps;
+            _vpnStepIdx = 0;
+            _runNextVpnStep();
         } else {
             runVpnCommand(vpnUp, _looksLikeUuid(uuidOrName)
                 ? ["nmcli", "connection", "up", "uuid", uuidOrName]
@@ -277,13 +294,19 @@ Singleton {
         property string buf: ""
         stdout: SplitParser { onRead: data => { vpnSwitch.buf += data; } }
         onExited: (exitCode) => {
-            root.isBusy = false;
-            if (exitCode !== 0 && root.errorMessage === "") {
-                root.errorMessage = "Failed to switch VPN";
-                Log.warn("VpnService", root.errorMessage);
-            }
             vpnSwitch.buf = "";
-            refreshAll();
+            if (root._vpnStepQueue.length > 0) {
+                // Step queue active — continue to next step
+                if (exitCode !== 0) Log.warn("VpnService", "Step failed (exit " + exitCode + ")");
+                root._runNextVpnStep();
+            } else {
+                root.isBusy = false;
+                if (exitCode !== 0 && root.errorMessage === "") {
+                    root.errorMessage = "Failed to switch VPN";
+                    Log.warn("VpnService", root.errorMessage);
+                }
+                refreshAll();
+            }
         }
     }
 
@@ -304,10 +327,15 @@ Singleton {
     }
 
     function disconnectAllActive() {
-        if (root.isBusy) return;
+        if (root.isBusy || root.activeUuids.length === 0) return;
         root.isBusy = true;
-        var script = "nmcli -t -f UUID,TYPE connection show --active | awk -F: '$2 ~ /^(vpn|wireguard)$/ {print $1}' | while read u; do [ -n \"$u\" ] && nmcli connection down uuid \"$u\" || true; done";
-        runVpnCommand(vpnSwitch, ["bash", "-lc", script]);
+        var steps = [];
+        for (var i = 0; i < root.activeUuids.length; i++) {
+            steps.push(["nmcli", "connection", "down", "uuid", root.activeUuids[i]]);
+        }
+        _vpnStepQueue = steps;
+        _vpnStepIdx = 0;
+        _runNextVpnStep();
     }
 
     function setAutoconnect(uuidOrName, enabled) {

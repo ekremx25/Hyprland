@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 
 // Dosya değişikliklerini izler.
@@ -32,10 +33,7 @@ Item {
     property bool _pollingMode: false
     property string _lastToken: ""
     property bool _initialized: false
-
-    function shellQuote(text) {
-        return "'" + String(text).replace(/'/g, "'\\''") + "'";
-    }
+    readonly property string _coreDir: (Quickshell.env("XDG_CONFIG_HOME") || (Quickshell.env("HOME") + "/.config")) + "/quickshell/Services/core"
 
     // path'in bulunduğu dizini döndür
     function _dir() {
@@ -56,11 +54,9 @@ Item {
         id: watchProc
         running: root.active && root.path.length > 0 && !root._pollingMode
         // Dizini izle; moved_to atomik mv yazmaları da yakalar
-        command: root.path.length > 0 ? [
-            "sh", "-c",
-            "exec inotifywait -m -q -e close_write,moved_to --format '%f' "
-                + root.shellQuote(root._dir())
-        ] : []
+        command: root.path.length > 0
+            ? ["inotifywait", "-m", "-q", "-e", "close_write,moved_to", "--format", "%f", root._dir()]
+            : []
 
         stdout: SplitParser {
             onRead: data => {
@@ -114,14 +110,7 @@ Item {
 
     Process {
         id: statProc
-        command: root.path.length > 0 ? [
-            "sh", "-c",
-            "if test -e " + root.shellQuote(root.path) + "; then "
-                + "stat -Lc '%Y:%s:%i' " + root.shellQuote(root.path) + " 2>/dev/null "
-                + "|| stat -c '%Y:%s:%i' " + root.shellQuote(root.path) + " 2>/dev/null "
-                + "|| echo present; "
-                + "else echo missing; fi"
-        ] : []
+        command: root.path.length > 0 ? [root._coreDir + "/file_stat.sh", root.path] : []
         running: false
         property string output: ""
         stdout: SplitParser { onRead: data => { statProc.output += data; } }

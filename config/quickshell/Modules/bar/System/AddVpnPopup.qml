@@ -239,12 +239,8 @@ PanelWindow {
                                         var randId = Math.floor(Math.random() * 9000) + 1000;
                                         var newPath = "/tmp/wg_" + randId + ".conf";
                                         
-                                        // Handle special chars in path for shell (basic quote escape)
-                                        var safeOrig = filePath.replace(/'/g, "'\\''");
-                                        
-                                        // Copy -> Import -> Remove (cleanup in background or ignore if fails)
-                                        // We use sh -c to chain the copy and import
-                                        vpnCreationProcess.command = ["sh", "-c", "cp '" + safeOrig + "' " + newPath + " && nmcli connection import type wireguard file " + newPath];
+                                        // Positional args ($1, $2) prevent any shell interpretation of path contents
+                                        vpnCreationProcess.command = ["sh", "-c", "cp \"$1\" \"$2\" && nmcli connection import type wireguard file \"$2\"", "--", filePath, newPath];
                                         
                                         root.vpnStatus = "Long filename detected. Renaming & importing...";
                                         vpnCreationProcess.running = true;

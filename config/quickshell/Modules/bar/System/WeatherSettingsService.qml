@@ -124,6 +124,7 @@ Item {
     Core.JsonDataStore {
         id: configStore
         path: service.configPath
+        schemaVersion: 1
         defaultValue: ({
             enabled: true,
             fahrenheit: false,
@@ -133,6 +134,14 @@ Item {
             city: "Erzurum",
             apiKey: ""
         })
+        function validate(data) {
+            if (typeof data.enabled !== "boolean") data.enabled = !!data.enabled;
+            if (typeof data.fahrenheit !== "boolean") data.fahrenheit = !!data.fahrenheit;
+            if (typeof data.autoLocation !== "boolean") data.autoLocation = !!data.autoLocation;
+            if (typeof data.lat !== "string") data.lat = String(data.lat || "39.9208");
+            if (typeof data.lon !== "string") data.lon = String(data.lon || "41.2746");
+            return data;
+        }
         onLoadedValue: function(cfg) {
             if (cfg.enabled !== undefined) service.weatherEnabled = cfg.enabled;
             if (cfg.fahrenheit !== undefined) service.useFahrenheit = cfg.fahrenheit;

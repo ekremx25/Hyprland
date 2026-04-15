@@ -4,5 +4,6 @@
   "lockTimeoutMinutes": 35,
   "screenOffTimeoutMinutes": 36,
   "suspendTimeoutMinutes": 43,
-  "ignoreMediaInhibit": true
+  "ignoreMediaInhibit": true,
+  "_schemaVersion": 1
 }
