@@ -35,6 +35,7 @@ PACMAN_PACKAGES=(
   hyprlock
   hyprpolkitagent
   hyprshot
+  hyprsunset
   inotify-tools
   socat
   power-profiles-daemon
