@@ -35,7 +35,6 @@ PACMAN_PACKAGES=(
   hyprlock
   hyprpolkitagent
   hyprshot
-  hyprsunset
   inotify-tools
   socat
   power-profiles-daemon
@@ -94,6 +93,7 @@ YAY_PACKAGES=(
   codex-desktop-bin
   fastfetch
   goverlay
+  hyprsunset
   lact
   libxcrypt-compat
   mangohud
