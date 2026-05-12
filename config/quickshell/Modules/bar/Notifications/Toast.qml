@@ -146,7 +146,7 @@ PanelWindow {
         Text {
             anchors { top: parent.top; right: parent.right; margins: 8 }
             text: ""
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: Theme.fontFamily
             color: Theme.subtext
             z: 10
             MouseArea {
@@ -177,7 +177,7 @@ PanelWindow {
                 Text {
                     anchors.centerIn: parent
                     text: ""
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: 20
                     color: Theme.text
                     visible: !((currentNotif && currentNotif.appIcon) && currentNotif.appIcon != "")
@@ -190,12 +190,14 @@ PanelWindow {
                 spacing: 4
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: currentNotif ? currentNotif.appName : "System"
                     font.bold: true; font.pixelSize: 11
                     color: Theme.subtext
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: currentNotif ? (notifService.privacyMode ? "New notification" : currentNotif.summary) : ""
                     font.bold: true; font.pixelSize: 13
                     color: Theme.text
@@ -206,6 +208,7 @@ PanelWindow {
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: currentNotif ? (notifService.privacyMode ? "Content hidden" : currentNotif.body) : ""
                     font.pixelSize: 12
                     color: Theme.subtext

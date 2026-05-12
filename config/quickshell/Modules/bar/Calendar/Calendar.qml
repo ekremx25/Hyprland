@@ -64,7 +64,7 @@ Rectangle {
             }
             color: "#1e1e2e"
             font.bold: true
-            font.family: "JetBrainsMono Nerd Font"
+            font.family: Theme.fontFamily
             font.pixelSize: 13 // Matches others roughly
         }
     }
@@ -245,7 +245,7 @@ Rectangle {
                                     color: prevMouse.containsMouse ? dateRoot.glassCardStrong : "transparent"
                                     border.width: prevMouse.containsMouse ? 1 : 0
                                     border.color: prevMouse.containsMouse ? dateRoot.glassStroke : "transparent"
-                                    Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
+                                    Text {  anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16; font.family: Theme.iconFontFamily }
                                     MouseArea { id: prevMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.prevMonth() }
                                 }
 
@@ -255,7 +255,7 @@ Rectangle {
                                     text: backend.monthName + " " + backend.displayYear
                                     color: popupText
                                     font.bold: true; font.pixelSize: 18
-                                    font.family: "JetBrainsMono Nerd Font"
+                                    font.family: Theme.fontFamily
                                 }
 
                                 Item { Layout.fillWidth: true }
@@ -265,7 +265,7 @@ Rectangle {
                                     color: nextMouse.containsMouse ? dateRoot.glassCardStrong : "transparent"
                                     border.width: nextMouse.containsMouse ? 1 : 0
                                     border.color: nextMouse.containsMouse ? dateRoot.glassStroke : "transparent"
-                                    Text { anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16 }
+                                    Text {  anchors.centerIn: parent; text: ""; color: accentColor; font.pixelSize: 16; font.family: Theme.iconFontFamily }
                                     MouseArea { id: nextMouse; anchors.fill: parent; hoverEnabled: true; onClicked: backend.nextMonth() }
                                 }
                             }
@@ -277,6 +277,7 @@ Rectangle {
                                 Repeater {
                                     model: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
                                     Text {
+                                        font.family: Theme.fontFamily
                                         text: modelData
                                         Layout.preferredWidth: 36
                                         horizontalAlignment: Text.AlignHCenter
@@ -299,7 +300,7 @@ Rectangle {
                                             text: modelData.day
                                             color: modelData.isToday ? "#1e1e2e" : (modelData.inMonth ? popupText : "#505050")
                                             font.bold: modelData.isToday
-                                            font.family: "JetBrainsMono Nerd Font"
+                                            font.family: Theme.fontFamily
                                         }
                                     }
                                 }

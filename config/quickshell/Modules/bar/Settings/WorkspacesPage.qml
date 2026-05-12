@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "../../../Widgets"
 import "../../../Services/core/Log.js" as Log
 
 Item {
@@ -63,6 +64,7 @@ Item {
 
         // Title
         Text { 
+            font.family: Theme.fontFamily
             text: "Workspace Style" 
             font.bold: true 
             font.pixelSize: 24 
@@ -70,6 +72,7 @@ Item {
         }
 
         Text { 
+            font.family: Theme.fontFamily
             text: "Choose how your workspaces appear on the bar." 
             font.pixelSize: 14 
             color: colorSubtext 
@@ -112,11 +115,12 @@ Item {
                             text: model.preview
                             font.pixelSize: 20
                             font.bold: true
-                            font.family: "JetBrainsMono Nerd Font"
+                            font.family: Theme.fontFamily
                             color: root.selectedFormat === model.value ? colorPrimary : colorText
                         }
 
                         Text {
+                            font.family: Theme.fontFamily
                             text: model.name
                             font.pixelSize: 14
                             color: colorSubtext
@@ -139,6 +143,7 @@ Item {
             spacing: 16
 
             Text { 
+                font.family: Theme.fontFamily
                 text: "Appearance Style" 
                 font.bold: true 
                 font.pixelSize: 18 
@@ -256,6 +261,7 @@ Item {
                             }
 
                             Text {
+                                font.family: Theme.fontFamily
                                 text: model.name
                                 font.pixelSize: 13
                                 color: colorSubtext
@@ -288,6 +294,7 @@ Item {
                 spacing: 16
                 
                 Text {
+                    font.family: Theme.fontFamily
                     text: "Transparent Background"
                     font.pixelSize: 14
                     color: colorText
@@ -326,6 +333,7 @@ Item {
             spacing: 12
 
             Text { 
+                font.family: Theme.fontFamily
                 text: "Advanced Features" 
                 font.bold: true 
                 font.pixelSize: 18 
@@ -347,8 +355,8 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: "Show Workspace Apps"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Display application icons in workspace indicators"; font.pixelSize: 11; color: colorSubtext }
+                        Text {  text: "Show Workspace Apps"; font.pixelSize: 14; color: colorText; font.family: Theme.fontFamily }
+                        Text {  text: "Display application icons in workspace indicators"; font.pixelSize: 11; color: colorSubtext; font.family: Theme.iconFontFamily }
                     }
                     
                     Switch {
@@ -381,8 +389,8 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: "Group Workspace Apps"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Group repeated application icons in workspaces"; font.pixelSize: 11; color: colorSubtext }
+                        Text {  text: "Group Workspace Apps"; font.pixelSize: 14; color: colorText; font.family: Theme.fontFamily }
+                        Text {  text: "Group repeated application icons in workspaces"; font.pixelSize: 11; color: colorSubtext; font.family: Theme.iconFontFamily }
                     }
                     
                     Switch {
@@ -414,8 +422,8 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Text { text: "Scroll to Switch"; font.pixelSize: 14; color: colorText }
-                        Text { text: "Switch active workspaces by scrolling over the bar"; font.pixelSize: 11; color: colorSubtext }
+                        Text {  text: "Scroll to Switch"; font.pixelSize: 14; color: colorText; font.family: Theme.fontFamily }
+                        Text {  text: "Switch active workspaces by scrolling over the bar"; font.pixelSize: 11; color: colorSubtext; font.family: Theme.fontFamily }
                     }
                     
                     Switch {
@@ -446,8 +454,8 @@ Item {
                     
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "App Icon Size"; font.pixelSize: 14; color: colorText; Layout.fillWidth: true }
-                        Text { text: Math.round(root.iconSize) + "px"; font.pixelSize: 14; color: colorPrimary; font.bold: true }
+                        Text {  text: "App Icon Size"; font.pixelSize: 14; color: colorText; Layout.fillWidth: true; font.family: Theme.iconFontFamily }
+                        Text {  text: Math.round(root.iconSize) + "px"; font.pixelSize: 14; color: colorPrimary; font.bold: true; font.family: Theme.iconFontFamily }
                     }
                     
                     Slider {
@@ -505,6 +513,7 @@ Item {
                 color: applyArea.pressed ? Qt.darker(colorPrimary, 1.1) : colorPrimary
                 
                 Text {
+                    font.family: Theme.fontFamily
                     anchors.centerIn: parent
                     text: "Apply"
                     color: "#1e1e2e" // Dark text (Crust/Mantle)

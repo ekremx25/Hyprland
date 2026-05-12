@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
+import "../../../Widgets"
 
 PopupWindow {
     id: root
@@ -49,9 +50,9 @@ PopupWindow {
 
             RowLayout {
                 Layout.fillWidth: true
-                Text { text: root.primaryLineLeft; color: root.textColor; font.bold: true }
-                Text { text: "|"; color: root.accentColor; font.bold: true; visible: root.primaryLineRight.length > 0 }
-                Text { text: root.primaryLineRight; color: root.accentColor; visible: root.primaryLineRight.length > 0 }
+                Text {  text: root.primaryLineLeft; color: root.textColor; font.bold: true; font.family: Theme.fontFamily }
+                Text {  text: "|"; color: root.accentColor; font.bold: true; visible: root.primaryLineRight.length > 0; font.family: Theme.fontFamily }
+                Text {  text: root.primaryLineRight; color: root.accentColor; visible: root.primaryLineRight.length > 0; font.family: Theme.fontFamily }
                 Item { Layout.fillWidth: true }
             }
 
@@ -92,7 +93,7 @@ PopupWindow {
                     required property var modelData
                     text: modelData.text || ""
                     color: modelData.accent ? root.accentColor : root.textColor
-                    font.family: "Monospace"
+                    font.family: Theme.monoFontFamily
                     font.pixelSize: modelData.small ? 11 : 12
                     elide: Text.ElideRight
                     visible: modelData.visible === undefined ? true : !!modelData.visible

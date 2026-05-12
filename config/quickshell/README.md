@@ -6,6 +6,7 @@
 
 [Niri](https://github.com/YaLTeR/niri) · [Hyprland](https://github.com/hyprwm/Hyprland) · [MangoWC](https://github.com/DreamMaoMao/mango)
 
+[![CI](https://github.com/ekremx25/quickshell/actions/workflows/ci.yml/badge.svg)](https://github.com/ekremx25/quickshell/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform: Wayland](https://img.shields.io/badge/platform-Wayland-green.svg)]()
 [![Built with: Quickshell](https://img.shields.io/badge/built%20with-Quickshell-7F60F6.svg)](https://github.com/outfoxxed/quickshell)
@@ -59,6 +60,13 @@ Built on top of [outfoxxed's Quickshell framework](https://github.com/outfoxxed/
 - Seven built-in layout presets (macOS, Windows 11, GNOME, KDE, Unity, ZorinOS, Custom)
 - Material You theme editor with live wallpaper colour extraction
 
+### Fonts
+- System-wide font picker for general and monospace families (writes to `kdeglobals` and `qt6ct.conf`)
+- Live preview tiles with the current selection rendered in situ
+- Searchable catalogue of every installed family, sourced via `fc-list` (includes user fonts in `~/.local/share/fonts`)
+- Applies without a shell restart: the Theme singleton re-reads the system font and every bar / dock / popup / settings module updates on the fly
+- Nerd Font glyphs stay pinned to `JetBrainsMono Nerd Font` so icons keep rendering after the switch
+
 ### Monitor Management
 - Resolution, refresh rate, and scale per output
 - HDR, VRR, 10-bit colour, wide-gamut colour management (sRGB / DCI-P3 / Adobe RGB / Rec.2020)
@@ -82,6 +90,127 @@ Built on top of [outfoxxed's Quickshell framework](https://github.com/outfoxxed/
 - **VPN** connection manager (NetworkManager + WireGuard)
 - **API Keys** — configure [SmartComplete](https://github.com/ekremx25/smartcomplete) AI providers (OpenAI, Claude, Groq, Ollama, …)
 - **Notepad** and **Event Countdown**
+
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" valign="middle" width="50%">
+      <img src="docs/screenshots/settings-bar.png" alt="Bar Settings (drag-drop layout)" />
+      <sub><b>Bar Settings</b> — drag-drop module layout, four positions, per-screen visibility</sub>
+    </td>
+    <td align="center" valign="middle" width="50%">
+      <img src="docs/screenshots/settings-monitors.png" alt="Monitor settings with HDR/VRR/colour management" />
+      <sub><b>Monitors</b> — resolution, scale, HDR, VRR, colour management, drag-to-arrange canvas</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-nightlight.png" alt="Night Light blue-light filter with schedule" />
+      <sub><b>Night Light</b> — temperature slider, presets, fixed-time schedule (hyprsunset / gammastep)</sub>
+    </td>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-materialyou.png" alt="Material You theme settings" />
+      <sub><b>Material You</b> — wallpaper-derived palette, light/dark, multiple scheme types</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-dock.png" alt="Dock settings (auto-hide, indicators, scale)" />
+      <sub><b>Dock Settings</b> — auto-hide, indicator style, icon scale, alignment</sub>
+    </td>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-apikeys.png" alt="API Keys for SmartComplete AI providers" />
+      <sub><b>API Keys</b> — local-only or any of 7 cloud providers for SmartComplete</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-systeminfo.png" alt="System Info dashboard" />
+      <sub><b>System Info</b> — CPU, RAM, GPU, storage, environment</sub>
+    </td>
+    <td align="center" valign="middle">
+      <img src="docs/screenshots/settings-fonts.png" alt="Fonts picker" />
+      <sub><b>Fonts</b> — system-wide Qt/KDE font picker with live preview, searchable <code>fc-list</code> catalogue</sub>
+    </td>
+  </tr>
+</table>
+
+### Bar popovers
+
+Click any of these on the bar to reveal an inline popover.
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/popover-eq.png" alt="Equalizer popover" />
+      <sub><b>Equalizer</b> — 10-band parametric EQ with sound theming</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/popover-notepad.png" alt="Notepad popover" />
+      <sub><b>Notepad</b> — quick scratchpad, autosaved</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/popover-calendar.png" alt="Calendar popover" />
+      <sub><b>Calendar</b> — month view with today highlighted</sub>
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><b>More Settings pages</b> (click to expand)</summary>
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/settings-workspaces.png" alt="Workspaces settings" />
+      <sub><b>Workspaces</b> — numeral style (Roman / Japan / Decimal), grouping, scroll behaviour</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/settings-layout-presets.png" alt="Layout presets" />
+      <sub><b>Layout Presets</b> — macOS, Windows 11, GNOME, KDE, Unity, ZorinOS, Custom</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/settings-notifications.png" alt="Notification settings" />
+      <sub><b>Notifications</b> — DND, popup position, animation speed, filters</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/settings-weather.png" alt="Weather settings" />
+      <sub><b>Weather</b> — location and provider configuration</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/settings-lockscreen.png" alt="Lock screen settings" />
+      <sub><b>Lock Screen</b> — wallpaper, dim/lock/suspend timeouts, media inhibit</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/settings-mouse.png" alt="Mouse settings" />
+      <sub><b>Mouse</b> — sensitivity, scroll factor, accel profile, cursor theme</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="docs/screenshots/settings-network.png" alt="Network settings (Ethernet / Wi-Fi)" />
+      <sub><b>Network</b> — Ethernet, Wi-Fi, DNS, proxy, advanced</sub>
+    </td>
+    <td align="center">
+      <img src="docs/screenshots/settings-disks.png" alt="Disk management" />
+      <sub><b>Disks</b> — mount points, removable drives, fstab helper</sub>
+    </td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="docs/screenshots/settings-screen-prefs.png" alt="Per-screen module preferences" width="49%" />
+      <br>
+      <sub><b>Screen Prefs</b> — assign each component (bar, dock, OSD, notif) to specific monitors</sub>
+    </td>
+  </tr>
+</table>
+
+</details>
 
 ## Supported Compositors
 
@@ -124,6 +253,9 @@ Built on top of [outfoxxed's Quickshell framework](https://github.com/outfoxxed/
 |---------|---------|
 | `hyprsunset` | Night Light on Hyprland (required) |
 | `gammastep` | Night Light on Niri / MangoWC (required) |
+| `kconfig` | Fonts picker (`kreadconfig6` / `kwriteconfig6` write to `kdeglobals`) |
+| `qt6ct-kde` (AUR) | Fonts picker also writes to `qt6ct.conf` when `QT_QPA_PLATFORMTHEME=qt6ct` |
+| `fontconfig` | Fonts picker catalogue via `fc-list` (pre-installed on most distros) |
 | `inotify-tools` | Event-driven config file watching (otherwise falls back to polling) |
 | `grim` + `slurp` | Screenshot helpers |
 | `socat` or `ncat` | Hyprland event stream (used by the dock's live running indicators) |
@@ -133,7 +265,11 @@ Built on top of [outfoxxed's Quickshell framework](https://github.com/outfoxxed/
 ```bash
 sudo pacman -S quickshell networkmanager bluez bluez-utils pipewire \
   pipewire-pulse wireplumber libpulse jq inotify-tools \
+  kconfig fontconfig \
   ttf-jetbrains-mono-nerd ttf-inter ttf-font-awesome
+
+# qt6ct (AUR fork with KDE integration)
+yay -S qt6ct-kde
 ```
 
 ## Installation
@@ -341,7 +477,7 @@ Without either, the dock falls back to 2.5 s polling — indicators still work b
 
 ## Links
 
-- Demos & tutorials: [YouTube: @Kernel-Windows](https://www.youtube.com/@Kernel-Windows)
+- Demos & tutorials: [YouTube: @linuxlifex](https://www.youtube.com/@linuxlifex)
 - Built on: [outfoxxed/quickshell](https://github.com/outfoxxed/quickshell)
 - Theming: [InioX/matugen](https://github.com/InioX/matugen)
 - Companion project: [ekremx25/smartcomplete](https://github.com/ekremx25/smartcomplete)

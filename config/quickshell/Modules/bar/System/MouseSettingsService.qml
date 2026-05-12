@@ -17,6 +17,7 @@ Item {
     readonly property string homePath: StandardPaths.writableLocation(StandardPaths.HomeLocation).toString().replace("file://", "")
     readonly property string hyprGeneralConfigPath: homePath + "/.config/hypr/custom/general.conf"
     readonly property string configPath: homePath + "/.config/quickshell/mouse_config.json"
+    readonly property string applyScriptPath: homePath + "/.config/quickshell/scripts/hypr_input_apply.sh"
 
     property real sensitivity: 0.0
     property real scrollFactor: 1.0
@@ -183,12 +184,12 @@ Item {
     Process {
         id: runtimeApplyProc
         command: [
-            "sh",
-            "-c",
-            "hyprctl keyword input:sensitivity '" + sensitivity.toFixed(2) + "' >/dev/null 2>&1; " +
-            "hyprctl keyword input:scroll_factor '" + scrollFactor.toFixed(2) + "' >/dev/null 2>&1; " +
-            "hyprctl keyword input:accel_profile '" + accelProfile + "' >/dev/null 2>&1; " +
-            "hyprctl setcursor '" + cursorTheme.replace(/'/g, "'\\''") + "' '" + cursorSize + "' >/dev/null 2>&1"
+            service.applyScriptPath,
+            sensitivity.toFixed(2),
+            scrollFactor.toFixed(2),
+            accelProfile,
+            cursorTheme,
+            String(cursorSize)
         ]
         onExited: exitCode => {
             service.isBusy = false

@@ -37,6 +37,7 @@ Item {
     property real selSdrSaturation: 1.3
 
     property string selColorManagement: "srgb"
+    property string selIccProfile: ""
     property int selSdrEotf: 1
     readonly property int sdrLuminanceMin: 80
     readonly property int sdrLuminanceMax: 600
@@ -80,6 +81,7 @@ Item {
         selSdrBrightness = draft && draft.sdrBrightness !== undefined ? draft.sdrBrightness : (selectedOutput.sdrBrightness || 1.1);
         selSdrSaturation = draft && draft.sdrSaturation !== undefined ? draft.sdrSaturation : (selectedOutput.sdrSaturation || 1.3);
         selColorManagement = draft && draft.colorManagement !== undefined ? draft.colorManagement : (selectedOutput.colorManagement || "srgb");
+        selIccProfile = draft && draft.iccProfile !== undefined ? draft.iccProfile : (selectedOutput.iccProfile || "");
         selSdrEotf = draft && draft.sdrEotf !== undefined ? draft.sdrEotf : ((selectedOutput.sdrEotf !== undefined) ? selectedOutput.sdrEotf : 1);
     }
 
@@ -100,6 +102,7 @@ Item {
             sdrBrightness: selSdrBrightness,
             sdrSaturation: selSdrSaturation,
             colorManagement: selColorManagement,
+            iccProfile: selIccProfile,
             sdrEotf: selSdrEotf
         };
         draftSettings = nextDrafts;
@@ -169,7 +172,7 @@ Item {
             return;
         }
         saveCurrentDraft();
-        backend.applySettings(outputs, selectedOutput.name, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName);
+        backend.applySettings(outputs, selectedOutput.name, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultMonitorName);
         draftSettings = ({});
     }
 
@@ -189,6 +192,7 @@ Item {
         var currentBri = selectedOutput.sdrBrightness || 1.1;
         var currentSat = selectedOutput.sdrSaturation || 1.3;
         var currentCm = selectedOutput.colorManagement || "srgb";
+        var currentIcc = selectedOutput.iccProfile || "";
         var currentEotf = (selectedOutput.sdrEotf !== undefined) ? selectedOutput.sdrEotf : 1;
         return selRes !== selectedOutput.res
             || Math.abs(parseFloat(selHz || "0") - parseFloat(selectedOutput.hz || "0")) >= 0.01
@@ -203,6 +207,7 @@ Item {
             || Math.abs(selSdrBrightness - currentBri) >= 0.01
             || Math.abs(selSdrSaturation - currentSat) >= 0.01
             || selColorManagement !== currentCm
+            || selIccProfile !== currentIcc
             || selSdrEotf !== currentEotf;
     }
 
@@ -468,6 +473,7 @@ Item {
                                 border.width: 1
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     anchors.centerIn: parent
                                     text: page.selectedOutput ? page.monitorLabel(page.selectedIdx) : "-"
                                     color: Theme.primary
@@ -481,6 +487,7 @@ Item {
                                 spacing: 4
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     text: page.selectedOutput ? page.selectedOutput.name : "No display selected"
                                     color: SettingsPalette.text
                                     font.pixelSize: 19
@@ -488,6 +495,7 @@ Item {
                                 }
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     text: page.selectedOutput ? (page.selectedOutput.desc || "Connected display") : ""
                                     color: SettingsPalette.subtext
                                     font.pixelSize: 12
@@ -496,6 +504,7 @@ Item {
                                 }
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     text: page.selectedModeText()
                                     color: page.selectedOutput ? SettingsPalette.text : SettingsPalette.subtext
                                     font.pixelSize: 12
@@ -512,6 +521,7 @@ Item {
                                 implicitHeight: 38
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     id: mainDisplayText
                                     anchors.centerIn: parent
                                     text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "This is my main display" : "Make main"
@@ -548,8 +558,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Mode"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedModeText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text {  text: "Mode"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
+                                    Text {  text: page.selectedModeText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.family: Theme.fontFamily }
                                 }
                             }
 
@@ -566,8 +576,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Scale"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedScaleText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text {  text: "Scale"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
+                                    Text {  text: page.selectedScaleText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.family: Theme.fontFamily }
                                 }
                             }
 
@@ -584,9 +594,9 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Layout"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedLayoutText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true }
-                                    Text { text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "Main display" : "Secondary display"; color: SettingsPalette.subtext; font.pixelSize: 11 }
+                                    Text {  text: "Layout"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
+                                    Text {  text: page.selectedLayoutText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; font.family: Theme.fontFamily }
+                                    Text {  text: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? "Main display" : "Secondary display"; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
                                 }
                             }
 
@@ -603,8 +613,8 @@ Item {
                                     anchors.margins: 12
                                     spacing: 3
 
-                                    Text { text: "Color"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true }
-                                    Text { text: page.selectedColorText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap }
+                                    Text {  text: "Color"; color: SettingsPalette.subtext; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
+                                    Text {  text: page.selectedColorText(); color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.fillWidth: true; wrapMode: Text.WordWrap; font.family: Theme.fontFamily }
                                 }
                             }
                         }
@@ -632,6 +642,7 @@ Item {
                                     border.width: 1
 
                                     Text {
+                                        font.family: Theme.fontFamily
                                         anchors.centerIn: parent
                                         text: pendingChanges() ? "!" : "i"
                                         color: pendingChanges() ? "white" : "#a6e3a1"
@@ -641,6 +652,7 @@ Item {
                                 }
 
                                 Text {
+                                    font.family: Theme.fontFamily
                                     Layout.fillWidth: true
                                     text: page.selectedHintText()
                                     color: SettingsPalette.subtext
@@ -668,6 +680,7 @@ Item {
                                     implicitHeight: 34
 
                                     Text {
+                                        font.family: Theme.fontFamily
                                         id: chipLabel
                                         anchors.centerIn: parent
                                         text: page.identifyText(modelData, index)

@@ -18,6 +18,16 @@ Rectangle {
     border.width: 1
     visible: CompositorService.isHyprland
     implicitHeight: advancedSettings.implicitHeight + 28
+    property bool iccPickerVisible: false
+
+    function profileStartDir() {
+        if (page.selIccProfile && page.selIccProfile.indexOf("/") >= 0) {
+            var parts = page.selIccProfile.split("/");
+            parts.pop();
+            return parts.join("/") || "/";
+        }
+        return Quickshell.env("HOME") || "/home/ekrem";
+    }
 
     ColumnLayout {
         id: advancedSettings
@@ -26,6 +36,7 @@ Rectangle {
         spacing: 12
 
         Text {
+            font.family: Theme.fontFamily
             text: "Advanced color"
             color: SettingsPalette.text
             font.pixelSize: 15
@@ -38,6 +49,7 @@ Rectangle {
             spacing: 12
 
             Text {
+                font.family: Theme.fontFamily
                 text: "HDR"
                 color: SettingsPalette.subtext
                 font.pixelSize: 12
@@ -75,6 +87,7 @@ Rectangle {
             Item { Layout.fillWidth: true }
 
             Text {
+                font.family: Theme.fontFamily
                 text: page.selHdr ? "High dynamic range is enabled" : "Use SDR for a more stable desktop"
                 color: SettingsPalette.subtext
                 font.pixelSize: 11
@@ -87,6 +100,7 @@ Rectangle {
             spacing: 12
 
             Text {
+                font.family: Theme.fontFamily
                 text: "Bit depth"
                 color: SettingsPalette.subtext
                 font.pixelSize: 12
@@ -107,6 +121,7 @@ Rectangle {
                     implicitHeight: 32
 
                     Text {
+                        font.family: Theme.fontFamily
                         anchors.centerIn: parent
                         text: modelData + "-bit"
                         color: page.selBitdepth === modelData ? Theme.primary : SettingsPalette.text
@@ -129,6 +144,7 @@ Rectangle {
             spacing: 12
 
             Text {
+                font.family: Theme.fontFamily
                 text: "Variable refresh rate"
                 color: SettingsPalette.subtext
                 font.pixelSize: 12
@@ -153,6 +169,7 @@ Rectangle {
                     implicitHeight: 32
 
                     Text {
+                        font.family: Theme.fontFamily
                         id: vrrLabel
                         anchors.centerIn: parent
                         text: modelData.label
@@ -176,6 +193,7 @@ Rectangle {
             spacing: 12
 
             Text {
+                font.family: Theme.fontFamily
                 text: "Color profile"
                 color: SettingsPalette.subtext
                 font.pixelSize: 12
@@ -206,6 +224,7 @@ Rectangle {
                         implicitHeight: 32
 
                         Text {
+                            font.family: Theme.fontFamily
                             id: profileText
                             anchors.centerIn: parent
                             text: modelData.label
@@ -228,6 +247,99 @@ Rectangle {
             }
         }
 
+        // ICC profile selector
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            Text {
+                font.family: Theme.fontFamily
+                text: "ICC profile"
+                color: SettingsPalette.subtext
+                font.pixelSize: 12
+                font.bold: true
+                Layout.preferredWidth: 130
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                height: 34
+                radius: 8
+                color: Qt.rgba(255, 255, 255, 0.04)
+                border.color: page.selIccProfile.length > 0 ? page.accentBorder : page.softBorder
+                border.width: 1
+
+                TextInput {
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    text: page.selIccProfile
+                    color: SettingsPalette.text
+                    selectionColor: page.accentSoft
+                    selectedTextColor: SettingsPalette.text
+                    verticalAlignment: TextInput.AlignVCenter
+                    selectByMouse: true
+                    clip: true
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    onEditingFinished: page.selIccProfile = text.trim()
+                }
+            }
+
+            Rectangle {
+                width: 74
+                height: 34
+                radius: 8
+                color: browseIccArea.containsMouse ? page.accentSoft : Qt.rgba(255, 255, 255, 0.06)
+                border.color: browseIccArea.containsMouse ? page.accentBorder : page.softBorder
+                border.width: 1
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Browse"
+                    color: browseIccArea.containsMouse ? Theme.primary : SettingsPalette.text
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: browseIccArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.iccPickerVisible = true
+                }
+            }
+
+            Rectangle {
+                width: 58
+                height: 34
+                radius: 8
+                color: clearIccArea.containsMouse ? Qt.rgba(243 / 255, 139 / 255, 168 / 255, 0.18) : Qt.rgba(255, 255, 255, 0.04)
+                border.color: page.softBorder
+                border.width: 1
+                visible: page.selIccProfile.length > 0
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "Clear"
+                    color: clearIccArea.containsMouse ? "#f38ba8" : SettingsPalette.subtext
+                    font.family: Theme.fontFamily
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+
+                MouseArea {
+                    id: clearIccArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: page.selIccProfile = ""
+                }
+            }
+        }
+
         // SDR sliders (only visible when HDR is enabled)
         ColumnLayout {
             Layout.fillWidth: true
@@ -240,6 +352,7 @@ Rectangle {
                 spacing: 16
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: "SDR luminance"
                     color: SettingsPalette.subtext
                     font.pixelSize: 12
@@ -290,6 +403,7 @@ Rectangle {
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: page.selSdrLuminance + " nits"
                     color: Theme.primary
                     font.pixelSize: 12
@@ -305,6 +419,7 @@ Rectangle {
                 spacing: 16
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: "SDR brightness"
                     color: SettingsPalette.subtext
                     font.pixelSize: 12
@@ -355,6 +470,7 @@ Rectangle {
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: page.selSdrBrightness.toFixed(1) + "x"
                     color: Theme.primary
                     font.pixelSize: 12
@@ -370,6 +486,7 @@ Rectangle {
                 spacing: 16
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: "SDR saturation"
                     color: SettingsPalette.subtext
                     font.pixelSize: 12
@@ -420,6 +537,7 @@ Rectangle {
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     text: page.selSdrSaturation.toFixed(1) + "x"
                     color: Theme.primary
                     font.pixelSize: 12
@@ -428,6 +546,33 @@ Rectangle {
                     horizontalAlignment: Text.AlignRight
                 }
             }
+        }
+    }
+
+    Rectangle {
+        parent: page.parent ? page.parent : page
+        anchors.fill: parent
+        visible: root.iccPickerVisible
+        z: 300
+        color: Qt.rgba(0, 0, 0, 0.45)
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: root.iccPickerVisible = false
+        }
+
+        FilePicker {
+            width: Math.min(680, parent.width - 48)
+            height: Math.min(540, parent.height - 48)
+            anchors.centerIn: parent
+            title: "Select ICC or ICM Profile"
+            extensions: ["icc", "icm"]
+            currentPath: root.profileStartDir()
+            onFileSelected: function(path) {
+                page.selIccProfile = path;
+                root.iccPickerVisible = false;
+            }
+            onCanceled: root.iccPickerVisible = false
         }
     }
 }

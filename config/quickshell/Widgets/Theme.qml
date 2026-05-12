@@ -1,5 +1,7 @@
 pragma Singleton
 import QtQuick
+import Quickshell
+import Quickshell.Io
 import "../Services"
 
 QtObject {
@@ -9,6 +11,66 @@ QtObject {
     property string currentTheme: userSelectedTheme
     property string currentThemeName: currentTheme
     property string lastMaterialSyncSignature: ""
+
+    // ── FONTS ─────────────────────────────────────────────────────────
+    // fontFamily follows the user's selection in Settings → Fonts (which
+    // writes to kdeglobals / qt6ct). iconFontFamily stays fixed so Nerd
+    // Font glyphs always render.
+    property string fontFamily: "Inter"
+    property string monoFontFamily: "JetBrainsMono Nerd Font"
+    readonly property string iconFontFamily: "JetBrainsMono Nerd Font"
+    readonly property string homeDir: Quickshell.env("HOME") || ""
+    readonly property string qtPlatformTheme: Quickshell.env("QT_QPA_PLATFORMTHEME") || ""
+    readonly property bool qt6ctActive: qtPlatformTheme === "qt6ct"
+    readonly property string qt6ctConfigPath: homeDir + "/.config/qt6ct/qt6ct.conf"
+
+    function _applyFontValue(raw, target) {
+        if (!raw) return;
+        var text = String(raw).trim();
+        if (text.length >= 2 && text.charAt(0) === "\"" && text.charAt(text.length - 1) === "\"") {
+            text = text.slice(1, -1);
+        }
+        if (!text.length) return;
+        var family = text.split(",")[0].trim();
+        if (!family.length) return;
+        if (target === "mono") root.monoFontFamily = family;
+        else root.fontFamily = family;
+    }
+
+    function reloadSystemFonts() {
+        loadGeneralFont.running = false;
+        loadGeneralFont.buffer = "";
+        loadGeneralFont.running = true;
+        loadMonoFont.running = false;
+        loadMonoFont.buffer = "";
+        loadMonoFont.running = true;
+    }
+
+    property Process loadGeneralFont: Process {
+        command: root.qt6ctActive
+            ? ["kreadconfig6", "--file", root.qt6ctConfigPath, "--group", "Fonts", "--key", "general"]
+            : ["kreadconfig6", "--file", "kdeglobals", "--group", "General", "--key", "font"]
+        running: true
+        property string buffer: ""
+        stdout: SplitParser { onRead: data => loadGeneralFont.buffer += data }
+        onExited: {
+            root._applyFontValue(loadGeneralFont.buffer, "general");
+            loadGeneralFont.buffer = "";
+        }
+    }
+
+    property Process loadMonoFont: Process {
+        command: root.qt6ctActive
+            ? ["kreadconfig6", "--file", root.qt6ctConfigPath, "--group", "Fonts", "--key", "fixed"]
+            : ["kreadconfig6", "--file", "kdeglobals", "--group", "General", "--key", "fixed"]
+        running: true
+        property string buffer: ""
+        stdout: SplitParser { onRead: data => loadMonoFont.buffer += data }
+        onExited: {
+            root._applyFontValue(loadMonoFont.buffer, "mono");
+            loadMonoFont.buffer = "";
+        }
+    }
 
     // --- ANIMATION DURATIONS ---
     // Use these constants when writing new components; that way all speeds
@@ -169,6 +231,50 @@ QtObject {
     property color overlay2: "#9399b2"
     property color overlay: "#6c7086"
     property int radius: themeConfig.radius || 12
+
+    // ── Surface tints (white overlays on dark UI) ───────────────────────
+    // Use these instead of inline `Qt.rgba(255, 255, 255, X)` calls.
+    property color surfaceTintFaint:  Qt.rgba(1, 1, 1, 0.03)   // very subtle card background
+    property color surfaceTintLow:    Qt.rgba(1, 1, 1, 0.05)   // soft card background
+    property color surfaceTintMed:    Qt.rgba(1, 1, 1, 0.08)   // hover background
+    property color surfaceTintHigh:   Qt.rgba(1, 1, 1, 0.12)   // pressed / active background
+    property color surfaceTintMax:    Qt.rgba(1, 1, 1, 0.18)   // strong selection background
+    property color borderFaint:       Qt.rgba(1, 1, 1, 0.05)   // subtle separator
+    property color borderSoft:        Qt.rgba(1, 1, 1, 0.08)   // standard border
+    property color borderStrong:      Qt.rgba(1, 1, 1, 0.12)   // emphasis border
+    property color outline:           Qt.rgba(1, 1, 1, 0.20)   // visible outline
+    property color shadowSoft:        Qt.rgba(0, 0, 0, 0.20)   // subtle shadow
+    property color shadowStrong:      Qt.rgba(0, 0, 0, 0.35)   // strong shadow
+
+    // ── Catppuccin Mocha named colors (use these instead of inline hex) ─
+    // Surface scale (darker → lighter)
+    property color cpBase:     "#1e1e2e"
+    property color cpMantle:   "#181825"
+    property color cpCrust:    "#11111b"
+    property color cpSurface0: "#313244"
+    property color cpSurface1: "#45475a"
+    property color cpSurface2: "#585b70"
+    property color cpOverlay0: "#6c7086"
+    property color cpOverlay1: "#7f849c"
+    property color cpOverlay2: "#9399b2"
+    property color cpText:     "#cdd6f4"
+    property color cpSubtext1: "#bac2de"
+    property color cpSubtext0: "#a6adc8"
+    // Accents
+    property color cpRosewater: "#f5e0dc"
+    property color cpFlamingo:  "#f2cdcd"
+    property color cpPink:      "#f5c2e7"
+    property color cpMauve:     "#cba6f7"
+    property color cpRed:       "#f38ba8"
+    property color cpMaroon:    "#eba0ac"
+    property color cpPeach:     "#fab387"
+    property color cpYellow:    "#f9e2af"
+    property color cpGreen:     "#a6e3a1"
+    property color cpTeal:      "#94e2d5"
+    property color cpSky:       "#89dceb"
+    property color cpSapphire:  "#74c7ec"
+    property color cpBlue:      "#89b4fa"
+    property color cpLavender:  "#b4befe"
 
     // External theme switching
     function setTheme(name) {

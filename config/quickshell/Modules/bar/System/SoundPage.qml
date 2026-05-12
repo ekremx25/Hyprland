@@ -80,7 +80,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Text { text: "󰕾"; font.pixelSize: 20; font.family: "JetBrainsMono Nerd Font"; color: Theme.primary }
-            Text { text: "Sound Settings"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text }
+            Text {  text: "Sound Settings"; font.bold: true; font.pixelSize: 18; color: SettingsPalette.text; font.family: Theme.fontFamily }
         }
 
         // --- Brightness ---
@@ -99,8 +99,8 @@ Item {
                 RowLayout {
                     spacing: 8
                     Text { text: "󰃞"; font.pixelSize: 16; font.family: "JetBrainsMono Nerd Font"; color: "#f9e2af" }
-                    Text { text: "Brightness"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 13; Layout.fillWidth: true }
-                    Text { text: brightness.value + "%"; color: "#f9e2af"; font.bold: true; font.pixelSize: 13 }
+                    Text {  text: "Brightness"; color: SettingsPalette.text; font.bold: true; font.pixelSize: 13; Layout.fillWidth: true; font.family: Theme.fontFamily }
+                    Text {  text: brightness.value + "%"; color: "#f9e2af"; font.bold: true; font.pixelSize: 13; font.family: Theme.fontFamily }
                 }
 
                 RowLayout {
@@ -167,7 +167,7 @@ Item {
         }
 
         // --- Applications ---
-        Text { text: "Applications"; color: SettingsPalette.subtext; font.pixelSize: 12; font.bold: true }
+        Text {  text: "Applications"; color: SettingsPalette.subtext; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
 
         ListView {
             Layout.fillWidth: true
@@ -195,13 +195,14 @@ Item {
 
                     Rectangle {
                         width: 30; height: 30; color: Qt.rgba(137/255, 180/255, 250/255, 0.1); radius: 8
-                        Text { anchors.centerIn: parent; text: ""; color: Theme.primary; font.family: "JetBrainsMono Nerd Font" }
+                        Text { anchors.centerIn: parent; text: ""; color: Theme.primary; font.family: Theme.fontFamily }
                     }
 
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 4
                         Text {
+                            font.family: Theme.fontFamily
                             text: appNode.properties["application.name"] || appNode.name || "Unknown"
                             color: SettingsPalette.text; font.bold: true; font.pixelSize: 12; elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -221,6 +222,7 @@ Item {
                     }
 
                     Text {
+                        font.family: Theme.fontFamily
                         text: Math.round(appNode.audio.volume * 100) + "%"
                         color: SettingsPalette.subtext; font.pixelSize: 11
                     }

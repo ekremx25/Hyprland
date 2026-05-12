@@ -13,6 +13,7 @@ Item {
 
     readonly property bool supported: CompositorService.isHyprland
     readonly property string configPath: (Quickshell.env("HOME") || "") + "/.config/quickshell/mouse_config.json"
+    readonly property string applyScriptPath: (Quickshell.env("HOME") || "") + "/.config/quickshell/scripts/hypr_input_apply.sh"
 
     property real sensitivity: 0.0
     property real scrollFactor: 1.0
@@ -69,12 +70,12 @@ Item {
     Process {
         id: runtimeApplyProc
         command: [
-            "sh",
-            "-c",
-            "hyprctl keyword input:sensitivity '" + Number(root.sensitivity).toFixed(2) + "' >/dev/null 2>&1; " +
-            "hyprctl keyword input:scroll_factor '" + Number(root.scrollFactor).toFixed(2) + "' >/dev/null 2>&1; " +
-            "hyprctl keyword input:accel_profile '" + root.accelProfile + "' >/dev/null 2>&1; " +
-            "hyprctl setcursor '" + root.saneCursorTheme(root.cursorTheme).replace(/'/g, "'\\''") + "' '" + root.cursorSize + "' >/dev/null 2>&1"
+            root.applyScriptPath,
+            Number(root.sensitivity).toFixed(2),
+            Number(root.scrollFactor).toFixed(2),
+            root.accelProfile,
+            root.saneCursorTheme(root.cursorTheme),
+            String(root.cursorSize)
         ]
     }
 }

@@ -143,13 +143,14 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: ""
-                    font.family: "JetBrainsMono Nerd Font"
+                    font.family: Theme.fontFamily
                     font.pixelSize: 14 * dockScale
                     color: mediaWidget.adaptiveSubtext
                 }
             }
 
             Text {
+                font.family: Theme.fontFamily
                 text: "No Music"
                 color: mediaWidget.adaptiveSubtext
                 font.bold: true
@@ -192,7 +193,7 @@ Rectangle {
                     Text {
                         anchors.centerIn: parent
                         text: ""
-                        font.family: "JetBrainsMono Nerd Font"
+                        font.family: Theme.fontFamily
                         font.pixelSize: 16 * dockScale
                         color: Theme.primary
                     }
@@ -209,6 +210,7 @@ Rectangle {
                 Behavior on opacity { NumberAnimation { duration: 200 } }
 
                 Text {
+                    font.family: Theme.fontFamily
                     Layout.fillWidth: true
                     text: mediaWidget.currentTitle
                     color: mediaWidget.adaptiveText
@@ -218,6 +220,7 @@ Rectangle {
                 }
 
                 Text {
+                    font.family: Theme.fontFamily
                     Layout.fillWidth: true
                     text: mediaWidget.currentArtist
                     color: mediaWidget.adaptiveSubtext

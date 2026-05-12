@@ -25,6 +25,7 @@ function parseHyprlandOutputs(text) {
             sdrBrightness: (info.sdrBrightness !== undefined) ? info.sdrBrightness : ((info.sdrbrightness !== undefined) ? info.sdrbrightness : 1.0),
             sdrSaturation: (info.sdrSaturation !== undefined) ? info.sdrSaturation : ((info.sdrsaturation !== undefined) ? info.sdrsaturation : 1.0),
             colorManagement: info.colorManagementPreset || info.cm || info.colorManagement || "srgb",
+            iccProfile: info.iccProfile || info.icc || "",
             sdrEotf: info.sdr_eotf || info.sdreotf || 1,
             modes: []
         };

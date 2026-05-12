@@ -18,14 +18,21 @@ Rectangle {
     property string title: "Select File"
     property bool directoryMode: false
     property bool allowCreateFolder: false
+    readonly property color pickerBg: "#1b1b2b"
+    readonly property color pickerSurface: Qt.rgba(255, 255, 255, 0.07)
+    readonly property color pickerSurfaceHover: Qt.rgba(137 / 255, 180 / 255, 250 / 255, 0.16)
+    readonly property color pickerText: "#f5f7fa"
+    readonly property color pickerSubtext: "#bac2de"
+    readonly property color pickerAccent: "#89dceb"
+    readonly property color pickerDanger: "#f38ba8"
 
     FilePickerBackend {
         id: backend
         extensions: root.extensions
     }
     
-    color: "#1e1e2e"
-    border.color: Qt.rgba(255,255,255,0.1)
+    color: pickerBg
+    border.color: Qt.rgba(255,255,255,0.14)
     border.width: 1
     radius: 12
     
@@ -38,14 +45,14 @@ Rectangle {
             Layout.fillWidth: true
             Text { 
                 text: root.title
-                color: Theme.text
+                color: root.pickerText
                 font.bold: true
                 font.pixelSize: 16
             }
             Item { Layout.fillWidth: true }
             Text { 
                 text: "✕"
-                color: Theme.subtext
+                color: root.pickerSubtext
                 font.pixelSize: 16
                 MouseArea {
                     anchors.fill: parent
@@ -59,7 +66,7 @@ Rectangle {
         Rectangle {
             Layout.fillWidth: true
             height: 36
-            color: Qt.rgba(255,255,255,0.05)
+            color: root.pickerSurface
             radius: 8
             
             RowLayout {
@@ -68,8 +75,8 @@ Rectangle {
                     width: 54
                     height: 24
                     radius: 6
-                    color: Qt.rgba(255,255,255,0.08)
-                    Text { anchors.centerIn: parent; text: "Home"; color: Theme.text; font.pixelSize: 11; font.bold: true }
+                    color: root.pickerSurface
+                    Text { anchors.centerIn: parent; text: "Home"; color: root.pickerText; font.pixelSize: 11; font.bold: true }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -80,8 +87,8 @@ Rectangle {
                     width: 40
                     height: 24
                     radius: 6
-                    color: Qt.rgba(255,255,255,0.08)
-                    Text { anchors.centerIn: parent; text: "Up"; color: Theme.text; font.pixelSize: 11; font.bold: true }
+                    color: root.pickerSurface
+                    Text { anchors.centerIn: parent; text: "Up"; color: root.pickerText; font.pixelSize: 11; font.bold: true }
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -90,8 +97,8 @@ Rectangle {
                 }
                 Text {
                     text: root.currentPath
-                    color: Theme.subtext
-                    font.family: "JetBrainsMono Nerd Font"
+                    color: root.pickerSubtext
+                    font.family: Theme.fontFamily
                     elide: Text.ElideMiddle
                     Layout.fillWidth: true
                 }
@@ -106,12 +113,12 @@ Rectangle {
                 Layout.fillWidth: true
                 height: 34
                 radius: 8
-                color: Qt.rgba(255,255,255,0.05)
+                color: root.pickerSurface
 
                 Text {
                     anchors.centerIn: parent
                     text: "Use current folder"
-                    color: Theme.text
+                    color: root.pickerText
                     font.pixelSize: 12
                     font.bold: true
                 }
@@ -139,8 +146,8 @@ Rectangle {
                 width: 108
                 height: 34
                 radius: 8
-                color: Qt.rgba(255,255,255,0.1)
-                Text { anchors.centerIn: parent; text: "Create"; color: Theme.text; font.pixelSize: 12; font.bold: true }
+                color: root.pickerSurface
+                Text { anchors.centerIn: parent; text: "Create"; color: root.pickerText; font.pixelSize: 12; font.bold: true }
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
@@ -156,7 +163,7 @@ Rectangle {
             Layout.fillWidth: true
             visible: backend.actionStatus.length > 0
             text: backend.actionStatus
-            color: Theme.subtext
+            color: root.pickerSubtext
             font.pixelSize: 11
             wrapMode: Text.Wrap
         }
@@ -171,7 +178,7 @@ Rectangle {
             delegate: Rectangle {
                 width: ListView.view.width
                 height: 36
-                color: itemMa.containsMouse ? Qt.rgba(255,255,255,0.05) : "transparent"
+                color: itemMa.containsMouse ? root.pickerSurfaceHover : "transparent"
                 radius: 6
                 
                 required property var modelData
@@ -182,13 +189,13 @@ Rectangle {
                     
                     Text {
                         text: modelData.isDir ? "" : "📄"
-                        color: modelData.isDir ? Theme.primary : Theme.text
+                        color: modelData.isDir ? root.pickerAccent : root.pickerText
                         font.family: "JetBrainsMono Nerd Font"
                     }
                     
                     Text {
                         text: modelData.name
-                        color: Theme.text
+                        color: root.pickerText
                         font.bold: modelData.isDir
                         Layout.fillWidth: true
                         elide: Text.ElideRight
@@ -199,11 +206,11 @@ Rectangle {
                         width: 56
                         height: 22
                         radius: 6
-                        color: Qt.rgba(255,255,255,0.10)
+                        color: root.pickerSurfaceHover
                         Text {
                             anchors.centerIn: parent
                             text: "Select"
-                            color: Theme.text
+                            color: root.pickerText
                             font.pixelSize: 10
                             font.bold: true
                         }
@@ -245,8 +252,8 @@ Rectangle {
             Item { Layout.fillWidth: true }
             Rectangle {
                 width: 80; height: 36; radius: 8
-                color: Qt.rgba(255,255,255,0.1)
-                Text { anchors.centerIn: parent; text: "Cancel"; color: Theme.text }
+                color: Qt.rgba(243 / 255, 139 / 255, 168 / 255, 0.14)
+                Text { anchors.centerIn: parent; text: "Cancel"; color: root.pickerDanger; font.bold: true }
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor

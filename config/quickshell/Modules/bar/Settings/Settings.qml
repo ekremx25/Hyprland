@@ -65,6 +65,8 @@ PanelWindow {
                 { key: "bar",        icon: "󰒍", label: "Bar Settings" },
                 { key: "dock",       icon: "⚓", label: "Dock Settings" },
                 { key: "layout",     icon: "󰕰", label: "Layout Presets" },
+                { key: "hyprland",   icon: "󰖲", label: "Hyprland" },
+                { key: "fonts",      icon: "󰛖", label: "Fonts" },
                 { key: "materialyou",icon: "󰏘", label: "Material You" },
                 { key: "nightlight", icon: "󰽥", label: "Night Light" }
             ]
@@ -99,6 +101,47 @@ PanelWindow {
         });
     }
 
+    function shouldApplyUiFont(item) {
+        if (!item || item.text === undefined || item.font === undefined) return false;
+
+        var text = String(item.text || "");
+        var family = String(item.font.family || "");
+
+        if (!text.length) return false;
+        if (family === Theme.iconFontFamily || family.indexOf("Nerd") !== -1) return false;
+        if (text.length <= 2 && !/[A-Za-z0-9]/.test(text)) return false;
+        return true;
+    }
+
+    function applyUiFont(item) {
+        if (!item) return;
+
+        if (shouldApplyUiFont(item)) {
+            item.font.family = Theme.fontFamily;
+        }
+
+        var kids = item.children || [];
+        for (var i = 0; i < kids.length; ++i) {
+            applyUiFont(kids[i]);
+        }
+    }
+
+    function scheduleApplyUiFont() {
+        if (!settingsPopup.visible || settingsPopup.currentPage === "fonts") return;
+        Qt.callLater(function() {
+            applyUiFont(settingsContent);
+        });
+    }
+
+    onCurrentPageChanged: scheduleApplyUiFont()
+
+    Connections {
+        target: Theme
+        function onFontFamilyChanged() {
+            settingsPopup.scheduleApplyUiFont();
+        }
+    }
+
 
 
     ListModel { id: leftModel }
@@ -109,10 +152,17 @@ PanelWindow {
     ListModel { id: dockRightModel }
 
     onVisibleChanged: {
-        if (visible) loadConfig();
+        if (visible) {
+            loadConfig();
+            Theme.reloadSystemFonts();
+            scheduleApplyUiFont();
+        }
     }
 
-    Component.onCompleted: loadConfig()
+    Component.onCompleted: {
+        loadConfig();
+        scheduleApplyUiFont();
+    }
 
     // ── Background dim ──
     Rectangle {
@@ -212,11 +262,13 @@ PanelWindow {
                             spacing: 8
 
                             Text {
+                                font.family: Theme.fontFamily
                                 text: "⚙"
                                 font.pixelSize: 18
                                 color: Theme.primary
                             }
                             Text {
+                                font.family: Theme.fontFamily
                                 text: "Settings"
                                 color: sidebarTitleColor
                                 font.pixelSize: 16
@@ -227,7 +279,7 @@ PanelWindow {
                                 width: 24; height: 24; radius: 12
                                 color: closeMA.containsMouse ? Theme.red : "transparent"
                                 Behavior on color { ColorAnimation { duration: 150 } }
-                                Text { anchors.centerIn: parent; text: "✕"; color: sidebarTitleColor; font.pixelSize: 11 }
+                                Text {  anchors.centerIn: parent; text: "✕"; color: sidebarTitleColor; font.pixelSize: 11; font.family: Theme.fontFamily }
                                 MouseArea {
                                     id: closeMA; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
@@ -283,6 +335,7 @@ PanelWindow {
                                             }
 
                                             Text {
+                                                font.family: Theme.fontFamily
                                                 text: modelData.title
                                                 color: headerMA.containsMouse ? sidebarTitleColor : sidebarMutedColor
                                                 font.pixelSize: 11
@@ -344,6 +397,7 @@ PanelWindow {
                                                     }
 
                                                     Text {
+                                                        font.family: Theme.fontFamily
                                                         text: modelData.label
                                                         color: settingsPopup.currentPage === modelData.key ? sidebarTitleColor : sidebarMutedColor
                                                         font.pixelSize: 13
@@ -438,6 +492,17 @@ PanelWindow {
                         settingsPopup: settingsPopup
                     }
 
+                    Loader {
+                        anchors.fill: parent
+                        active: settingsPopup.currentPage === "fonts"
+                        visible: status === Loader.Ready
+                        sourceComponent: Component {
+                            FontsPage {
+                                anchors.fill: parent
+                            }
+                        }
+                    }
+
                     // ── SYSTEM PAGES ──
                     Sys.SystemInfoPage {
                         anchors.fill: parent
@@ -473,6 +538,11 @@ PanelWindow {
                     Sys.MousePage {
                         anchors.fill: parent
                         visible: settingsPopup.currentPage === "mouse"
+                    }
+
+                    Sys.HyprlandPage {
+                        anchors.fill: parent
+                        visible: settingsPopup.currentPage === "hyprland"
                     }
 
                     Sys.SoundPage {

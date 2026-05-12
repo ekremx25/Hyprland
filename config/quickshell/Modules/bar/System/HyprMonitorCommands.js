@@ -4,14 +4,22 @@
 // isHdrColorMode / isRiskyColorMode to this library.
 var RISKY_COLOR_MODES = ["dcip3", "dp3", "adobe"];
 var HDR_COLOR_MODES   = ["hdr", "hdredid", "hdrp3", "hdrapple", "hdradobe"];
+var HYPR_MONITOR_APPLY = "/home/ekrem/.config/quickshell/scripts/hypr_monitor_apply.sh";
 
 function isRiskyColorMode(mode) { return RISKY_COLOR_MODES.indexOf(mode) >= 0; }
 function isHdrColorMode(mode)   { return HDR_COLOR_MODES.indexOf(mode) >= 0; }
 
+function normalizeSdrEotf(value) {
+    if (value === 0 || value === "0") return "default";
+    if (value === 1 || value === "1") return "srgb";
+    if (value === 2 || value === "2") return "gamma22";
+    return value;
+}
+
 // Returns true when any Hyprland-specific setting differs from the live output.
 function monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY,
                                monHdr, monBitdepth, monVrr, monSdrLum, monSdrBri,
-                               monSdrSat, monCm, monEotf) {
+                               monSdrSat, monCm, monEotf, monIcc) {
     if (monRes   !== mon.res)  return true;
     if (Math.abs(parseFloat(monHz)    - parseFloat(mon.hz))    >= 0.01)  return true;
     if (Math.abs(parseFloat(monScale) - parseFloat(mon.scale)) >= 0.01)  return true;
@@ -23,6 +31,7 @@ function monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY,
     if (Math.abs(monSdrLum - ((mon.sdrLuminance !== undefined) ? mon.sdrLuminance : 450)) >= 1) return true;
     if (Math.abs(monSdrBri - (mon.sdrBrightness || 1.0)) >= 0.01) return true;
     if (Math.abs(monSdrSat - (mon.sdrSaturation || 1.0)) >= 0.01) return true;
+    if (monIcc) return true;
     if (monCm    !== (mon.colorManagement || "srgb")) return true;
     if (monEotf  !== ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1)) return true;
     return false;
@@ -30,15 +39,21 @@ function monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY,
 
 // Builds the monitor argument string for hyprctl keyword monitor.
 function buildMonitorArg(monName, monRes, monHz, monPosX, monPosY, monScale,
-                         monHdr, monBd, monVrr, monSdrBri, monSdrSat, monCm) {
+                         monHdr, monBd, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf, monIcc) {
     var arg = monName + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale;
-    if (monHdr || isHdrColorMode(monCm)) {
+    monEotf = normalizeSdrEotf(monEotf);
+    if (monIcc) {
+        arg += ",bitdepth," + monBd + ",vrr," + monVrr + ",icc," + monIcc + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1) + ",sdr_max_luminance," + Math.round(monSdrLum);
+    } else if (monHdr || isHdrColorMode(monCm)) {
         var appliedCm = (monCm === "hdredid") ? "hdredid" : "hdr";
-        arg += ",bitdepth," + monBd + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1);
+        arg += ",bitdepth," + monBd + ",vrr," + monVrr + ",cm," + appliedCm + ",sdrbrightness," + monSdrBri.toFixed(1) + ",sdrsaturation," + monSdrSat.toFixed(1) + ",sdr_max_luminance," + Math.round(monSdrLum);
     } else if (monCm === "default") {
         arg += ",bitdepth," + monBd + ",vrr," + monVrr;
     } else {
         arg += ",bitdepth," + monBd + ",vrr," + monVrr + ",cm," + monCm;
+    }
+    if (monEotf === "default" || monEotf === "gamma22" || monEotf === "srgb") {
+        arg += ",sdr_eotf," + monEotf;
     }
     return arg;
 }
@@ -57,29 +72,30 @@ function buildOutputCmd(mon, monRes, monHz, monScale, monPosX, monPosY,
     var monSdrSat  = isSelected ? selParams.sdrSaturation : (savedMon.sdrSaturation !== undefined ? savedMon.sdrSaturation : (mon.sdrSaturation || 1.0));
     var monCm      = isSelected ? selParams.colorManagement : (savedMon.colorManagement !== undefined ? savedMon.colorManagement : (mon.colorManagement || "srgb"));
     var monEotf    = isSelected ? selParams.sdrEotf  : (savedMon.sdrEotf  !== undefined ? savedMon.sdrEotf  : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1));
+    var monIcc     = isSelected ? (selParams.iccProfile || "") : (savedMon.iccProfile !== undefined ? savedMon.iccProfile : (mon.iccProfile || ""));
 
     if (isRiskyColorMode(monCm)) monVrr = 0;
 
     var changed = monitorSettingChanged(mon, monRes, monHz, monScale, monPosX, monPosY,
-                                        monHdr, monBd, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf);
+                                        monHdr, monBd, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf, monIcc);
     if (!isSelected && !changed) return null;
 
     var monitorArg = buildMonitorArg(mon.name, monRes, monHz, monPosX, monPosY, monScale,
-                                     monHdr, monBd, monVrr, monSdrBri, monSdrSat, monCm);
+                                     monHdr, monBd, monVrr, monSdrLum, monSdrBri, monSdrSat, monCm, monEotf, monIcc);
 
     var needsCmReset = isSelected && monCm !== (mon.colorManagement || "srgb");
     if (needsCmReset) {
         var resetArg = mon.name + "," + monRes + "@" + monHz + "," + monPosX + "x" + monPosY + "," + monScale + ",bitdepth,10,vrr,0,cm,srgb";
         return {
             steps: [
-                { argv: ["hyprctl", "keyword", "monitor", resetArg], delayAfter: 200 },
-                { argv: ["hyprctl", "keyword", "monitor", monitorArg] }
+                { argv: [HYPR_MONITOR_APPLY, "monitor", resetArg], delayAfter: 200 },
+                { argv: [HYPR_MONITOR_APPLY, "monitor", monitorArg] }
             ],
             batchArg: null
         };
     }
 
-    return { steps: [], batchArg: "keyword monitor " + monitorArg };
+    return { steps: [{ argv: [HYPR_MONITOR_APPLY, "monitor", monitorArg] }], batchArg: null };
 }
 
 // Assembles all per-output results into a flat step queue.
@@ -99,7 +115,7 @@ function assembleSteps(cmds, defaultOutputName) {
         if (defaultOutputName) batchArgs.push("dispatch focusmonitor " + defaultOutputName);
         steps.push({ argv: ["hyprctl", "--batch", batchArgs.join(" ; ")] });
     } else if (defaultOutputName) {
-        steps.push({ argv: ["hyprctl", "dispatch", "focusmonitor", defaultOutputName] });
+        steps.push({ argv: [HYPR_MONITOR_APPLY, "focus", defaultOutputName] });
     }
 
     return steps;

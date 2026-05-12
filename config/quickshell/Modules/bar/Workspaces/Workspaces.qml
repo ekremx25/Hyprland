@@ -157,7 +157,7 @@ Rectangle {
                         color: isActive ? Theme.workspaceActiveTextColor : Theme.text
                         font.bold: true
                         font.pixelSize: 14
-                        font.family: "JetBrainsMono Nerd Font"
+                        font.family: Theme.fontFamily
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -210,6 +210,7 @@ Rectangle {
                                     z: 2
 
                                     Text {
+                                        font.family: Theme.fontFamily
                                         anchors.centerIn: parent
                                         text: modelData.count !== undefined ? String(modelData.count) : ""
                                         font.pixelSize: 8

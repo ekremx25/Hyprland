@@ -155,7 +155,7 @@ Item {
     }
 
     function focusCommand(targetName) {
-        if (CompositorService.isHyprland) return ["hyprctl", "dispatch", "workspace", String(targetName)];
+        if (CompositorService.isHyprland) return [Core.PathService.configPath("scripts/hypr_workspace_apply.sh"), String(targetName)];
         if (CompositorService.isNiri) return ["niri", "msg", "action", "focus-workspace", String(targetName)];
         return ["mmsg", "-s", "-o", monitorName, "-t", String(targetName)];
     }

@@ -87,6 +87,9 @@ Item {
             if (!Layout.isOutputValid(outObj)) continue;
 
             var existing = nextConfig[outObj.name] || {};
+            if (existing.res !== undefined || existing.hz !== undefined || existing.posX !== undefined || existing.posY !== undefined) {
+                continue;
+            }
             var nextEntry = {
                 res: outObj.res,
                 hz: parseFloat(outObj.hz || "60").toFixed(2),
@@ -101,6 +104,7 @@ Item {
                 sdrBrightness: outObj.sdrBrightness || 1.0,
                 sdrSaturation: outObj.sdrSaturation || 1.0,
                 colorManagement: outObj.colorManagement || "srgb",
+                iccProfile: outObj.iccProfile || "",
                 sdrEotf: (outObj.sdrEotf !== undefined) ? outObj.sdrEotf : 1
             };
 
@@ -143,6 +147,7 @@ Item {
         if (saved.sdrLuminance !== undefined) outObj.sdrLuminance = saved.sdrLuminance;
         if (saved.sdrBrightness !== undefined) outObj.sdrBrightness = saved.sdrBrightness;
         if (saved.sdrSaturation !== undefined) outObj.sdrSaturation = saved.sdrSaturation;
+        if (saved.iccProfile !== undefined) outObj.iccProfile = saved.iccProfile;
         if (saved.sdrEotf !== undefined) outObj.sdrEotf = saved.sdrEotf;
     }
 
@@ -187,7 +192,7 @@ Item {
         return unique;
     }
 
-    function recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName) {
+    function recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultMonitorName) {
         if (outputs.length === 0) return outputs;
         var updated = [];
         for (var i = 0; i < outputs.length; i++) {
@@ -208,6 +213,7 @@ Item {
                 sdrBrightness: isSel ? selSdrBrightness : (outputs[i].sdrBrightness || 1.0),
                 sdrSaturation: isSel ? selSdrSaturation : (outputs[i].sdrSaturation || 1.0),
                 colorManagement: isSel ? selColorManagement : (outputs[i].colorManagement || "srgb"),
+                iccProfile: isSel ? selIccProfile : (outputs[i].iccProfile || ""),
                 sdrEotf: isSel ? selSdrEotf : ((outputs[i].sdrEotf !== undefined) ? outputs[i].sdrEotf : 1),
                 modes: outputs[i].modes
             });
@@ -216,7 +222,7 @@ Item {
     }
 
     // Builds the save-config object for all monitors (no shell / jq needed).
-    function buildSaveConfig(updatedOutputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultOutputName) {
+    function buildSaveConfig(updatedOutputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultOutputName) {
         var config = {};
         for (var i = 0; i < updatedOutputs.length; i++) {
             var mon = updatedOutputs[i];
@@ -243,6 +249,7 @@ Item {
                 sdrBrightness:   parseFloat(isSelected ? selSdrBrightness : (saved.sdrBrightness !== undefined ? saved.sdrBrightness : (mon.sdrBrightness || 1.0))).toFixed(1) * 1,
                 sdrSaturation:   parseFloat(isSelected ? selSdrSaturation : (saved.sdrSaturation !== undefined ? saved.sdrSaturation : (mon.sdrSaturation || 1.0))).toFixed(1) * 1,
                 colorManagement: isSelected ? selColorManagement : (saved.colorManagement !== undefined ? saved.colorManagement : (mon.colorManagement || "srgb")),
+                iccProfile:      isSelected ? selIccProfile : (saved.iccProfile !== undefined ? saved.iccProfile : (mon.iccProfile || "")),
                 sdrEotf:         isSelected ? selSdrEotf         : (saved.sdrEotf  !== undefined ? saved.sdrEotf  : ((mon.sdrEotf !== undefined) ? mon.sdrEotf : 1))
             };
         }
@@ -251,7 +258,7 @@ Item {
 
     // Builds an array of { argv: [...], delayAfter?: number } steps.
     // Each step is a direct argv process invocation — no sh -c.
-    function buildApplySteps(updatedOutputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultOutputName) {
+    function buildApplySteps(updatedOutputs, selectedOutputName, selRes, selHz, selScale, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultOutputName) {
         if (CompositorService.isHyprland) {
             var hyprCmds = [];
             for (var h = 0; h < updatedOutputs.length; h++) {
@@ -267,7 +274,7 @@ Item {
                     { hdr: selHdr, bitdepth: selBitdepth, vrr: selVrr,
                       sdrLuminance: selSdrLuminance, sdrBrightness: selSdrBrightness,
                       sdrSaturation: selSdrSaturation, colorManagement: selColorManagement,
-                      sdrEotf: selSdrEotf },
+                      iccProfile: selIccProfile, sdrEotf: selSdrEotf },
                     backend.savedConfig);
                 if (hyprCmd) hyprCmds.push(hyprCmd);
             }
@@ -324,8 +331,8 @@ Item {
         }
     }
 
-    function applySettings(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName) {
-        var updatedOutputs = recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selSdrEotf, defaultMonitorName);
+    function applySettings(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultMonitorName) {
+        var updatedOutputs = recalcPositions(outputs, selectedOutputName, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultMonitorName);
         var defaultOutputName = defaultMonitorName;
         if (!defaultOutputName && updatedOutputs.length > 0) {
             for (var d = 0; d < updatedOutputs.length; d++) {
@@ -338,12 +345,12 @@ Item {
         // Save config via JsonDataStore (atomic write, no shell needed)
         configStore.save(buildSaveConfig(updatedOutputs, selectedOutputName, selRes, selHz, selScale,
             selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness,
-            selSdrSaturation, selColorManagement, selSdrEotf, defaultOutputName));
+            selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultOutputName));
 
         // Build and run compositor apply steps (direct argv, no sh -c)
         var steps = buildApplySteps(updatedOutputs, selectedOutputName, selRes, selHz, selScale,
             selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation,
-            selColorManagement, selSdrEotf, defaultOutputName);
+            selColorManagement, selIccProfile, selSdrEotf, defaultOutputName);
         backend._pendingMangoReload = CompositorService.isMango;
         backend._applyQueue = steps;
         backend._applyStep = 0;

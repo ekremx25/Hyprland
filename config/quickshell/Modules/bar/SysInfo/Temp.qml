@@ -21,12 +21,14 @@ Rectangle {
     spacing: 6
 
     Text {
+        font.family: Theme.iconFontFamily
       text: ""
       color: "#1e1e2e"
       font.pixelSize: 16
     }
 
     Text {
+        font.family: Theme.fontFamily
       // "2% • 46°C"
       text: (backend.cpuPercent >= 0 ? Math.floor(backend.cpuPercent) + "%" : "0%") +
       (backend.cpuTempC !== "-" ? " • " + backend.cpuTempC + "°C" : "")
@@ -81,9 +83,9 @@ Rectangle {
         // ROW 1
         RowLayout {
           Layout.fillWidth: true
-          Text { text: "Usage: " + Math.floor(backend.cpuPercent) + "%"; color: "#cdd6f4"; font.bold: true }
-          Text { text: "|"; color: "#fab387"; font.bold: true }
-          Text { text: "Load: " + backend.loadData; color: "#fab387" }
+          Text {  text: "Usage: " + Math.floor(backend.cpuPercent) + "%"; color: "#cdd6f4"; font.bold: true; font.family: Theme.fontFamily }
+          Text {  text: "|"; color: "#fab387"; font.bold: true; font.family: Theme.fontFamily }
+          Text {  text: "Load: " + backend.loadData; color: "#fab387"; font.family: Theme.fontFamily }
           Item { Layout.fillWidth: true }
         }
 
@@ -115,11 +117,11 @@ Rectangle {
         Rectangle { Layout.fillWidth: true; height: 1; color: "#fab387"; opacity: 0.3; Layout.topMargin: 2; Layout.bottomMargin: 2 }
 
         // ROW 3: DETAILS
-        Text { text: "Temp: " + backend.cpuTempC + " °C"; color: "#cdd6f4"; font.family: "Monospace" }
-        Text { text: "Gov: " + backend.governor; color: "#cdd6f4"; font.family: "Monospace" }
-        Text { text: "CPU: " + backend.cpuModelName; color: "#fab387"; font.family: "Monospace"; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
-        Text { text: "vCPUs: " + backend.vCpuCount; color: "#cdd6f4"; font.family: "Monospace" }
-        Text { text: "Freq: " + backend.cpuFreqGHz + " GHz (core0)"; color: "#cdd6f4"; font.family: "Monospace" }
+        Text { text: "Temp: " + backend.cpuTempC + " °C"; color: "#cdd6f4"; font.family: Theme.monoFontFamily }
+        Text { text: "Gov: " + backend.governor; color: "#cdd6f4"; font.family: Theme.monoFontFamily }
+        Text { text: "CPU: " + backend.cpuModelName; color: "#fab387"; font.family: Theme.monoFontFamily; font.pixelSize: 11; elide: Text.ElideRight; Layout.fillWidth: true }
+        Text { text: "vCPUs: " + backend.vCpuCount; color: "#cdd6f4"; font.family: Theme.monoFontFamily }
+        Text { text: "Freq: " + backend.cpuFreqGHz + " GHz (core0)"; color: "#cdd6f4"; font.family: Theme.monoFontFamily }
       }
     }
   }
