@@ -27,7 +27,6 @@ PACMAN_PACKAGES=(
   feh
   flex
   git
-  github-cli
   gwenview
   gvfs-gphoto2
   hyprland
@@ -58,7 +57,6 @@ PACMAN_PACKAGES=(
   pavucontrol
   playerctl
   pipewire-pulse
-  pipewire-jack
   qt5-wayland
   qt5ct
   qemu-full
@@ -184,24 +182,6 @@ install_yay() {
 install_yay_packages() {
   log "Installing required packages with yay"
   yay -S --needed --noconfirm "${YAY_PACKAGES[@]}"
-}
-
-authenticate_github() {
-  if ! need_cmd gh; then
-    return
-  fi
-
-  if gh auth status >/dev/null 2>&1; then
-    log "GitHub CLI is already authenticated"
-    return
-  fi
-
-  if [[ -t 0 && -t 1 ]]; then
-    log "Authenticating GitHub CLI"
-    gh auth login
-  else
-    log "Skipping GitHub CLI authentication because no interactive terminal is available"
-  fi
 }
 
 install_iriunwebcam() {
@@ -391,7 +371,6 @@ post_install() {
 main() {
   ensure_repo_files
   install_packages
-  authenticate_github
   install_yay
   install_iriunwebcam
   install_yay_packages
