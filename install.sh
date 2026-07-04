@@ -109,9 +109,6 @@ YAY_PACKAGES=(
   zsh-syntax-highlighting
 )
 
-OPENCL_AMD_REPO_URL="https://aur.archlinux.org/opencl-amd.git"
-OPENCL_AMD_COMMIT="42c9eb7"
-
 CONFIG_TARGETS=(
   fastfetch
   gtk-3.0
@@ -210,23 +207,6 @@ authenticate_github() {
 install_iriunwebcam() {
   log "Installing iriunwebcam-bin with yay"
   yay -S --needed --noconfirm iriunwebcam-bin
-}
-
-install_opencl_amd() {
-  if pacman -Q opencl-amd >/dev/null 2>&1; then
-    log "opencl-amd is already installed"
-    return
-  fi
-
-  log "Installing opencl-amd from pinned commit ${OPENCL_AMD_COMMIT}"
-  mkdir -p "$BUILD_DIR"
-  rm -rf "$BUILD_DIR/opencl-amd"
-  git clone "$OPENCL_AMD_REPO_URL" "$BUILD_DIR/opencl-amd"
-  (
-    cd "$BUILD_DIR/opencl-amd"
-    git checkout "$OPENCL_AMD_COMMIT"
-    makepkg -si --noconfirm
-  )
 }
 
 install_oh_my_zsh() {
@@ -415,7 +395,6 @@ main() {
   install_yay
   install_iriunwebcam
   install_yay_packages
-  install_opencl_amd
   install_cargo_tools
   install_oh_my_zsh
   install_zsh_plugins
