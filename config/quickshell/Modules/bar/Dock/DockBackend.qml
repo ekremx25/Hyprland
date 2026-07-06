@@ -1,5 +1,6 @@
 import QtQuick
 import Qt.labs.platform
+import Quickshell
 import Quickshell.Io
 import "../../../Services" as S
 import "AppService.js" as AppService
@@ -109,10 +110,15 @@ Item {
         }
 
         var rawIcon = pinnedApp.icon && pinnedApp.icon !== "" ? pinnedApp.icon : getIcon(pinnedApp.appId);
+        var resolvedCmd = getCmd(pinnedApp.appId);
+        if (pinnedApp.cmd && (!resolvedCmd || resolvedCmd === "" || resolvedCmd === pinnedApp.appId)) {
+            resolvedCmd = pinnedApp.cmd;
+        }
+
         return {
-            name: getAppName(pinnedApp.appId),
+            name: getAppName(pinnedApp.appId) || pinnedApp.name || pinnedApp.appId,
             icon: expandIconPath(rawIcon),
-            cmd: getCmd(pinnedApp.appId),
+            cmd: resolvedCmd,
             appId: pinnedApp.appId,
             isPinned: true,
             isRunning: isRunning,
@@ -221,7 +227,12 @@ Item {
 
     function runDetachedCommand(rawCmd) {
         if (!rawCmd) return;
-        setProcessCommand(launchProc, ["/bin/sh", "-lc", detachedWrap(rawCmd)]);
+        Quickshell.execDetached(["/bin/sh", "-lc", rawCmd]);
+    }
+
+    function runDetachedArgv(argv) {
+        if (!argv || argv.length === 0) return;
+        Quickshell.execDetached(argv);
     }
 
     function launchApp(cmd) {
@@ -242,7 +253,7 @@ Item {
             }
 
             logToFile("launch branch=gtk-launch id=" + desktopId);
-            runDetachedCommand("/usr/bin/gtk-launch " + shellQuote(desktopId));
+            runDetachedArgv(["/usr/bin/gtk-launch", desktopId]);
             return;
         }
 

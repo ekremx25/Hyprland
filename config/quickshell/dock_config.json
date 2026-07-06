@@ -22,22 +22,10 @@
       "appId": "dolphin"
     },
     {
-      "name": "antigravity",
-      "icon": "antigravity",
-      "cmd": "antigravity",
-      "appId": "antigravity"
-    },
-    {
       "name": "telegram-desktop",
       "icon": "org.telegram.desktop",
       "cmd": "/usr/bin/telegram-desktop --",
       "appId": "org.telegram.desktop"
-    },
-    {
-      "name": "Chrome",
-      "icon": "google-chrome-stable",
-      "cmd": "__desktop__:google-chrome",
-      "appId": "google-chrome-stable"
     },
     {
       "name": "Virt-manager",
@@ -54,14 +42,32 @@
     {
       "name": "VS Code",
       "icon": "codex",
-      "cmd": "__desktop__:codex-desktop",
-      "appId": "Codex"
+      "cmd": "__desktop__:Codex",
+      "appId": "codex"
     },
     {
       "name": "Iriunwebcam",
       "icon": "iriunwebcam",
       "cmd": "iriunwebcam",
       "appId": "iriunwebcam"
+    },
+    {
+      "name": "Antigravity",
+      "icon": "antigravity-ide",
+      "cmd": "__desktop__:antigravity-ide",
+      "appId": "antigravity-ide"
+    },
+    {
+      "name": "Brave",
+      "icon": "brave-browser",
+      "cmd": "__desktop__:brave-browser",
+      "appId": "brave-browser"
+    },
+    {
+      "name": "Affinity.exe",
+      "icon": "affinity.exe",
+      "cmd": "__desktop__:Affinity",
+      "appId": "affinity.exe"
     },
     {
       "name": "OBS Studio",

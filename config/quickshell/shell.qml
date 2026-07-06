@@ -65,9 +65,10 @@ ShellRoot {
         }
     }
 
-    // Stage 3 timer
+    // Stage 3 timer (0 ms → fire on next event-loop tick so Stage 1 gets its
+    // first frame in first, then everything else loads immediately after).
     Timer {
-        interval: 600
+        interval: 0
         repeat: false
         running: true
         onTriggered: {

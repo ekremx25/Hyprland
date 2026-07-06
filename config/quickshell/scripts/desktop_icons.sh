@@ -7,6 +7,39 @@ shopt -s nullglob
 #   Line 1: icon map    {"app_id":"icon_name", ...}
 #   Line 2: command map {"app_id":"full_exec_command", ...}
 #   Line 3: desktop map {"app_id":"desktop-id", ...}
+#
+# Cache: results are saved to ~/.cache/quickshell/desktop_icons.cache
+# On startup the cache is served immediately so dock icons appear at once.
+# The cache is refreshed in the background whenever it is stale (>3600s).
+
+CACHE_FILE="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell/desktop_icons.cache"
+CACHE_MAX_AGE=3600   # seconds — refresh hourly
+FORCE_REFRESH=false
+if [ "${1:-}" = "--refresh-cache" ]; then
+    FORCE_REFRESH=true
+fi
+
+# ── Serve cache immediately if it exists and is fresh enough ──────────────
+if [ "$FORCE_REFRESH" != true ] && [ -f "$CACHE_FILE" ]; then
+    if [ -n "$(find "$CACHE_FILE" -maxdepth 0 -mmin -$((CACHE_MAX_AGE / 60)) 2>/dev/null)" ]; then
+        # Cache is fresh → output it and exit (no parsing needed)
+        cat "$CACHE_FILE"
+        exit 0
+    else
+        # Cache is stale → serve it NOW so the dock has icons immediately,
+        # then continue below to rebuild it (output will overwrite via tee).
+        cat "$CACHE_FILE"
+        # Re-exec in background to refresh; parent already printed stale data.
+        (
+            exec "$0" --refresh-cache
+        ) &>/dev/null &
+        exit 0
+    fi
+fi
+
+# If called with --refresh-cache we skip the cache-serve block above and fall
+# through to the full parse, then write the result to the cache.
+WRITE_CACHE=true
 
 DESKTOP_DIRS="/usr/share/applications $HOME/.local/share/applications /var/lib/flatpak/exports/share/applications $HOME/.local/share/flatpak/exports/share/applications"
 
@@ -144,3 +177,40 @@ for key in "${!desktop_map[@]}"; do
 done
 echo ""
 echo "}"
+
+# ── Write output to cache for next startup ───────────────────────────────
+if [ "${WRITE_CACHE:-false}" = "true" ]; then
+    mkdir -p "$(dirname "$CACHE_FILE")"
+    {
+        # icons
+        echo "{"
+        first=true
+        for key in "${!icon_map[@]}"; do
+            if [ "$first" = true ]; then first=false; else echo ","; fi
+            printf '"%s":"%s"' "$key" "${icon_map[$key]}"
+        done
+        echo ""
+        echo "}"
+
+        # commands
+        echo "{"
+        first=true
+        for key in "${!cmd_map[@]}"; do
+            if [ "$first" = true ]; then first=false; else echo ","; fi
+            value=$(printf '%s' "${cmd_map[$key]}" | sed 's/"/\\"/g')
+            printf '"%s":"%s"' "$key" "$value"
+        done
+        echo ""
+        echo "}"
+
+        # desktop ids
+        echo "{"
+        first=true
+        for key in "${!desktop_map[@]}"; do
+            if [ "$first" = true ]; then first=false; else echo ","; fi
+            printf '"%s":"%s"' "$key" "${desktop_map[$key]}"
+        done
+        echo ""
+        echo "}"
+    } > "$CACHE_FILE"
+fi
