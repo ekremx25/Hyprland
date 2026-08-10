@@ -2,7 +2,7 @@
 
 hl.on("hyprland.start", function()
   hl.exec_cmd("systemctl --user start hyprpolkitagent")
-  hl.exec_cmd("hypridle -c ~/.config/hypr/lock/hypridle.conf")
+  hl.exec_cmd("systemctl --user start hypridle.service")
   hl.exec_cmd("nm-applet --indicator")
   hl.exec_cmd("quickshell")
   hl.exec_cmd("awww-daemon")

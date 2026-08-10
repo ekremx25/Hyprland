@@ -116,6 +116,7 @@ CONFIG_TARGETS=(
   kitty
   nwg-look
   qt6ct
+  systemd
   Kvantum
   waypaper
   xsettingsd
@@ -354,6 +355,9 @@ post_install() {
   fix_xdg_menu
   configure_libvirt
   configure_grub_kernel_params
+  log "Enabling Hypridle user service"
+  systemctl --user daemon-reload
+  systemctl --user enable hypridle.service >/dev/null 2>&1 || true
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
   sudo systemctl enable --now power-profiles-daemon.service >/dev/null 2>&1 || true

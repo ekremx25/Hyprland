@@ -57,6 +57,7 @@ hl.config({
   input = {
     kb_layout = "tr",
     follow_mouse = 1,
+    numlock_by_default = true,
   },
 
   misc = {
