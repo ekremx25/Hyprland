@@ -1,0 +1,146 @@
+
+{
+"$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+ "logo": {
+ "source": "$HOME/.config/fastfetch/1.png",
+    "type": "kitty",
+    "width": 30,
+    "height": 17,
+    "padding": {
+      "top": 3,
+      "left": 2,
+      "right": 4,
+    }
+},
+  "display": {
+    "separator": "  "
+  },
+  "modules": [
+    "break",
+    {
+      "type": "title",
+      "format": "{#36}󰣇  {6}{7}{8}"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╭─ {#36}System"
+    },
+    {
+      "type": "os",
+      "key": "{#90}│  {#33}  OS       ",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "command",
+      "key": "{#90}│  {#33}󰃭  OS Age   ",
+      "keyColor": "yellow",
+      "text": "birth=$(stat -c %W /); now=$(date +%s); days=$(( (now - birth) / 86400 )); printf '%d days' \"$days\""
+    },
+    {
+      "type": "kernel",
+      "key": "{#90}│  {#33}  Kernel   ",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "packages",
+      "key": "{#90}│  {#33}󰏖  Apps     ",
+      "keyColor": "yellow"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╰──────────────"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╭─ {#35}Desktop"
+    },
+    {
+      "type": "wm",
+      "key": "{#90}│  {#35}  WM       ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "shell",
+      "key": "{#90}│  {#35}  Shell    ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "terminal",
+      "key": "{#90}│  {#35}  Term     ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "cursor",
+      "key": "{#90}│  {#35}  Cursor   ",
+      "keyColor": "magenta"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╰──────────────"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╭─ {#32}Hardware"
+    },
+    {
+      "type": "cpu",
+      "key": "{#90}│  {#32}  CPU      ",
+      "keyColor": "green"
+    },
+    {
+      "type": "gpu",
+      "key": "{#90}│  {#32}󰢮  GPU      ",
+      "keyColor": "green",
+      "format": "{2}"
+    },
+    {
+      "type": "memory",
+      "key": "{#90}│  {#32}󰍛  RAM      ",
+      "keyColor": "green",
+      "format": "{1} / {2}"
+    },
+    {
+      "type": "disk",
+      "key": "{#90}│  {#32}󰋊  Disk     ",
+      "keyColor": "green"
+    },
+    {
+      "type": "display",
+      "key": "{#90}│  {#32}󰍹  Screen   ",
+      "keyColor": "green",
+      "compactType": "original-with-refresh-rate"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╰──────────────"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╭─ {#34}Live"
+    },
+    {
+      "type": "uptime",
+      "key": "{#90}│  {#34}󰔛  Uptime   ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "sound",
+      "key": "{#90}│  {#34}  Audio    ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "player",
+      "key": "{#90}│  {#34}󰥠  Player   ",
+      "keyColor": "blue"
+    },
+    {
+      "type": "custom",
+      "format": "{#90}╰──────────────"
+    },
+    {
+      "type": "colors",
+      "symbol": "circle"
+    },
+    "break"
+  ]
+}
