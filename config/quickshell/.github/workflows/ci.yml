@@ -1,48 +1,61 @@
-name: Quickshell CI
+name: CI
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "config/quickshell/**"
   pull_request:
-    branches: [main]
-    paths:
-      - "config/quickshell/**"
+
+permissions:
+  contents: read
 
 jobs:
-  shell-lint:
-    name: ShellCheck
+  validate:
+    name: Validate configuration
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install ShellCheck
-        run: sudo apt-get update -qq && sudo apt-get install -y shellcheck
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
 
-      - name: Lint helper scripts
+      - name: Test port-independent monitor roles
+        run: python -m unittest discover -s tests -v
+
+      - name: Compile Python helpers
         run: |
-          shellcheck -S warning config/quickshell/scripts/*.sh config/quickshell/Services/core/*.sh
+          python -m py_compile scripts/monitor_role_manager.py
+          python -m py_compile Modules/bar/System/niri_apply.py
 
-  json-lint:
-    name: JSON lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Validate shell syntax
+        run: bash -n scripts/*.sh
 
-      - name: Install jq
-        run: sudo apt-get update -qq && sudo apt-get install -y jq
-
-      - name: Validate tracked Quickshell JSON files
+      - name: Validate tracked JSON
+        shell: bash
         run: |
-          set -e
-          fail=0
+          set -euo pipefail
           while IFS= read -r file; do
-            if ! jq empty "$file" >/dev/null 2>&1; then
-              echo "::error file=$file::Invalid JSON"
-              fail=1
+            python -m json.tool "$file" >/dev/null
+          done < <(git ls-files '*.json')
+
+      - name: Reject user-specific runtime files
+        shell: bash
+        run: |
+          set -euo pipefail
+          forbidden=(
+            monitor_config.json
+            monitor_identities.json
+            monitor_role_profiles.json
+            monitor_runtime.json
+            screen_config.json
+            desktop_widgets.json
+            weather_config.json
+          )
+          for file in "${forbidden[@]}"; do
+            if git ls-files --error-unmatch "$file" >/dev/null 2>&1; then
+              echo "User-specific runtime file is tracked: $file" >&2
+              exit 1
             fi
-          done < <(git ls-files 'config/quickshell/*.json' 'config/quickshell/**/*.json')
-          exit "$fail"
+          done
