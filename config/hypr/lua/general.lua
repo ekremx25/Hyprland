@@ -71,5 +71,10 @@ hl.curve("smoothOut", { type = "bezier", points = { { 0.5, 0 }, { 0.99, 0.99 } }
 hl.curve("smoothIn", { type = "bezier", points = { { 0.5, -0.5 }, { 0.68, 1.5 } } })
 
 hl.animation({ leaf = "windows", enabled = true, speed = 5, bezier = "overshot", style = "slide" })
+-- Open with a springy pop, close by shrinking and fading out (added via Quickshell session).
+hl.curve("closeEase", { type = "bezier", points = { { 0.4, 0 }, { 0.6, 1 } } })
+hl.animation({ leaf = "windowsIn", enabled = true, speed = 4, bezier = "overshot", style = "popin 80%" })
+hl.animation({ leaf = "windowsOut", enabled = true, speed = 3, bezier = "closeEase", style = "popin 70%" })
+hl.animation({ leaf = "fadeOut", enabled = true, speed = 3, bezier = "closeEase" })
 hl.animation({ leaf = "fade", enabled = true, speed = 5, bezier = "smoothIn" })
 hl.animation({ leaf = "workspaces", enabled = true, speed = 6, bezier = "default" })

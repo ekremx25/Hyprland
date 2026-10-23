@@ -6,6 +6,7 @@ hl.on("hyprland.start", function()
   hl.exec_cmd("nm-applet --indicator")
   hl.exec_cmd("quickshell")
   hl.exec_cmd("awww-daemon")
+  hl.exec_cmd("sh -c 'pgrep -x keepassxc >/dev/null || exec keepassxc --minimized'")
   hl.exec_cmd("dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
 
   hl.exec_cmd("fcitx5 -d")

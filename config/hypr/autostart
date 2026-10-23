@@ -46,10 +46,6 @@ wpaperd &
 # (https://github.com/ErikReider/SwayOSD)
 exec swayosd-server &
 
-# notification daemon
-# dunst &
-swaync &
-
 # automatic mount storage-devices
 udiskie &
 
