@@ -79,6 +79,7 @@ PACMAN_PACKAGES=(
   xmlto
   xz
   zstd
+  cava
 )
 
 YAY_PACKAGES=(
