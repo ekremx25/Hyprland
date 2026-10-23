@@ -19,10 +19,13 @@ PACMAN_PACKAGES=(
   base-devel
   bc
   bison
+  bluez
+  bluez-utils
   cpio
   discord
   dolphin
   dnsmasq
+  fcitx5
   ffmpegthumbs
   feh
   flex
@@ -59,6 +62,7 @@ PACMAN_PACKAGES=(
   pipewire-pulse
   qt5-wayland
   qt5ct
+  qt6ct
   qemu-full
   qt6-multimedia-ffmpeg
   rclone
@@ -83,15 +87,14 @@ PACMAN_PACKAGES=(
 )
 
 YAY_PACKAGES=(
-  antigravity
-  brave-bin
+  antigravity-ide
   quickshell-git
   cargo
   catppuccin-cursors-mocha
   catppuccin-gtk-theme-latte
-  codex-desktop-bin
   fastfetch
   goverlay
+  hyprmoncfg
   hyprsunset
   lact
   libxcrypt-compat
@@ -99,7 +102,6 @@ YAY_PACKAGES=(
   matugen-bin
   noto-fonts
   nwg-look
-  qt6ct-kde
   ttf-hack
   ttf-jetbrains-mono-nerd
   waypaper-git
@@ -362,6 +364,7 @@ post_install() {
   log "Enabling display manager"
   sudo systemctl enable sddm.service >/dev/null 2>&1 || true
   sudo systemctl enable --now power-profiles-daemon.service >/dev/null 2>&1 || true
+  sudo systemctl enable --now bluetooth.service >/dev/null 2>&1 || true
   log "Setting Dolphin as default file manager"
   need_cmd xdg-mime && xdg-mime default org.kde.dolphin.desktop inode/directory || true
   log "Refreshing desktop caches"
