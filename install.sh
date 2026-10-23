@@ -64,7 +64,7 @@ PACMAN_PACKAGES=(
   rclone
   rofi
   sddm
-  swww
+  awww
   tar
   telegram-desktop
   ttf-roboto
