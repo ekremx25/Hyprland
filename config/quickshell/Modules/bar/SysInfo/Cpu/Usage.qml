@@ -4,13 +4,14 @@ import QtQuick.Controls
 import Quickshell
 import "."
 import "../../../../Widgets"
+import "../../../../Services" as S
 
 Rectangle {
     id: root
-    UsageBackend { id: backend }
+    readonly property var backend: S.CpuCoreStats
     width: layout.implicitWidth + 16
     height: 30
-    color: "#89b4fa" // Blue
+    color: Theme.cpBlue // Blue
     radius: 14
 
     RowLayout {
@@ -23,13 +24,13 @@ Rectangle {
             text: backend.totalUsage
             font.bold: true
             font.family: Theme.fontFamily
-            color: "#1e1e2e"
+            color: Theme.foregroundFor(root.color)
         }
         Text {
             font.family: Theme.iconFontFamily
             text: ""
             font.pixelSize: 14
-            color: "#1e1e2e"
+            color: Theme.foregroundFor(root.color)
         }
     }
 
@@ -44,8 +45,8 @@ Rectangle {
             padding: 0 // We will manage padding ourselves
 
             background: Rectangle {
-                color: "#1e1e2e" // Dark Background
-                border.color: "#89b4fa" // Blue Border
+                color: Theme.cpBase // Dark Background
+                border.color: Theme.cpBlue // Blue Border
                 radius: 8
                 opacity: 0.95
             }
@@ -66,7 +67,7 @@ Rectangle {
                         text: "Total Load: " + mainText.text
                         font.bold: true
                         font.family: Theme.fontFamily
-                        color: "#cba6f7"
+                        color: Theme.cpMauve
                         Layout.alignment: Qt.AlignHCenter
                     }
 
@@ -85,14 +86,14 @@ Rectangle {
                                 spacing: 10 // Spacing between Name and Percentage
                                 Text {
                                     text: model.name
-                                    color: "#bac2de"
+                                    color: Theme.cpSubtext1
                                     font.pixelSize: 12
                                     font.family: Theme.fontFamily
                                     width: 50 // Fixed width (so alignment is clean)
                                 }
                                 Text {
                                     text: model.usage
-                                    color: "#a6e3a1" // Green Numbers
+                                    color: Theme.cpGreen // Green Numbers
                                     font.bold: true
                                     font.pixelSize: 12
                                     font.family: Theme.fontFamily

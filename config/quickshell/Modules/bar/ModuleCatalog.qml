@@ -1,4 +1,5 @@
 import QtQuick
+import "../../Services" as S
 import "ModuleRegistry.js" as ModuleRegistry
 import "../../Services/core/Log.js" as Log
 
@@ -6,6 +7,8 @@ import "./Launcher"
 import "./Workspaces"
 import "./Tray"
 import "./SysInfo"
+import "./ActivityMonitor"
+import "./Hyprmoncfg"
 import "./Volume"
 import "./power"
 import "./Calendar"
@@ -55,6 +58,8 @@ Item {
         "Power": powerComp,
         "NightLight": nightLightComp,
         "PowerGroup": powerGroupComp,
+        "ActivityMonitor": activityMonitorComp,
+        "Hyprmoncfg": hyprmoncfgComp,
         "SysInfoGroup": sysInfoGroupComp,
         "RamModule": ramModuleComp,
         "Media": mediaComp,
@@ -63,6 +68,10 @@ Item {
 
     function componentFor(name) {
         var canonical = ModuleRegistry.canonicalName(name);
+        if (canonical === "Notifications" && (!catalog.screenData
+                || !S.ScreenManager.getFilteredScreens("notifications").some(function(screen) {
+                    return screen.name === catalog.screenData.name;
+                }))) return null;
         return catalog.componentMap[canonical] || null;
     }
 
@@ -99,7 +108,7 @@ Item {
 
     Component { id: calendarComp; Calendar {} }
     Component { id: notepadComp; Notepad {} }
-    Component { id: notificationsComp; Notifications {} }
+    Component { id: notificationsComp; Notifications { screenData: catalog.screenData } }
     Component { id: weatherComp; Weather {} }
     Component { id: volumeComp; Volume {} }
     Component { id: equalizerComp; Equalizer {} }
@@ -108,6 +117,8 @@ Item {
     Component { id: powerComp; Power {} }
     Component { id: nightLightComp; NightLight {} }
     Component { id: powerGroupComp; PowerGroup {} }
+    Component { id: activityMonitorComp; ActivityMonitor {} }
+    Component { id: hyprmoncfgComp; Hyprmoncfg {} }
     Component { id: sysInfoGroupComp; SysInfoGroup {} }
     Component { id: ramModuleComp; RamModule {} }
     Component { id: currencyConverterComp; CurrencyConverter {} }

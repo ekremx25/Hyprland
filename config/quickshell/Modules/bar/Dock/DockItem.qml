@@ -1,5 +1,6 @@
 import QtQuick
 import "../../../Widgets"
+import "../../../Services" as S
 
 // Single dock slot.
 // If modelData.isModule, renders the module component from panel.moduleMap.
@@ -11,6 +12,24 @@ Item {
     required property int index
     required property real dockScale
     required property var panel
+
+    // Frosted glass for this item's tooltip and context menu (see DockPopup).
+    Component {
+        id: popupGlass
+        LiquidGlass {
+            readonly property var host: parent ? parent.popupHost : null
+            screen: itemRoot.panel.screen
+            screenX: host ? host.glassScreenX : 0
+            screenY: host ? host.glassScreenY : 0
+            radius: host ? host.glassRadius : 12
+            refraction: 10
+            edgeWidth: 10
+            blurRadius: 14
+            // Darker frost keeps menu text readable over busy wallpapers.
+            tint: Theme.background
+            tintStrength: 0.45
+        }
+    }
     required property var backend
     required property var repeater
     required property var row
@@ -19,9 +38,9 @@ Item {
     required property var settingsPopup
 
     width: modelData.isModule
-        ? (moduleLoader.item ? moduleLoader.item.implicitWidth : panel.cfgIconSize * dockScale)
+        ? (moduleLoader.item ? Math.max(moduleLoader.item.implicitWidth, moduleLoader.item.width) : panel.cfgIconSize * dockScale)
         : panel.cfgIconSize * dockScale
-    height: (panel.cfgIconSize + 8) * dockScale
+    height: Math.max((panel.cfgIconSize + 8) * dockScale, moduleLoader.item ? Math.max(moduleLoader.item.implicitHeight, moduleLoader.item.height) : 0)
 
     Loader {
         id: moduleLoader
@@ -40,12 +59,11 @@ Item {
         // Thin separator between the last pinned app and the first running app.
         Rectangle {
             visible: itemRoot.panel.shouldShowPinnedSeparator(itemRoot.index)
-            width: 1 * itemRoot.dockScale
-            height: itemRoot.panel.cfgIconSize * 0.6 * itemRoot.dockScale
+            width: (itemRoot.panel.isHorizontal ? 1 : itemRoot.panel.cfgIconSize * 0.6) * itemRoot.dockScale
+            height: (itemRoot.panel.isHorizontal ? itemRoot.panel.cfgIconSize * 0.6 : 1) * itemRoot.dockScale
             color: Qt.rgba(147/255, 153/255, 178/255, 0.35)
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.leftMargin: -3
+            x: itemRoot.panel.isHorizontal ? -3 : (parent.width - width) / 2
+            y: itemRoot.panel.isHorizontal ? (parent.height - height) / 2 : -3
         }
 
         Rectangle {
@@ -55,7 +73,7 @@ Item {
             height: itemRoot.panel.cfgIconSize * itemRoot.dockScale
             radius: (itemRoot.panel.cfgIconSize * 0.25) * itemRoot.dockScale
             color: itemMouse.containsMouse
-                ? Qt.rgba(137/255, 180/255, 250/255, 0.18)
+                ? Theme.withAlpha(Theme.primary, 0.18)
                 : "transparent"
 
             // While dragging, hide the source slot completely (still reserves space).
@@ -68,14 +86,83 @@ Item {
                 NumberAnimation { duration: 200; easing.type: Easing.OutBack }
             }
 
-            transform: Scale {
-                origin.x: dockItem.width / 2
-                origin.y: dockItem.height
-                xScale: dockItem.hoverScale
-                yScale: dockItem.hoverScale
+            readonly property url iconSource: applicationIcon.source
+
+            // Launch animation while an app starts (style + speed from Settings → Effects):
+            // bounce = macOS hop, pulse = heartbeat scale, wiggle = side-to-side tilt.
+            property real bounce: 0          // 0 = resting, 1 = top of the hop
+            property real pulse: 1           // extra scale for "pulse"
+            property real wiggle: 0          // tilt in degrees for "wiggle"
+            readonly property real bounceHeight: 16 * itemRoot.dockScale
+            property int launchCyclesLeft: 0
+
+            // Keep animating until the app's window shows up (or we give up).
+            function launchCycleDone(anim) {
+                launchCyclesLeft -= 1;
+                if (launchCyclesLeft <= 0 || itemRoot.modelData.isRunning) anim.stop();
             }
 
+            SequentialAnimation {
+                id: bounceAnim
+                loops: Animation.Infinite
+                NumberAnimation { target: dockItem; property: "bounce"; to: 1; duration: S.EffectSettings.ms(230); easing.type: Easing.OutQuad }
+                NumberAnimation { target: dockItem; property: "bounce"; to: 0; duration: S.EffectSettings.ms(230); easing.type: Easing.InQuad }
+                ScriptAction { script: dockItem.launchCycleDone(bounceAnim) }
+            }
+
+            SequentialAnimation {
+                id: pulseAnim
+                loops: Animation.Infinite
+                NumberAnimation { target: dockItem; property: "pulse"; to: 1.18; duration: S.EffectSettings.ms(150); easing.type: Easing.OutQuad }
+                NumberAnimation { target: dockItem; property: "pulse"; to: 0.94; duration: S.EffectSettings.ms(150); easing.type: Easing.InOutQuad }
+                NumberAnimation { target: dockItem; property: "pulse"; to: 1.0; duration: S.EffectSettings.ms(160); easing.type: Easing.OutQuad }
+                ScriptAction { script: dockItem.launchCycleDone(pulseAnim) }
+            }
+
+            SequentialAnimation {
+                id: wiggleAnim
+                loops: Animation.Infinite
+                NumberAnimation { target: dockItem; property: "wiggle"; to: 12; duration: S.EffectSettings.ms(90); easing.type: Easing.OutSine }
+                NumberAnimation { target: dockItem; property: "wiggle"; to: -12; duration: S.EffectSettings.ms(180); easing.type: Easing.InOutSine }
+                NumberAnimation { target: dockItem; property: "wiggle"; to: 6; duration: S.EffectSettings.ms(120); easing.type: Easing.InOutSine }
+                NumberAnimation { target: dockItem; property: "wiggle"; to: 0; duration: S.EffectSettings.ms(90); easing.type: Easing.OutSine }
+                ScriptAction { script: dockItem.launchCycleDone(wiggleAnim) }
+            }
+
+            function startBounce() {
+                var style = S.EffectSettings.launchStyle;
+                if (style === "none") return;
+                bounceAnim.stop(); pulseAnim.stop(); wiggleAnim.stop();
+                bounce = 0; pulse = 1; wiggle = 0;
+                launchCyclesLeft = 4;
+                if (style === "pulse") pulseAnim.restart();
+                else if (style === "wiggle") wiggleAnim.restart();
+                else bounceAnim.restart();
+            }
+
+            transform: [
+                Scale {
+                    origin.x: dockItem.width / 2
+                    origin.y: dockItem.height
+                    xScale: dockItem.hoverScale * dockItem.pulse
+                    yScale: dockItem.hoverScale * dockItem.pulse
+                },
+                Rotation {
+                    origin.x: dockItem.width / 2
+                    origin.y: dockItem.height / 2
+                    angle: dockItem.wiggle
+                },
+                // Hop away from the screen edge the dock sits on.
+                Translate {
+                    readonly property real hop: dockItem.bounce * dockItem.bounceHeight
+                    readonly property string edge: itemRoot.panel.cfgPosition
+                    x: edge === "left" ? hop : edge === "right" ? -hop : 0
+                    y: edge === "top" ? hop : (edge === "left" || edge === "right") ? 0 : -hop
+                }
+            ]
+
             Image {
+                id: applicationIcon
                 anchors.centerIn: parent
                 width: (itemRoot.panel.cfgIconSize - 4) * itemRoot.dockScale
                 height: (itemRoot.panel.cfgIconSize - 4) * itemRoot.dockScale
@@ -90,9 +177,20 @@ Item {
                 antialiasing: true
                 opacity: itemRoot.panel.isDragging && itemRoot.panel.dragFromIndex === itemRoot.index ? 0 : 1
                 Behavior on opacity { NumberAnimation { duration: 150 } }
+                Image {
+                    anchors.fill: parent
+                    visible: applicationIcon.status === Image.Error
+                    source: visible ? "image://icon/application-x-executable" : ""
+                    sourceSize: applicationIcon.sourceSize
+                    fillMode: Image.PreserveAspectFit
+                }
             }
 
             DockTooltip {
+                anchorItem: dockItem
+                panel: itemRoot.panel
+                glassComponent: S.EffectSettings.liquidGlass ? popupGlass : null
+                dockPosition: itemRoot.panel.cfgPosition
                 label: itemRoot.modelData.name
                 dockScale: itemRoot.dockScale
                 shown: itemMouse.containsMouse
@@ -143,22 +241,20 @@ Item {
                     }
 
                     if (dragStarted) {
-                        var globalPos = mapToItem(itemRoot.row, mouse.x, mouse.y);
-                        var itemWidth = 32 * itemRoot.dockScale;
-                        var spacing = 2 * itemRoot.dockScale;
-                        // Locate the x offset of the repeater's first item inside the row
-                        // so drop index math stays correct when modules shift the row.
-                        var firstItem = itemRoot.repeater.itemAt(0);
-                        var offsetX = firstItem ? firstItem.mapToItem(itemRoot.row, 0, 0).x : 0;
-                        var adjustedX = globalPos.x - offsetX;
-                        var targetIdx = Math.floor(adjustedX / (itemWidth + spacing));
-
-                        if (targetIdx < 0) targetIdx = 0;
-                        if (targetIdx >= itemRoot.panel.dockItems.length) {
-                            targetIdx = itemRoot.panel.dockItems.length - 1;
+                        var pointer = mapToItem(itemRoot.row, mouse.x, mouse.y);
+                        var horizontal = itemRoot.panel.isHorizontal;
+                        var coordinate = horizontal ? pointer.x : pointer.y;
+                        var nearest = -1;
+                        var distance = Infinity;
+                        for (var i = 0; i < itemRoot.panel.dockItems.length; i++) {
+                            var slot = itemRoot.repeater.itemAt(i);
+                            if (!slot) continue;
+                            var origin = slot.mapToItem(itemRoot.row, 0, 0);
+                            var center = horizontal ? origin.x + slot.width / 2 : origin.y + slot.height / 2;
+                            var delta = Math.abs(coordinate - center);
+                            if (delta < distance) { distance = delta; nearest = i; }
                         }
-
-                        itemRoot.panel.dragOverIndex = targetIdx;
+                        itemRoot.panel.dragOverIndex = nearest;
                     }
                 }
 
@@ -211,6 +307,7 @@ Item {
                         itemRoot.backend.focusWindow(itemRoot.modelData.windowId);
                     } else {
                         itemRoot.backend.launchApp(itemRoot.modelData.cmd);
+                        dockItem.startBounce();
                     }
                 }
             }
@@ -235,12 +332,16 @@ Item {
                 width: 9 * itemRoot.dockScale
                 height: 9 * itemRoot.dockScale
                 radius: 4.5 * itemRoot.dockScale
-                color: Qt.rgba(137/255, 180/255, 250/255, 0.25)
+                color: Theme.withAlpha(Theme.primary, 0.25)
                 z: -1
             }
         }
 
         DockContextMenu {
+            anchorItem: dockItem
+            panel: itemRoot.panel
+            glassComponent: S.EffectSettings.liquidGlass ? popupGlass : null
+            dockPosition: itemRoot.panel.cfgPosition
             modelData: itemRoot.modelData
             dockScale: itemRoot.dockScale
             shown: itemRoot.panel.contextMenuVisible
@@ -257,26 +358,23 @@ Item {
             && itemRoot.panel.dragOverIndex === itemRoot.index
             && itemRoot.panel.dragFromIndex !== itemRoot.index
 
-        width: 2 * itemRoot.dockScale
-        height: 32 * itemRoot.dockScale
+        property bool horizontal: itemRoot.panel.isHorizontal
+        property bool afterSource: itemRoot.panel.dragOverIndex > itemRoot.panel.dragFromIndex
+        width: horizontal ? 2 * itemRoot.dockScale : itemRoot.width
+        height: horizontal ? itemRoot.height : 2 * itemRoot.dockScale
         radius: 1 * itemRoot.dockScale
         color: Theme.primary
-        anchors.verticalCenter: parent.verticalCenter
-
-        // Stick to the right when dragging right, left otherwise.
-        anchors.left: (itemRoot.panel.dragOverIndex > itemRoot.panel.dragFromIndex) ? undefined : parent.left
-        anchors.right: (itemRoot.panel.dragOverIndex > itemRoot.panel.dragFromIndex) ? parent.right : undefined
-        anchors.leftMargin: (itemRoot.panel.dragOverIndex > itemRoot.panel.dragFromIndex) ? 0 : -4
-        anchors.rightMargin: (itemRoot.panel.dragOverIndex > itemRoot.panel.dragFromIndex) ? -4 : 0
+        x: horizontal ? (afterSource ? parent.width + 2 : -4) : (parent.width - width) / 2
+        y: horizontal ? (parent.height - height) / 2 : (afterSource ? parent.height + 2 : -4)
 
         z: 50
 
         Rectangle {
             anchors.centerIn: parent
-            width: 7
-            height: 44
+            width: parent.width + 5 * itemRoot.dockScale
+            height: parent.height + 5 * itemRoot.dockScale
             radius: 3.5
-            color: Qt.rgba(137/255, 180/255, 250/255, 0.2)
+            color: Theme.withAlpha(Theme.primary, 0.2)
             z: -1
         }
     }

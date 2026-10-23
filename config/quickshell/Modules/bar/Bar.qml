@@ -10,53 +10,26 @@ import "BarDefaults.js" as BarDefaults
 import "./Settings"
 import "../../Widgets"
 import "../../Services" as S
+import "Dock" as DockParts
 
 Variants {
     id: root
     model: S.ScreenManager.getFilteredScreens("bar")
-    readonly property var initialBarConfig: BarDefaults.createBarConfig()
-    property var barLayout: ({
-        left: initialBarConfig.left.slice(),
-        center: initialBarConfig.center.slice(),
-        right: initialBarConfig.right.slice(),
-        workspaces: BarDefaults.clone(initialBarConfig.workspaces)
-    })
-    property string barPosition: "top"
-    property bool isVertical: false
-    property var workspacesConfig: BarDefaults.createWorkspacesConfig()
+    readonly property var barLayout: root.backend ? root.backend.barLayout : BarDefaults.createBarConfig()
+    readonly property string barPosition: root.backend ? root.backend.barPosition : "top"
+    readonly property bool isVertical: root.backend ? root.backend.isVertical : false
+    readonly property var workspacesConfig: root.backend ? root.backend.workspacesConfig : BarDefaults.createWorkspacesConfig()
 
-    function syncFromBackend(dataBackend) {
-        if (!dataBackend) return;
-        root.barLayout = dataBackend.barLayout || root.barLayout;
-        root.barPosition = dataBackend.barPosition || "top";
-        root.isVertical = !!dataBackend.isVertical;
-        root.workspacesConfig = dataBackend.workspacesConfig || root.workspacesConfig;
-    }
-
-    BarBackend {
-        id: backend
-        Component.onCompleted: root.syncFromBackend(backend)
-        onBarLayoutChanged: root.syncFromBackend(backend)
-        onBarPositionChanged: root.syncFromBackend(backend)
-        onIsVerticalChanged: root.syncFromBackend(backend)
-        onWorkspacesConfigChanged: root.syncFromBackend(backend)
-    }
+    property BarBackend backend: BarBackend {}
 
 
     Item {
         id: screenItem
         required property var modelData
 
-        property bool showWorkspaces: {
-            var prefs = S.ScreenManager.screenPreferences["workspaces"];
-            if (!prefs || !Array.isArray(prefs) || prefs.length === 0 || prefs.indexOf("all") !== -1) {
-                return true;
-            }
-            if (prefs.indexOf("none") !== -1 || prefs[0] === "none") {
-                return false;
-            }
-            return prefs.indexOf(modelData.name) !== -1;
-        }
+        property bool showWorkspaces: S.ScreenManager.getFilteredScreens("workspaces").some(function(screen) {
+            return screen.name === modelData.name;
+        })
 
         PanelWindow {
             id: barWindow
@@ -70,7 +43,7 @@ Variants {
                 bottom: root.barPosition !== "top"
             }
             color: "transparent"
-            property real barSize: 46
+            property real barSize: 48
 
             // In horizontal mode set height; in vertical mode set width.
             implicitHeight: root.isVertical ? -1 : barSize
@@ -82,14 +55,7 @@ Variants {
                 Settings {
                     id: settingsMenu
                     screen: modelData
-                    onConfigSaved: (newConfig) => {
-                        root.syncFromBackend({
-                            barLayout: newConfig,
-                            barPosition: newConfig.barPosition || root.barPosition,
-                            isVertical: (newConfig.barPosition || root.barPosition) === "left" || (newConfig.barPosition || root.barPosition) === "right",
-                            workspacesConfig: newConfig.workspaces || root.workspacesConfig
-                        });
-                    }
+                    onConfigSaved: newConfig => { if (root.backend) root.backend.applyConfig(newConfig); }
                 }
 
             ModuleCatalog {
@@ -104,8 +70,9 @@ Variants {
                 id: barContent
                 anchors.fill: parent
                 color: "transparent"
+                border.width: 0
                 opacity: 0
-                transform: Translate { id: barSlide; y: root.barPosition === "bottom" ? 52 : -52 }
+                transform: Translate { id: barSlide; y: root.isVertical ? 0 : (root.barPosition === "bottom" ? 8 : -8) }
 
                 Component.onCompleted: Qt.callLater(function() { barEnterAnim.start() })
 
@@ -113,20 +80,54 @@ Variants {
                     id: barEnterAnim
                     NumberAnimation {
                         target: barContent; property: "opacity"
-                        from: 0; to: 1; duration: 1100; easing.type: Easing.OutCubic
+                        from: 0; to: 1; duration: Theme.animMedium; easing.type: Easing.OutCubic
                     }
                     NumberAnimation {
                         target: barSlide; property: "y"
-                        to: 0; duration: 950; easing.type: Easing.OutBack
+                        to: 0; duration: Theme.animMedium; easing.type: Easing.OutCubic
                     }
                 }
 
                 // === HORIZONTAL MODE (top/bottom) ===
+                // Liquid glass islands behind each module group (horizontal bars only).
+                Repeater {
+                    model: [barLeftRow, barCenterRow, barRightRow]
+                    delegate: Loader {
+                        id: island
+                        required property Item modelData
+                        required property int index
+                        readonly property real padX: 6
+                        readonly property real padY: 4
+                        active: S.EffectSettings.liquidGlass && !root.isVertical && modelData.width > 0
+                        x: modelData.x - padX
+                        y: modelData.y - padY
+                        width: modelData.width + padX * 2
+                        height: modelData.height + padY * 2
+                        z: -1
+                        sourceComponent: DockParts.LiquidGlass {
+                            screen: barWindow.screen
+                            screenX: island.x
+                            screenY: (root.barPosition === "bottom" ? barWindow.screen.height - barWindow.barSize : 0) + island.y
+                            radius: height / 2
+                            tint: Theme.primary
+                            refraction: 12
+                            edgeWidth: 12
+                            hovered: islandHover.hovered && S.EffectSettings.glassDroplet
+                            pointerX: islandHover.point.position.x
+                            pointerY: islandHover.point.position.y
+                            shimmerEnabled: S.EffectSettings.glassShimmer
+                            shimmerDelay: island.index * 1500
+                            HoverHandler { id: islandHover }
+                        }
+                    }
+                }
+
                 // --- LEFT ---
                 RowLayout {
+                    id: barLeftRow
                     visible: !root.isVertical
                     anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
-                    spacing: 14
+                    spacing: 8
                     Repeater {
                         model: root.barLayout.left
                         Loader {
@@ -135,22 +136,22 @@ Variants {
                             active: !root.isVertical && ((modelData === "Workspaces") ? screenItem.showWorkspaces : true)
                             sourceComponent: moduleCatalog.componentFor(modelData)
                             opacity: 0
-                            scale: 0.7
                             Timer {
-                                interval: 350 + leftLoader.itemIndex * 100
+                                interval: leftLoader.itemIndex * 25
                                 running: true
-                                onTriggered: { leftLoader.opacity = 1; leftLoader.scale = 1 }
+                                onTriggered: { leftLoader.opacity = 1 }
                             }
-                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
-                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
                         }
                     }
                 }
 
                 // --- CENTER ---
                 RowLayout {
+                    id: barCenterRow
                     visible: !root.isVertical
                     anchors.centerIn: parent
+                    spacing: 8
                     Repeater {
                         model: root.barLayout.center
                         Loader {
@@ -159,23 +160,22 @@ Variants {
                             active: !root.isVertical && ((modelData === "Workspaces") ? screenItem.showWorkspaces : true)
                             sourceComponent: moduleCatalog.componentFor(modelData)
                             opacity: 0
-                            scale: 0.7
                             Timer {
-                                interval: 500 + centerLoader.itemIndex * 100
+                                interval: centerLoader.itemIndex * 25
                                 running: true
-                                onTriggered: { centerLoader.opacity = 1; centerLoader.scale = 1 }
+                                onTriggered: { centerLoader.opacity = 1 }
                             }
-                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
-                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
                         }
                     }
                 }
 
                 // --- RIGHT ---
                 RowLayout {
+                    id: barRightRow
                     visible: !root.isVertical
                     anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                    spacing: 14
+                    spacing: 8
                     Repeater {
                         model: root.barLayout.right
                         Loader {
@@ -184,14 +184,12 @@ Variants {
                             active: !root.isVertical && ((modelData === "Workspaces") ? screenItem.showWorkspaces : true)
                             sourceComponent: moduleCatalog.componentFor(modelData)
                             opacity: 0
-                            scale: 0.7
                             Timer {
-                                interval: 650 + rightLoader.itemIndex * 100
+                                interval: rightLoader.itemIndex * 25
                                 running: true
-                                onTriggered: { rightLoader.opacity = 1; rightLoader.scale = 1 }
+                                onTriggered: { rightLoader.opacity = 1 }
                             }
-                            Behavior on opacity { NumberAnimation { duration: 450; easing.type: Easing.OutCubic } }
-                            Behavior on scale   { NumberAnimation { duration: 500; easing.type: Easing.OutBack } }
+                            Behavior on opacity { NumberAnimation { duration: Theme.animNormal; easing.type: Easing.OutCubic } }
                         }
                     }
                 }

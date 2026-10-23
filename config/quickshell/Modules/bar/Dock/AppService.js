@@ -22,7 +22,8 @@ var APP_NAME_RULES = [
     { pattern: /zoom/, value: "Zoom" },
     { pattern: /teams/, value: "Teams" },
     { pattern: /skype/, value: "Skype" },
-    { pattern: /dolphin|nautilus/, value: "Dosyalar" },
+    { pattern: /dolphin/, value: "Dolphin" },
+    { pattern: /nautilus/, value: "Dosyalar" },
     { pattern: /thunar/, value: "Thunar" },
     { pattern: /nemo/, value: "Nemo" },
     { pattern: /spotify/, value: "Spotify" },
@@ -121,7 +122,7 @@ function resolveDesktopKey(rawId, desktopEntries, desktopIcons, desktopCommands)
 function normalizeAppId(appId) {
     if (!appId) return "";
     var lower = String(appId).toLowerCase();
-    return NORMALIZED_IDS[lower] || appId;
+    return NORMALIZED_IDS[lower] || lower;
 }
 
 function resolveThemedIconName(iconName) {
@@ -132,18 +133,27 @@ function resolveThemedIconName(iconName) {
 
 function getIcon(appId, desktopIcons, desktopEntries, desktopCommands) {
     if (!appId) return "application-x-executable";
+    // Desktop metadata arrives asynchronously. Do not ask the icon provider
+    // to load a window class (e.g. affinity.exe) while that lookup is pending.
+    desktopIcons = desktopIcons || {};
+    if (Object.keys(desktopIcons).length === 0) return "application-x-executable";
     var id = String(appId).toLowerCase();
     var resolvedKey = resolveDesktopKey(id, desktopEntries || {}, desktopIcons || {}, desktopCommands || {});
 
     if (resolvedKey !== "") return desktopIcons[resolvedKey] || id;
     if (desktopIcons[id]) return desktopIcons[id];
 
+    if (/\.exe$/.test(id)) {
+        var executableKey = resolveDesktopKey(id.replace(/\.exe$/, ""), desktopEntries || {}, desktopIcons, desktopCommands || {});
+        if (executableKey && desktopIcons[executableKey]) return desktopIcons[executableKey];
+    }
+
     var shortName = lastToken(id);
     if (shortName && desktopIcons[shortName]) return desktopIcons[shortName];
 
     if (/resolve|davinci/.test(id)) return "/opt/resolve/graphics/DV_Resolve.png";
     if (SPECIAL_ICON_NAMES[id]) return SPECIAL_ICON_NAMES[id];
-    return id;
+    return /\.exe$/.test(id) ? "application-x-executable" : id;
 }
 
 function getAppName(appId) {
@@ -152,6 +162,14 @@ function getAppName(appId) {
     var matched = firstMatchingValue(APP_NAME_RULES, lower);
     if (matched !== "") return matched;
     return String(appId).charAt(0).toUpperCase() + String(appId).slice(1);
+}
+
+function pinnedIcon(appId, icon, desktopIcons, desktopEntries, desktopCommands) {
+    // Older pins stored the window class as an icon. Resolve those through
+    // desktop metadata, but preserve intentionally chosen icons and paths.
+    if (!icon || String(icon).toLowerCase() === String(appId || "").toLowerCase())
+        return getIcon(appId, desktopIcons, desktopEntries, desktopCommands);
+    return icon;
 }
 
 function getCmd(appId, desktopEntries, desktopCommands) {

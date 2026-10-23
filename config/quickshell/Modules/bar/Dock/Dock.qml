@@ -41,16 +41,29 @@ Variants {
         property bool cfgIntelligentHide: (dockWindow.dockConfigData && dockWindow.dockConfigData.intelligentAutoHide === true)
         property string cfgIndicator:  (dockWindow.dockConfigData && dockWindow.dockConfigData.indicatorStyle) ? dockWindow.dockConfigData.indicatorStyle : "circle"
         property string cfgAlignment:  (dockWindow.dockConfigData && dockWindow.dockConfigData.dockAlignment) ? dockWindow.dockConfigData.dockAlignment : "center"
+        property bool cfgLiquidGlass:  S.EffectSettings.liquidGlass
+            && !(dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false)
+
+        // Top-left of this layer surface on its screen (layer shells do not report it).
+        readonly property real windowScreenX: {
+            if (isHorizontal) return cfgAlignment === "center" ? (screen.width - implicitWidth) / 2 : 0;
+            return cfgPosition === "left" ? hideOffset : screen.width - hideOffset - implicitWidth;
+        }
+        readonly property real windowScreenY: {
+            if (!isHorizontal) return cfgAlignment === "center" ? (screen.height - implicitHeight) / 2 : 0;
+            return cfgPosition === "top" ? hideOffset : screen.height - hideOffset - implicitHeight;
+        }
 
         // Hide the dock when auto-hidden
         property bool shouldHide: {
             if (!dockWindow.dockConfigData) return false;
-            if (dockWindow.dockConfigData.autoHide) return hasOverlappingWindow;
-            if (dockWindow.cfgIntelligentHide) return hasOverlappingWindow;
+            if (dockWindow.dockContainsMouse || dockWindow.contextMenuVisible || dockWindow.isDragging) return false;
+            if (dockWindow.dockConfigData.autoHide || dockWindow.cfgIntelligentHide) return hasOverlappingWindow;
             return false;
         }
-        property real hideOffset: shouldHide ? -(dockThickness + 10) * dockScale : cfgBottomMargin * dockScale
-        property real dockThickness: (cfgIconSize + 8)
+        // Keep a two-pixel input strip at the screen edge so a hidden dock can reveal itself.
+        property real hideOffset: shouldHide ? -Math.max(0, dockThickness * dockScale - 2) : (hideTrackingEnabled ? 0 : cfgBottomMargin * dockScale)
+        property real dockThickness: (isHorizontal ? dockContent.implicitHeight : dockContent.implicitWidth) / dockScale
 
         margins {
             bottom: cfgPosition === "bottom" ? hideOffset : 0
@@ -60,32 +73,37 @@ Variants {
         }
 
         color: "transparent"
+        mask: Region { item: dockContent }
         // When alignment is not center, use full screen width so dockContent can align left/right
-        property real dockContentWidth: dockContent.implicitWidth + (cfgPadding * 2 * dockScale)
-        implicitWidth:  isHorizontal ? (cfgAlignment === "center" ? dockContentWidth : screen.width) : (dockThickness * dockScale)
-        implicitHeight: isHorizontal ? (dockThickness * dockScale) : (dockContent.implicitHeight + (cfgPadding * 2 * dockScale))
+        property real dockContentWidth: dockContent.implicitWidth
+        // Transparent headroom on the screen-facing side so launch bounces are not
+        // clipped. Input is masked to dockContent and exclusiveZone is unchanged.
+        readonly property real bounceRoom: 22 * dockScale
+        implicitWidth:  isHorizontal ? (cfgAlignment === "center" ? dockContentWidth : screen.width) : (dockThickness * dockScale + bounceRoom)
+        implicitHeight: isHorizontal ? (dockThickness * dockScale + bounceRoom) : (cfgAlignment === "center" ? dockContent.implicitHeight : screen.height)
         exclusiveZone: dockThickness * dockScale
         // Auto hide logic integration
         WlrLayershell.exclusiveZone: (dockWindow.dockConfigData && (dockWindow.dockConfigData.autoHide || dockWindow.cfgIntelligentHide)) ? -1 : (dockThickness * dockScale)
 
         property bool hasOverlappingWindow: false
+        property bool hideTrackingEnabled: !!dockConfigData && (dockConfigData.autoHide || cfgIntelligentHide)
+        onHideTrackingEnabledChanged: if (!hideTrackingEnabled) hasOverlappingWindow = false
 
         Timer {
             id: hideCheckTimer
-            interval: 500; running: dockWindow.dockConfigData && dockWindow.dockConfigData.autoHide; repeat: true
+            interval: 500; running: dockWindow.hideTrackingEnabled; repeat: true
             onTriggered: {
-                if (!dockWindow.dockConfigData.autoHide) { dockWindow.hasOverlappingWindow = false; return; }
+                if (!dockWindow.hideTrackingEnabled) { dockWindow.hasOverlappingWindow = false; return; }
 
-                try {
-                    // Heuristic: hide the dock if any window is present on this monitor
-                    // unless the mouse is currently over the dock.
-                    var activeWindowsCount = dockWindow.runningWindows.length;
-                    dockWindow.hasOverlappingWindow = (activeWindowsCount > 0) && !dockContainsMouse;
-                } catch(e) {}
+                var monitor = S.WorkspaceService.state.byMonitor[dockWindow.screen.name];
+                var workspaces = monitor && monitor.workspaces ? monitor.workspaces : [];
+                dockWindow.hasOverlappingWindow = workspaces.some(function(workspace) {
+                    return workspace.is_active && workspace.winCount > 0;
+                });
             }
         }
 
-        property bool dockContainsMouse: globalMouse.containsMouse || dockRowMouseArea.containsMouse
+        property bool dockContainsMouse: dockHover.hovered
 
         DockBackend {
             id: dockBackend
@@ -153,7 +171,12 @@ Variants {
 
         // Visual construction and placement metadata are centralized in the
         // ModuleCatalog/ModuleRegistry pair.
-        readonly property var moduleMap: moduleCatalog.componentMap
+        readonly property var moduleMap: {
+            var components = {};
+            for (var name in moduleCatalog.componentMap)
+                components[name] = moduleCatalog.componentFor(name);
+            return components;
+        }
 
         Settings {
             id: settingsMenu
@@ -215,6 +238,19 @@ Variants {
             }
         }
 
+        // Plays a poof centred on (x, y) in window coordinates.
+        Component { id: poofComponent; DockPoof {} }
+        function spawnPoof(x, y, iconSource) {
+            if (!S.EffectSettings.dockPoof) return;
+            var size = cfgIconSize * dockScale;
+            var item = poofComponent.createObject(dockWindow.contentItem, {
+                iconSource: iconSource, iconSize: size, z: 100
+            });
+            if (!item) return;
+            item.x = x - item.width / 2;
+            item.y = y - item.height / 2;
+        }
+
         // ── Global hover / click-outside area ──
         MouseArea {
             id: globalMouse
@@ -233,10 +269,13 @@ Variants {
                     if (dockWindow.cfgAlignment === "right") return parent.width - width - 8;
                     return (parent.width - width) / 2; // center
                 }
-                return 0;
+                // Right-edge docks keep the bounce headroom on their left.
+                return dockWindow.cfgPosition === "right" ? parent.width - width : 0;
             }
             y: {
                 if (!dockWindow.isHorizontal) {
+                    if (dockWindow.cfgAlignment === "left") return 8;
+                    if (dockWindow.cfgAlignment === "right") return parent.height - height - 8;
                     return (parent.height - height) / 2;
                 }
                 if (dockWindow.cfgPosition === "top") return 0;
@@ -246,9 +285,10 @@ Variants {
 
             opacity: 0
             scale: 0.82
+            property real entryOffset: 60
             transform: Translate {
-                id: dockSlide
-                y: dockWindow.cfgPosition === "top" ? -60 : 60
+                x: dockWindow.isHorizontal ? 0 : (dockWindow.cfgPosition === "left" ? -dockContent.entryOffset : dockContent.entryOffset)
+                y: dockWindow.isHorizontal ? (dockWindow.cfgPosition === "top" ? -dockContent.entryOffset : dockContent.entryOffset) : 0
             }
 
             Component.onCompleted: Qt.callLater(function() { dockEnterAnim.start() })
@@ -257,37 +297,56 @@ Variants {
                 id: dockEnterAnim
                 NumberAnimation { target: dockContent; property: "opacity"; from: 0; to: 1; duration: 600; easing.type: Easing.OutCubic }
                 NumberAnimation { target: dockContent; property: "scale";   from: 0.82; to: 1; duration: 540; easing.type: Easing.OutBack }
-                NumberAnimation { target: dockSlide;   property: "y";       to: 0;          duration: 540; easing.type: Easing.OutBack }
+                NumberAnimation { target: dockContent; property: "entryOffset"; to: 0;          duration: 540; easing.type: Easing.OutBack }
             }
 
-            implicitWidth: dockRow.implicitWidth + (dockWindow.cfgPadding * 2 * dockScale)
-            implicitHeight: (dockWindow.cfgIconSize + 8) * dockScale
+            implicitWidth: dockRow.implicitWidth + (dockWindow.isHorizontal ? dockWindow.cfgPadding * 2 : 8) * dockScale
+            implicitHeight: dockRow.implicitHeight + (dockWindow.isHorizontal ? 0 : dockWindow.cfgPadding * 2) * dockScale
             radius: 14 * dockScale
-            color: (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false) ? "transparent" : Qt.rgba(30/255, 30/255, 46/255, dockWindow.cfgTransparency)
-            border.color: (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false) ? "transparent" : (dockWindow.cfgShowBorder ? Qt.rgba(49/255, 50/255, 68/255, 0.8) : "transparent")
-            border.width: (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false) ? 0 : (dockWindow.cfgShowBorder ? 1 : 0)
+            color: (dockWindow.cfgLiquidGlass || (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false)) ? "transparent" : Theme.withAlpha(Theme.panelSurface, dockWindow.cfgTransparency)
+            border.color: (dockWindow.cfgLiquidGlass || (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false)) ? "transparent" : (dockWindow.cfgShowBorder ? Theme.borderStrong : "transparent")
+            border.width: (dockWindow.cfgLiquidGlass || (dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground === false)) ? 0 : (dockWindow.cfgShowBorder ? 1 : 0)
+
+            // Refracting wallpaper backdrop; replaces the flat background when enabled.
+            Loader {
+                anchors.fill: parent
+                z: -1
+                active: dockWindow.cfgLiquidGlass
+                sourceComponent: LiquidGlass {
+                    screen: dockWindow.screen
+                    screenX: dockWindow.windowScreenX + dockContent.x
+                    screenY: dockWindow.windowScreenY + dockContent.y
+                    radius: dockContent.radius
+                    tint: Theme.primary
+                    hovered: dockHover.hovered && S.EffectSettings.glassDroplet
+                    pointerX: dockHover.point.position.x
+                    pointerY: dockHover.point.position.y
+                    shimmerEnabled: S.EffectSettings.glassShimmer
+                }
+            }
 
             // Subtle glow outside the border
             Rectangle {
-                visible: dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground !== false && dockWindow.cfgShowBorder
+                visible: dockWindow.dockConfigData && dockWindow.dockConfigData.showBackground !== false && dockWindow.cfgShowBorder && !dockWindow.cfgLiquidGlass
                 anchors.fill: parent
                 anchors.margins: -1
                 radius: parent.radius + 1
                 color: "transparent"
-                border.color: Qt.rgba(137/255, 180/255, 250/255, 0.12)
+                border.color: Theme.withAlpha(Theme.primary, 0.12)
                 border.width: 1
                 z: -1
             }
 
-            MouseArea {
-                id: dockRowMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                z: -2
+            // Observe child controls too, without competing for their clicks.
+            HoverHandler {
+                id: dockHover
             }
 
-            Row {
+            Grid {
                 id: dockRow
+                columns: dockWindow.isHorizontal ? Math.max(1, children.length) : 1
+                horizontalItemAlignment: Grid.AlignHCenter
+                verticalItemAlignment: Grid.AlignVCenter
                 anchors.centerIn: parent
                 spacing: dockWindow.cfgItemSpacing * dockScale
 
@@ -302,6 +361,7 @@ Variants {
                 }
 
                 DockSeparator {
+                    horizontal: dockWindow.isHorizontal
                     visible: dockWindow.leftModules.length > 0
                     dockScale: dockWindow.dockScale
                     iconSize: dockWindow.cfgIconSize
@@ -325,6 +385,7 @@ Variants {
                 }
 
                 DockSeparator {
+                    horizontal: dockWindow.isHorizontal
                     visible: dockWindow.rightModules.length > 0
                     dockScale: dockWindow.dockScale
                     iconSize: dockWindow.cfgIconSize

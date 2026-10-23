@@ -3,6 +3,7 @@ import Qt.labs.platform
 import Quickshell
 import Quickshell.Io
 import "../../../Services" as S
+import "../../../Services/core" as Core
 import "AppService.js" as AppService
 import "../../../Services/core/Log.js" as Log
 
@@ -13,6 +14,8 @@ Item {
     height: 0
 
     property bool is4K: false
+    // Handles both Lua (Hyprland 0.56+) and classic hyprctl dispatchers.
+    readonly property string hyprWindowAction: Core.PathService.configPath("scripts/hypr_window_action.sh")
     property bool suspendHotReload: false
 
     property alias dockConfigData: dockData.dockConfigData
@@ -110,7 +113,8 @@ Item {
             }
         }
 
-        var rawIcon = pinnedApp.icon && pinnedApp.icon !== "" ? pinnedApp.icon : getIcon(pinnedApp.appId);
+        var rawIcon = AppService.pinnedIcon(pinnedApp.appId, pinnedApp.icon,
+            desktopIcons, desktopEntries, desktopCommands);
         var resolvedCmd = pinnedApp.cmd || "";
         var desktopCmd = getCmd(pinnedApp.appId);
         if (desktopCmd && desktopCmd !== pinnedApp.appId) {
@@ -277,21 +281,29 @@ Item {
     }
 
     function focusWindow(windowId) {
-        setProcessCommand(
-            focusProc,
-            S.CompositorService.isHyprland
-                ? ["hyprctl", "dispatch", "focuswindow", "address:" + windowId]
-                : ["niri", "msg", "action", "focus-window", "--id", "" + windowId]
-        );
+        var command;
+        if (S.CompositorService.isHyprland)
+            command = ["bash", hyprWindowAction, "focus", String(windowId)];
+        else if (S.CompositorService.isNiri)
+            command = ["niri", "msg", "action", "focus-window", "--id", "" + windowId];
+        else if (S.CompositorService.isMango)
+            command = ["mmsg", "dispatch", "focusid", "client," + windowId];
+        else
+            return;
+        setProcessCommand(focusProc, command);
     }
 
     function closeWindow(windowId) {
-        setProcessCommand(
-            launchProc,
-            S.CompositorService.isHyprland
-                ? ["hyprctl", "dispatch", "closewindow", "address:" + windowId]
-                : ["niri", "msg", "action", "close-window", "--id", "" + windowId]
-        );
+        var command;
+        if (S.CompositorService.isHyprland)
+            command = ["bash", hyprWindowAction, "close", String(windowId)];
+        else if (S.CompositorService.isNiri)
+            command = ["niri", "msg", "action", "close-window", "--id", "" + windowId];
+        else if (S.CompositorService.isMango)
+            command = ["mmsg", "dispatch", "killclient", "client," + windowId];
+        else
+            return;
+        setProcessCommand(launchProc, command);
     }
 
     Process {

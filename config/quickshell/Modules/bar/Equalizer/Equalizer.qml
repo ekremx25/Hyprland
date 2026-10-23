@@ -3,10 +3,12 @@ import QtQuick.Layouts
 import QtQuick.Window
 import QtQml
 import Quickshell
+import Quickshell.Wayland
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
 import "."
 import "../../../Widgets"
+import "../../../Services" as S
 
 Rectangle {
     id: root
@@ -23,28 +25,28 @@ Rectangle {
     property bool hasMedia: currentPlayer !== null
     property bool isPlaying: currentPlayer ? currentPlayer.isPlaying : false
 
-    EqualizerBackend { id: backend }
+    EqualizerBackend { id: equalizerBackend }
 
     readonly property var defaultSink: Pipewire.defaultAudioSink
     readonly property var defaultSource: Pipewire.defaultAudioSource
-    property alias eqFrequencies: backend.eqFrequencies
-    property alias eqBands: backend.eqBands
-    property alias selectedPreset: backend.selectedPreset
-    property alias applyStatus: backend.applyStatus
-    property alias sinkDisplayName: backend.sinkDisplayName
-    property alias sourceDisplayName: backend.sourceDisplayName
-    property alias sinkVolumePercent: backend.sinkVolumePercent
-    property alias sourceVolumePercent: backend.sourceVolumePercent
-    property alias sinkMuted: backend.sinkMuted
-    property alias sourceMuted: backend.sourceMuted
-    property alias currentSinkName: backend.currentSinkName
-    property alias currentSourceName: backend.currentSourceName
-    property alias availableSinks: backend.availableSinks
-    property alias hasPendingEqChanges: backend.hasPendingEqChanges
-    readonly property alias presetNames: backend.presetNames
+    property alias eqFrequencies: equalizerBackend.eqFrequencies
+    property alias eqBands: equalizerBackend.eqBands
+    property alias selectedPreset: equalizerBackend.selectedPreset
+    property alias applyStatus: equalizerBackend.applyStatus
+    property alias sinkDisplayName: equalizerBackend.sinkDisplayName
+    property alias sourceDisplayName: equalizerBackend.sourceDisplayName
+    property alias sinkVolumePercent: equalizerBackend.sinkVolumePercent
+    property alias sourceVolumePercent: equalizerBackend.sourceVolumePercent
+    property alias sinkMuted: equalizerBackend.sinkMuted
+    property alias sourceMuted: equalizerBackend.sourceMuted
+    property alias currentSinkName: equalizerBackend.currentSinkName
+    property alias currentSourceName: equalizerBackend.currentSourceName
+    property alias availableSinks: equalizerBackend.availableSinks
+    property alias hasPendingEqChanges: equalizerBackend.hasPendingEqChanges
+    readonly property alias presetNames: equalizerBackend.presetNames
     readonly property bool eqIsBypassed: root.applyStatus === "Disabled" || root.applyStatus === "Disabling..."
     readonly property string eqModeLabel: root.eqIsBypassed ? "Bypassed" : (root.selectedPreset === "Custom" ? "Custom curve" : "Preset mode")
-    readonly property string eqStateLabel: backend.isBusy ? "Applying" : (root.eqIsBypassed ? "Bypassed" : (root.hasPendingEqChanges ? "Pending" : "Live"))
+    readonly property string eqStateLabel: equalizerBackend.isBusy ? "Applying" : (root.eqIsBypassed ? "Bypassed" : (root.hasPendingEqChanges ? "Pending" : "Live"))
     readonly property real bgLuma: (Theme.background.r * 0.299) + (Theme.background.g * 0.587) + (Theme.background.b * 0.114)
     readonly property color eqAccent: Theme.equalizerColor
     // Keep the compact bar button in the same visual family as the adjacent
@@ -63,26 +65,26 @@ Rectangle {
     readonly property color eqAccentButton: Qt.rgba(eqAccent.r, eqAccent.g, eqAccent.b, 0.32)
     readonly property real primaryLuma: (eqAccent.r * 0.299) + (eqAccent.g * 0.587) + (eqAccent.b * 0.114)
     readonly property bool uiIsLight: bgLuma > 0.62
-    readonly property color adaptiveText: uiIsLight ? "#0f172a" : Theme.text
-    readonly property color adaptiveSubtext: uiIsLight ? "#475569" : Theme.subtext
-    readonly property color adaptiveAccentText: uiIsLight ? "#0f172a" : root.eqAccent
-    readonly property color adaptiveOnPrimary: primaryLuma > 0.62 ? "#0b1220" : "#f8fafc"
-    readonly property color sinkAccent: uiIsLight ? "#0f766e" : "#a6e3a1"
-    readonly property color sourceAccent: uiIsLight ? "#0369a1" : "#94e2d5"
-    readonly property color glassPanel: Qt.rgba(28/255, 41/255, 56/255, 0.82)
-    readonly property color glassCard: Qt.rgba(164/255, 226/255, 255/255, 0.09)
-    readonly property color glassCardStrong: Qt.rgba(184/255, 239/255, 255/255, 0.14)
-    readonly property color glassStroke: Qt.rgba(113/255, 229/255, 255/255, 0.24)
-    readonly property color softText: "#eef6ff"
-    readonly property color dimText: "#c5d8e8"
-    readonly property color trackColor: Qt.rgba(210/255, 242/255, 255/255, 0.20)
-    readonly property color waveGlowColor: Qt.rgba(153/255, 244/255, 255/255, 0.24)
-    readonly property color waveLineColor: Qt.rgba(226/255, 255/255, 255/255, 0.86)
-    readonly property color waveFillColor: Qt.rgba(130/255, 236/255, 255/255, 0.08)
+    readonly property color adaptiveText: Theme.text
+    readonly property color adaptiveSubtext: Theme.subtext
+    readonly property color adaptiveAccentText: root.eqAccent
+    readonly property color adaptiveOnPrimary: Theme.foregroundFor(root.eqAccent)
+    readonly property color sinkAccent: Theme.green
+    readonly property color sourceAccent: Theme.secondary
+    readonly property color glassPanel: Theme.withAlpha(Theme.panelSurface, 0.96)
+    readonly property color glassCard: Theme.surfaceTintLow
+    readonly property color glassCardStrong: Theme.surfaceTintHigh
+    readonly property color glassStroke: Theme.withAlpha(root.eqAccent, 0.24)
+    readonly property color softText: Theme.text
+    readonly property color dimText: Theme.subtext
+    readonly property color trackColor: Theme.surfaceTintMax
+    readonly property color waveGlowColor: Theme.withAlpha(root.eqAccent, 0.24)
+    readonly property color waveLineColor: root.eqAccent
+    readonly property color waveFillColor: Theme.withAlpha(root.eqAccent, 0.08)
     property real wavePhase: 0
     PwObjectTracker { objects: [ root.defaultSink, root.defaultSource ] }
-    onDefaultSinkChanged: backend.scheduleRefresh(80)
-    onDefaultSourceChanged: backend.scheduleRefresh(80)
+    onDefaultSinkChanged: equalizerBackend.scheduleRefresh(80)
+    onDefaultSourceChanged: equalizerBackend.scheduleRefresh(80)
 
     Instantiator {
         id: playerTracker
@@ -119,17 +121,17 @@ Rectangle {
         root.currentPlayer = active;
     }
 
-    function applyPreset(name) { backend.applyPreset(name); }
-    function setBandFromY(idx, y, h) { backend.setBandFromY(idx, y, h); }
-    function applyToPipeWire() { backend.applyToPipeWire(); }
-    function disablePipeWireEq() { backend.disablePipeWireEq(); }
-    function applyPendingBands() { backend.applyPendingBands(); }
-    function loadEqStateFromFile() { backend.loadEqStateFromFile(); }
-    function setSinkVolumePercent(percent) { backend.setSinkVolumePercent(percent); }
-    function setSourceVolumePercent(percent) { backend.setSourceVolumePercent(percent); }
-    function toggleSinkMute() { backend.toggleSinkMute(); }
-    function toggleSourceMute() { backend.toggleSourceMute(); }
-    function selectOutputSink(sinkName) { backend.selectOutputSink(sinkName); }
+    function applyPreset(name) { equalizerBackend.applyPreset(name); }
+    function setBandFromY(idx, y, h) { equalizerBackend.setBandFromY(idx, y, h); }
+    function applyToPipeWire() { equalizerBackend.applyToPipeWire(); }
+    function disablePipeWireEq() { equalizerBackend.disablePipeWireEq(); }
+    function applyPendingBands() { equalizerBackend.applyPendingBands(); }
+    function loadEqStateFromFile() { equalizerBackend.loadEqStateFromFile(); }
+    function setSinkVolumePercent(percent) { equalizerBackend.setSinkVolumePercent(percent); }
+    function setSourceVolumePercent(percent) { equalizerBackend.setSourceVolumePercent(percent); }
+    function toggleSinkMute() { equalizerBackend.toggleSinkMute(); }
+    function toggleSourceMute() { equalizerBackend.toggleSourceMute(); }
+    function selectOutputSink(sinkName) { equalizerBackend.selectOutputSink(sinkName); }
 
     // MetaChip and PresetChip component definitions moved to EqControlsCard.qml
 
@@ -165,41 +167,56 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            if (!popupWindow.visible) {
-                popupWindow.visible = true
-            } else if (!closeAnim.running) {
-                openAnim.stop()
-                closeAnim.start()
-            }
+        onClicked: hoverOpen.handleClick()
+    }
+
+    // Hover opens the EQ; only the card (not the dimmed overlay) keeps it open,
+    // and closing plays the EQ's own fade-out.
+    HoverOpen {
+        id: hoverOpen
+        popup: popupWindow
+        popupHoverItem: panel
+        closer: function() {
+            if (closeAnim.running) return
+            openAnim.stop()
+            closeAnim.start()
         }
     }
 
-    Window {
+    // Full-screen overlay as a layer surface: unlike a Qt.Popup window it needs
+    // no click to open, so hover-to-open works.
+    PanelWindow {
         id: popupWindow
         visible: false
         property real overlayAlpha: 0.0
-        property real panelTopOffset: 0
-        width: Screen.width
-        height: Screen.height
-        x: 0
-        y: 0
+        screen: root.QsWindow.window ? root.QsWindow.window.screen : null
+        anchors { top: true; bottom: true; left: true; right: true }
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.namespace: "quickshell-equalizer"
+        WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
         color: Qt.rgba(0, 0, 0, overlayAlpha)
-        flags: Qt.Popup | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
         onVisibleChanged: {
             if (visible) {
-                panel.opacity = 0
-                panel.scale = 0.985
-                contentColumn.opacity = 0
-                contentColumn.y = 10
+                // The card itself opens with the style from Settings → Effects.
+                panel.opacity = 1
+                panel.scale = 1
                 popupWindow.overlayAlpha = 0.0
-                popupWindow.panelTopOffset = -120
                 openAnim.stop()
                 closeAnim.stop()
                 openAnim.start()
-                backend.scheduleRefresh(0)
+                panelEntrance.play()
+                equalizerBackend.scheduleRefresh(0)
                 root.loadEqStateFromFile()
             }
+        }
+
+        PopupEntrance {
+            id: panelEntrance
+            hostWindow: popupWindow
+            targetItem: panel
+            originItem: root
+            autoPlay: false
         }
 
         Rectangle {
@@ -207,13 +224,10 @@ Rectangle {
             width: 430
             height: Math.min(contentColumn.implicitHeight + 32, Screen.height - 72)
             radius: 24
-            opacity: 0
-            scale: 1.0
             transformOrigin: Item.TopRight
-            transform: Translate { y: popupWindow.panelTopOffset }
             color: root.glassPanel
             border.width: 1
-            border.color: Qt.rgba(115/255, 235/255, 255/255, 0.55)
+            border.color: Theme.withAlpha(Theme.primary, 0.55)
             anchors.top: parent.top
             anchors.right: parent.right
             anchors.topMargin: 52
@@ -224,9 +238,10 @@ Rectangle {
                 anchors.margins: 1
                 radius: parent.radius - 1
                 gradient: Gradient {
-                    GradientStop { position: 0.0; color: Qt.rgba(133/255, 224/255, 255/255, 0.12) }
-                    GradientStop { position: 0.35; color: Qt.rgba(82/255, 146/255, 173/255, 0.10) }
-                    GradientStop { position: 1.0; color: Qt.rgba(37/255, 61/255, 85/255, 0.08) }
+                    // Theme-tinted sheen instead of a fixed cyan gradient.
+                    GradientStop { position: 0.0; color: Theme.withAlpha(Theme.primary, 0.12) }
+                    GradientStop { position: 0.35; color: Theme.withAlpha(Theme.primary, 0.07) }
+                    GradientStop { position: 1.0; color: Theme.withAlpha(Theme.background, 0.08) }
                 }
             }
 
@@ -248,8 +263,6 @@ Rectangle {
                     id: contentColumn
                     width: panelFlick.width
                     spacing: 12
-                    opacity: 0
-                    y: 10
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -285,7 +298,7 @@ Rectangle {
                             width: 30
                             height: 30
                             radius: 15
-                            color: Qt.rgba(255,255,255,0.08)
+                            color: Theme.withAlpha(Theme.text, 0.08)
                             border.width: 1
                             border.color: root.glassStroke
                             Text {  anchors.centerIn: parent; text: "✕"; color: root.softText; font.pixelSize: 12; font.family: Theme.fontFamily }
@@ -373,7 +386,7 @@ Rectangle {
                                         font.family: Theme.fontFamily
                                         Layout.fillWidth: true
                                         text: root.sinkDisplayName
-                                        color: Qt.rgba(216/255, 225/255, 238/255, 0.72)
+                                        color: Theme.subtext
                                         font.pixelSize: 10
                                         elide: Text.ElideRight
                                     }
@@ -386,7 +399,7 @@ Rectangle {
 
                                 Rectangle {
                                     width: 36; height: 36; radius: 18
-                                    color: prevMA.containsMouse ? Qt.rgba(255,255,255,0.12) : Qt.rgba(255,255,255,0.05)
+                                    color: prevMA.containsMouse ? Theme.withAlpha(Theme.text, 0.12) : Theme.withAlpha(Theme.text, 0.05)
                                     border.width: 1
                                     border.color: root.glassStroke
                                     Text { anchors.centerIn: parent; text: "󰒮"; font.family: "JetBrainsMono Nerd Font"; color: root.softText; font.pixelSize: 13 }
@@ -397,14 +410,14 @@ Rectangle {
                                     width: 52; height: 52; radius: 26
                                     color: root.eqAccent
                                     border.width: 1
-                                    border.color: Qt.rgba(255,255,255,0.18)
+                                    border.color: Theme.withAlpha(Theme.text, 0.18)
                                     Text {  anchors.centerIn: parent; text: root.isPlaying ? "⏸" : "⏵"; color: root.adaptiveOnPrimary; font.pixelSize: 18; font.bold: true; font.family: Theme.iconFontFamily }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (root.currentPlayer) root.currentPlayer.togglePlaying() }
                                 }
 
                                 Rectangle {
                                     width: 36; height: 36; radius: 18
-                                    color: nextMA.containsMouse ? Qt.rgba(255,255,255,0.12) : Qt.rgba(255,255,255,0.05)
+                                    color: nextMA.containsMouse ? Theme.withAlpha(Theme.text, 0.12) : Theme.withAlpha(Theme.text, 0.05)
                                     border.width: 1
                                     border.color: root.glassStroke
                                     Text { anchors.centerIn: parent; text: "󰒭"; font.family: "JetBrainsMono Nerd Font"; color: root.softText; font.pixelSize: 13 }
@@ -417,7 +430,7 @@ Rectangle {
                 EqControlsCard {
                     Layout.fillWidth: true
                     eq: root
-                    backend: backend
+                    backend: equalizerBackend
                 }
 
                 EqAudioDevices {
@@ -451,7 +464,7 @@ Rectangle {
                             Item { Layout.fillWidth: true }
                             Text {
                                 font.family: Theme.fontFamily
-                                text: backend.isBusy ? "Applying..." : ""
+                                text: equalizerBackend.isBusy ? "Applying..." : ""
                                 color: root.dimText
                                 font.pixelSize: 10
                             }
@@ -469,9 +482,9 @@ Rectangle {
                                 width: ListView.view.width
                                 height: 42
                                 radius: 12
-                                color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.16) : Qt.rgba(255,255,255,0.04)
+                                color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.16) : Theme.withAlpha(Theme.text, 0.04)
                                 border.width: 1
-                                border.color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.38) : Qt.rgba(255,255,255,0.05)
+                                border.color: modelData.selected ? Qt.rgba(root.eqAccent.r, root.eqAccent.g, root.eqAccent.b, 0.38) : Theme.withAlpha(Theme.text, 0.05)
 
                                 RowLayout {
                                     anchors.fill: parent
@@ -510,7 +523,7 @@ Rectangle {
 
                                 MouseArea {
                                     anchors.fill: parent
-                                    enabled: !backend.isBusy
+                                    enabled: !equalizerBackend.isBusy
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: root.selectOutputSink(modelData.name)
                                 }
@@ -525,20 +538,7 @@ Rectangle {
         ParallelAnimation {
             id: openAnim
             running: false
-            NumberAnimation { target: popupWindow; property: "overlayAlpha"; from: 0.0; to: 0.38; duration: 180; easing.type: Easing.OutCubic }
-            NumberAnimation { target: panel; property: "opacity"; from: 0; to: 1; duration: 170; easing.type: Easing.OutCubic }
-            NumberAnimation { target: panel; property: "scale"; from: 0.985; to: 1; duration: 220; easing.type: Easing.OutBack }
-            SequentialAnimation {
-                NumberAnimation { target: popupWindow; property: "panelTopOffset"; from: -120; to: 12; duration: 230; easing.type: Easing.OutCubic }
-                NumberAnimation { target: popupWindow; property: "panelTopOffset"; from: 12; to: 0; duration: 110; easing.type: Easing.OutCubic }
-            }
-            SequentialAnimation {
-                PauseAnimation { duration: 70 }
-                ParallelAnimation {
-                    NumberAnimation { target: contentColumn; property: "opacity"; from: 0; to: 1; duration: 180; easing.type: Easing.OutCubic }
-                    NumberAnimation { target: contentColumn; property: "y"; from: 10; to: 0; duration: 220; easing.type: Easing.OutCubic }
-                }
-            }
+            NumberAnimation { target: popupWindow; property: "overlayAlpha"; from: 0.0; to: 0.38; duration: S.EffectSettings.ms(180); easing.type: Easing.OutCubic }
         }
 
         ParallelAnimation {
@@ -547,9 +547,6 @@ Rectangle {
             NumberAnimation { target: popupWindow; property: "overlayAlpha"; from: popupWindow.overlayAlpha; to: 0.0; duration: 120; easing.type: Easing.InCubic }
             NumberAnimation { target: panel; property: "opacity"; from: panel.opacity; to: 0; duration: 130; easing.type: Easing.InCubic }
             NumberAnimation { target: panel; property: "scale"; from: panel.scale; to: 0.985; duration: 120; easing.type: Easing.InCubic }
-            NumberAnimation { target: popupWindow; property: "panelTopOffset"; from: popupWindow.panelTopOffset; to: -120; duration: 130; easing.type: Easing.InCubic }
-            NumberAnimation { target: contentColumn; property: "opacity"; from: contentColumn.opacity; to: 0; duration: 90; easing.type: Easing.InCubic }
-            NumberAnimation { target: contentColumn; property: "y"; from: contentColumn.y; to: 8; duration: 90; easing.type: Easing.InCubic }
             onFinished: popupWindow.visible = false
         }
 

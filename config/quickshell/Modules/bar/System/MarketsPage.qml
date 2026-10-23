@@ -4,7 +4,6 @@ import QtQuick.Controls
 import QtQuick.Controls.Basic as Basic
 import "../../../Widgets"
 import "../../../Services" as S
-import "../Settings/SettingsPalette.js" as SettingsPalette
 
 Item {
     id: page
@@ -33,7 +32,7 @@ Item {
             ColumnLayout {
                 spacing: 1
                 Text { text: "Markets"; color: SettingsPalette.text; font.pixelSize: 19; font.bold: true; font.family: Theme.fontFamily }
-                Text { text: "USD/TRY exchange rate and live cryptocurrency prices"; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
+                Text { text: "Global currencies and cryptocurrency prices"; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
             }
             Item { Layout.fillWidth: true }
             ColumnLayout {
@@ -43,7 +42,7 @@ Item {
             }
             Rectangle {
                 width: 104; height: 36; radius: 10
-                color: refreshMA.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.25) : Qt.rgba(137/255, 180/255, 250/255, 0.14)
+                color: refreshMA.containsMouse ? Theme.withAlpha(Theme.primary, 0.25) : Theme.withAlpha(Theme.primary, 0.14)
                 border.width: 1
                 border.color: Theme.primary
                 opacity: markets.refreshing ? 0.55 : 1
@@ -57,6 +56,34 @@ Item {
             }
         }
 
+        RowLayout {
+            Layout.fillWidth: true
+            Text { text: "Display currency"; color: SettingsPalette.text }
+            Basic.TextField {
+                id: currencySearch
+                Layout.fillWidth: true
+                placeholderText: "Search 165 currencies: EUR, yen, rupee…"
+                color: SettingsPalette.text
+            }
+            CurrencyCombo {
+                currencies: markets.converterCurrencies.filter(function(c) {
+                    return (c.code + " " + c.name).toLowerCase().indexOf(currencySearch.text.toLowerCase()) >= 0;
+                })
+                selectedCode: markets.displayCurrency
+                onCurrencySelected: function(code) { markets.setDisplayCurrency(code); }
+            }
+            Basic.Button { text: "Original"; onClicked: markets.setDisplayCurrency("") }
+        }
+        Text {
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+            text: markets.displayCurrency ? markets.displayRateStatus
+                + " · " + ((markets.displayRates[markets.displayCurrency] || {}).date || (markets.displayCurrency === "USD" ? "USD base" : "No rate date"))
+                : "Original display preserved. Choose your preferred currency above."
+            color: SettingsPalette.subtext
+            font.pixelSize: 10
+        }
+
         GridLayout {
             Layout.fillWidth: true
             columns: 3
@@ -68,10 +95,10 @@ Item {
                 symbol: "$"
                 symbolColor: Theme.green
                 title: "US Dollar"
-                subtitle: "USD / TRY · TCMB"
-                mainValue: "₺" + markets.formatNumber(markets.usdTrySelling, 4)
-                secondaryValue: "Buying  ₺" + markets.formatNumber(markets.usdTryBuying, 4)
-                detailText: markets.tcmbDate.length > 0 ? "Official rate · " + markets.tcmbDate : "Official TCMB rate"
+                subtitle: markets.displayCurrency ? "USD / " + markets.displayCurrency : "USD / TRY · TCMB"
+                mainValue: markets.displayCurrency ? markets.displayPrice(1, 4) : "₺" + markets.formatNumber(markets.usdTrySelling, 4)
+                secondaryValue: markets.displayCurrency ? "Daily reference rate" : "Buying  ₺" + markets.formatNumber(markets.usdTryBuying, 4)
+                detailText: markets.displayCurrency ? ((markets.displayRates[markets.displayCurrency] || {}).date || "USD base") : markets.tcmbDate
                 changeValue: 0
                 showChange: false
             }
@@ -81,10 +108,12 @@ Item {
                 symbol: "₿"
                 symbolColor: "#f7931a"
                 title: "Bitcoin"
-                subtitle: "BTC / USD"
-                mainValue: "$" + markets.formatNumber(markets.bitcoinUsd, 0)
-                secondaryValue: "₺" + markets.formatNumber(markets.bitcoinTry, 0)
-                detailText: "24-hour market change"
+                currencyAsset: "bitcoin"
+                quoteCode: markets.bitcoinQuote
+                subtitle: "BTC / " + markets.bitcoinQuote
+                mainValue: markets.displayPrice(markets.bitcoinUsd, 2, markets.bitcoinQuote)
+                secondaryValue: markets.bitcoinQuote === "USD" ? "CoinGecko spot price" : "Approximate converted price"
+                detailText: "24-hour change in USD"
                 changeValue: markets.bitcoinChange
                 showChange: true
             }
@@ -94,10 +123,12 @@ Item {
                 symbol: "◆"
                 symbolColor: "#8c8cfa"
                 title: "Ethereum"
-                subtitle: "ETH / USD"
-                mainValue: "$" + markets.formatNumber(markets.ethereumUsd, 2)
-                secondaryValue: "₺" + markets.formatNumber(markets.ethereumTry, 0)
-                detailText: "24-hour market change"
+                currencyAsset: "ethereum"
+                quoteCode: markets.ethereumQuote
+                subtitle: "ETH / " + markets.ethereumQuote
+                mainValue: markets.displayPrice(markets.ethereumUsd, 2, markets.ethereumQuote)
+                secondaryValue: markets.ethereumQuote === "USD" ? "CoinGecko spot price" : "Approximate converted price"
+                detailText: "24-hour change in USD"
                 changeValue: markets.ethereumChange
                 showChange: true
             }
@@ -107,9 +138,9 @@ Item {
             Layout.fillWidth: true
             height: 176
             radius: 16
-            color: Qt.rgba(49/255, 50/255, 68/255, 0.42)
+            color: Theme.withAlpha(Theme.surface, 0.42)
             border.width: 1
-            border.color: Qt.rgba(137/255, 180/255, 250/255, 0.18)
+            border.color: Theme.withAlpha(Theme.primary, 0.18)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -141,9 +172,9 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 76
                         radius: 12
-                        color: Qt.rgba(30/255, 30/255, 46/255, 0.54)
+                        color: Theme.withAlpha(Theme.background, 0.54)
                         border.width: 1
-                        border.color: amountInput.activeFocus ? Theme.primary : Qt.rgba(255,255,255,0.06)
+                        border.color: amountInput.activeFocus ? Theme.primary : Theme.withAlpha(Theme.text, 0.06)
 
                         RowLayout {
                             anchors.fill: parent
@@ -178,7 +209,7 @@ Item {
 
                     Rectangle {
                         width: 40; height: 40; radius: 12
-                        color: swapMA.containsMouse ? Qt.rgba(137/255,180/255,250/255,0.24) : Qt.rgba(137/255,180/255,250/255,0.12)
+                        color: swapMA.containsMouse ? Theme.withAlpha(Theme.primary, 0.24) : Theme.withAlpha(Theme.primary, 0.12)
                         border.width: 1; border.color: Theme.primary
                         Text { anchors.centerIn: parent; text: "󰑕"; color: Theme.primary; font.pixelSize: 17; font.family: Theme.iconFontFamily }
                         MouseArea { id: swapMA; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: markets.swapConverterPair() }
@@ -188,9 +219,9 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 76
                         radius: 12
-                        color: Qt.rgba(30/255, 30/255, 46/255, 0.54)
+                        color: Theme.withAlpha(Theme.background, 0.54)
                         border.width: 1
-                        border.color: Qt.rgba(255,255,255,0.06)
+                        border.color: Theme.withAlpha(Theme.text, 0.06)
 
                         RowLayout {
                             anchors.fill: parent
@@ -238,9 +269,9 @@ Item {
             Layout.fillWidth: true
             height: 86
             radius: 14
-            color: Qt.rgba(49/255, 50/255, 68/255, 0.32)
+            color: Theme.withAlpha(Theme.surface, 0.32)
             border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.05)
+            border.color: Theme.withAlpha(Theme.text, 0.05)
 
             RowLayout {
                 anchors.fill: parent
@@ -264,6 +295,8 @@ Item {
     }
 
     component MarketCard: Rectangle {
+        property string currencyAsset: ""
+        property string quoteCode: "USD"
         property string symbol: ""
         property color symbolColor: Theme.primary
         property string title: ""
@@ -274,9 +307,9 @@ Item {
         property real changeValue: 0
         property bool showChange: false
 
-        implicitHeight: 224
+        implicitHeight: 280
         radius: 18
-        color: Qt.rgba(49/255, 50/255, 68/255, 0.48)
+        color: Theme.withAlpha(Theme.surface, 0.48)
         border.width: 1
         border.color: Qt.rgba(symbolColor.r, symbolColor.g, symbolColor.b, 0.25)
 
@@ -301,7 +334,7 @@ Item {
                 Rectangle {
                     visible: showChange
                     width: changeLabel.width + 18; height: 28; radius: 9
-                    color: changeValue >= 0 ? Qt.rgba(166/255, 227/255, 161/255, 0.13) : Qt.rgba(243/255, 139/255, 168/255, 0.13)
+                    color: changeValue >= 0 ? Theme.withAlpha(Theme.green, 0.13) : Theme.withAlpha(Theme.red, 0.13)
                     Text {
                         id: changeLabel
                         anchors.centerIn: parent
@@ -313,10 +346,24 @@ Item {
             }
 
             Item { height: 4 }
+            RowLayout {
+                visible: currencyAsset !== ""
+                Layout.fillWidth: true
+                CurrencyCombo {
+                    Layout.fillWidth: true
+                    currencies: markets.converterCurrencies
+                    selectedCode: quoteCode
+                    onCurrencySelected: function(code) { markets.setCryptoCurrency(currencyAsset, code); }
+                }
+                Basic.Button {
+                    text: "Follow main"
+                    onClicked: markets.setCryptoCurrency(currencyAsset, "")
+                }
+            }
             Text { text: mainValue; color: SettingsPalette.text; font.pixelSize: 28; font.bold: true; font.family: Theme.fontFamily }
             Text { text: secondaryValue; color: symbolColor; font.pixelSize: 13; font.bold: true; font.family: Theme.fontFamily }
             Item { Layout.fillHeight: true }
-            Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255, 255, 255, 0.06) }
+            Rectangle { Layout.fillWidth: true; height: 1; color: Theme.withAlpha(Theme.text, 0.06) }
             Text { text: detailText; color: SettingsPalette.overlay; font.pixelSize: 9; font.family: Theme.fontFamily }
         }
     }
@@ -331,7 +378,7 @@ Item {
         implicitHeight: 42
         model: currencies
         textRole: "code"
-        currentIndex: page.currencyIndex(selectedCode)
+        currentIndex: currencies.findIndex(function(c) { return c.code === selectedCode; })
         onActivated: function(index) {
             if (currencies[index]) currencySelected(currencies[index].code);
         }
@@ -339,7 +386,7 @@ Item {
         contentItem: Text {
             leftPadding: 12
             rightPadding: 30
-            text: combo.selectedCode + "  ·  " + markets.currencyName(combo.selectedCode)
+            text: combo.selectedCode ? combo.selectedCode + "  ·  " + markets.currencyName(combo.selectedCode) : "Choose currency"
             color: SettingsPalette.text
             font.pixelSize: 10
             font.bold: true
@@ -359,9 +406,9 @@ Item {
 
         background: Rectangle {
             radius: 9
-            color: combo.hovered ? Qt.rgba(137/255,180/255,250/255,0.14) : Qt.rgba(255,255,255,0.05)
+            color: combo.hovered ? Theme.withAlpha(Theme.primary, 0.14) : Theme.withAlpha(Theme.text, 0.05)
             border.width: 1
-            border.color: combo.visualFocus ? Theme.primary : Qt.rgba(255,255,255,0.08)
+            border.color: combo.visualFocus ? Theme.primary : Theme.withAlpha(Theme.text, 0.08)
         }
 
         delegate: Basic.ItemDelegate {
@@ -375,7 +422,7 @@ Item {
                 Text { text: modelData.symbol; color: SettingsPalette.overlay; font.pixelSize: 10; font.family: Theme.fontFamily }
             }
             background: Rectangle {
-                color: highlighted ? Qt.rgba(137/255,180/255,250/255,0.16) : "transparent"
+                color: highlighted ? Theme.withAlpha(Theme.primary, 0.16) : "transparent"
                 radius: 6
             }
         }
@@ -396,7 +443,7 @@ Item {
                 color: SettingsPalette.background
                 radius: 10
                 border.width: 1
-                border.color: Qt.rgba(137/255,180/255,250/255,0.28)
+                border.color: Theme.withAlpha(Theme.primary, 0.28)
             }
         }
     }

@@ -74,7 +74,7 @@ var _modules = [
         description: "Notification history and do-not-disturb controls.",
         category: "system",
         color: "#fab387",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "notifications",
         services: ["Notifications"],
         contexts: []
@@ -116,7 +116,7 @@ var _modules = [
         description: "PipeWire parametric equalizer controls.",
         category: "media",
         color: "#89dceb",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "sound",
         services: ["EqualizerBackend", "Pipewire", "Mpris"],
         contexts: []
@@ -146,7 +146,7 @@ var _modules = [
         color: "#fab387",
         placements: ["bar", "dock"],
         settingsPage: "bar",
-        services: ["ClipboardBackend"],
+        services: ["ClipboardHistory"],
         contexts: []
     },
     {
@@ -172,7 +172,7 @@ var _modules = [
         description: "Blue-light temperature control.",
         category: "system",
         color: "#f9a03c",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "nightlight",
         services: ["NightLight"],
         contexts: []
@@ -186,9 +186,37 @@ var _modules = [
         description: "Battery and power-profile summary.",
         category: "system",
         color: "#a6e3a1",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "bar",
         services: ["BatteryService", "PowerProfileService"],
+        contexts: []
+    },
+    {
+        id: "activity-monitor",
+        name: "ActivityMonitor",
+        component: "ActivityMonitor",
+        icon: "󰓅",
+        label: "Activity Monitor",
+        description: "On-demand CPU, memory, GPU, network, disk and process monitor.",
+        category: "system",
+        color: "#74c7ec",
+        placements: ["bar", "dock"],
+        settingsPage: "bar",
+        services: [],
+        contexts: []
+    },
+    {
+        id: "hyprmoncfg",
+        name: "Hyprmoncfg",
+        component: "Hyprmoncfg",
+        icon: "󰍹",
+        label: "Display Studio",
+        description: "Monitor profiles, safe layout switching and hot-plug automation.",
+        category: "system",
+        color: "#89b4fa",
+        placements: ["bar", "dock"],
+        settingsPage: "monitors",
+        services: ["hyprmoncfg", "hyprmoncfgd"],
         contexts: []
     },
     {
@@ -200,9 +228,9 @@ var _modules = [
         description: "Combined CPU, GPU, temperature and disk status.",
         category: "system",
         color: "#f9e2af",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "sysinfo",
-        services: ["TempBackend", "GpuBackend", "DiskService"],
+        services: ["CpuStats", "CpuCoreStats", "GpuStats", "DiskService"],
         contexts: []
     },
     {
@@ -214,9 +242,9 @@ var _modules = [
         description: "Live memory usage indicator.",
         category: "system",
         color: "#a6e3a1",
-        placements: ["bar"],
+        placements: ["bar", "dock"],
         settingsPage: "sysinfo",
-        services: ["RamBackend"],
+        services: ["RamStats"],
         contexts: []
     },
     {
@@ -228,7 +256,7 @@ var _modules = [
         description: "MPRIS media playback controls.",
         category: "media",
         color: "#f5c2e7",
-        placements: ["dock"],
+        placements: ["bar", "dock"],
         settingsPage: "dock",
         services: ["Mpris"],
         contexts: ["dockScale"]

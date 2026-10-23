@@ -1,10 +1,13 @@
 pragma Singleton
 import QtQuick
+import "./core/DesktopMetadata.js" as DesktopMetadata
 import Quickshell
 import Quickshell.Io
 import "./core" as Core
 import "./core/WorkspaceLogic.js" as WorkspaceLogic
+import "./core/MangoIpc.js" as MangoIpc
 import "./core/Log.js" as Log
+import "../Modules/bar/Dock/AppService.js" as AppService
 
 Singleton {
     id: root
@@ -14,11 +17,21 @@ Singleton {
     property bool available: false
     property bool refreshPending: false
     property bool eventFallback: false
+    property bool mangoClientEventFallback: false
     property string lastError: ""
     property var pendingAction: []
+    property var desktopIcons: ({})
+    property var desktopCommands: ({})
+    property var desktopEntries: ({})
+    property bool overviewActionBusy: false
+    property string overviewActionError: ""
+    signal overviewActionFinished(string kind, bool success)
 
     readonly property string snapshotScript: Core.PathService.configPath("scripts/workspace_snapshot.sh")
     readonly property string workspaceScript: Core.PathService.configPath("scripts/hypr_workspace_apply.sh")
+    readonly property string niriWorkspaceScript: Core.PathService.configPath("scripts/niri_workspace_apply.sh")
+    readonly property string desktopIconScript: Core.PathService.configPath("scripts/desktop_icons.sh")
+    readonly property string overviewActionScript: Core.PathService.configPath("scripts/hypr_overview_action.sh")
 
     Component.onCompleted: requestRefresh()
 
@@ -49,48 +62,13 @@ Singleton {
         var outputs = JSON.parse(section(text, "<<<OUTPUTS>>>", "<<<WORKSPACES>>>") || "{}")
         var rawWorkspaces = JSON.parse(section(text, "<<<WORKSPACES>>>", "<<<CLIENTS>>>") || "[]")
         var rawWindows = JSON.parse(section(text, "<<<CLIENTS>>>", "<<<END>>>") || "[]")
-        var monitors = []
-        var activeByOutput = {}
-        for (var wi = 0; wi < rawWorkspaces.length; ++wi) {
-            if (rawWorkspaces[wi].is_active) activeByOutput[rawWorkspaces[wi].output || ""] = rawWorkspaces[wi].id
-        }
-        for (var outputName in outputs) {
-            monitors.push({ name: outputName, activeWorkspace: { id: activeByOutput[outputName] }, specialWorkspace: { id: 0 } })
-        }
-        var workspaces = rawWorkspaces.map(function(workspace) {
-            return { id: workspace.id, name: workspace.name || String(workspace.idx || workspace.id), monitor: workspace.output || "" }
-        })
-        var clients = rawWindows.map(function(window) {
-            return {
-                id: window.id,
-                app_id: window.app_id || "",
-                title: window.title || "",
-                workspace: { id: window.workspace_id },
-                is_focused: window.is_focused === true,
-                urgent: window.is_urgent === true
-            }
-        })
-        return WorkspaceLogic.buildHyprlandState(monitors, workspaces, clients)
+        return WorkspaceLogic.buildNiriState(outputs, rawWorkspaces, rawWindows)
     }
 
     function parseMangoSnapshot(text) {
-        var payload = section(text, "<<<MANGO>>>", "<<<END>>>")
-        var lines = payload.split("\n")
-        var monitorsByName = {}
-        var workspaces = []
-        for (var i = 0; i < lines.length; ++i) {
-            var parts = lines[i].trim().split(/\s+/)
-            if (parts.length < 6 || parts[1] !== "tag") continue
-            var monitorName = parts[0]
-            var id = parseInt(parts[2])
-            var stateValue = parseInt(parts[3])
-            if (isNaN(id)) continue
-            if (!monitorsByName[monitorName]) monitorsByName[monitorName] = { name: monitorName, activeWorkspace: { id: null }, specialWorkspace: { id: 0 } }
-            if (stateValue === 1) monitorsByName[monitorName].activeWorkspace.id = id
-            workspaces.push({ id: id, name: String(id), monitor: monitorName })
-        }
-        var monitors = Object.keys(monitorsByName).map(function(name) { return monitorsByName[name] })
-        return WorkspaceLogic.buildHyprlandState(monitors, workspaces, [])
+        var tags = JSON.parse(section(text, "<<<MANGO_TAGS>>>", "<<<MANGO_CLIENTS>>>") || "{\"all_tags\":[]}")
+        var clients = JSON.parse(section(text, "<<<MANGO_CLIENTS>>>", "<<<END>>>") || "{\"clients\":[]}")
+        return MangoIpc.buildWorkspaceState(tags, clients)
     }
 
     function parseSnapshot(text) {
@@ -133,6 +111,26 @@ Singleton {
         return " "
     }
 
+    function parseDesktopMetadata(raw) {
+        return DesktopMetadata.parse(raw);
+    }
+
+    function iconSourceFor(appId) {
+        // Use the glyph until metadata is ready; the revision below rebuilds
+        // workspace icons as soon as the desktop lookup has completed.
+        if (Object.keys(root.desktopIcons).length === 0) return ""
+        var iconName = AppService.getIcon(
+            appId || "",
+            root.desktopIcons,
+            root.desktopEntries,
+            root.desktopCommands
+        )
+        iconName = AppService.resolveThemedIconName(iconName)
+        if (!iconName) return ""
+        if (String(iconName).indexOf("/") === 0) return "file://" + iconName
+        return "image://icon/" + iconName
+    }
+
     function groupWindows(windows, shouldGroup) {
         var source = Array.isArray(windows) ? windows : []
         var result = []
@@ -144,6 +142,7 @@ Singleton {
                 indexes[key] = result.length
                 result.push({
                     icon: iconFor(window.app_id, window.title),
+                    iconSource: iconSourceFor(window.app_id),
                     appId: window.app_id || "",
                     title: window.title || "",
                     windowId: window.id || "",
@@ -168,6 +167,34 @@ Singleton {
         return list
     }
 
+    function focusedMonitorName() {
+        return String(root.state.focusedMonitor || root.state.monitorOrder[0] || "")
+    }
+
+    function overviewWorkspacesForMonitor(monitorName, config) {
+        var list = root.workspacesForMonitor(monitorName, config)
+        for (var i = 0; i < list.length; ++i) {
+            var windows = Array.isArray(list[i].windows) ? list[i].windows : []
+            for (var j = 0; j < windows.length; ++j) {
+                windows[j].appName = AppService.getAppName(windows[j].app_id || "")
+                windows[j].iconSource = root.iconSourceFor(windows[j].app_id || "")
+            }
+        }
+        return list
+    }
+
+    function runOverviewAction(kind, windowId, target, monitorName) {
+        if (!CompositorService.isHyprland || root.overviewActionBusy) return false
+        var command = [root.overviewActionScript, kind, String(windowId || "")]
+        if (kind === "move" || kind === "workspace") command.push(String(target || ""))
+        if (kind === "move") command.push(String(monitorName || ""))
+        root.overviewActionBusy = true
+        root.overviewActionError = ""
+        overviewActionProc.command = command
+        overviewActionProc.running = true
+        return true
+    }
+
     function nextWorkspaceIndex(workspaces, currentIndex, direction, config) {
         var normalized = WorkspaceLogic.normalizeConfig(config)
         return WorkspaceLogic.nextWorkspaceIndex(
@@ -184,9 +211,15 @@ Singleton {
         if (CompositorService.isHyprland) {
             command = [root.workspaceScript, String(target), String(monitorName || "")]
         } else if (CompositorService.isNiri) {
-            command = ["niri", "msg", "action", "focus-workspace", String(target)]
+            command = [root.niriWorkspaceScript, String(target), String(monitorName || "")]
+        } else if (CompositorService.isMango) {
+            command = monitorName
+                ? ["mmsg", "dispatch", "viewcrossmon," + String(target) + "," + String(monitorName)]
+                : ["mmsg", "dispatch", "view," + String(target)]
+        } else if (Quickshell.env("SWAYSOCK")) {
+            command = ["swaymsg", "focus output " + String(monitorName) + "; workspace number " + String(target)]
         } else {
-            command = ["mmsg", "-s", "-o", String(monitorName || ""), "-t", String(target)]
+            return
         }
         queueAction(command)
     }
@@ -203,10 +236,60 @@ Singleton {
 
     function focusWindow(windowId) {
         if (!windowId) return
-        var command = CompositorService.isHyprland
-            ? ["hyprctl", "dispatch", "focuswindow", "address:" + String(windowId)]
-            : ["niri", "msg", "action", "focus-window", "--id", String(windowId)]
+        var command
+        if (CompositorService.isHyprland) {
+            command = ["bash", Core.PathService.configPath("scripts/hypr_window_action.sh"), "focus", String(windowId)]
+        } else if (CompositorService.isNiri) {
+            command = ["niri", "msg", "action", "focus-window", "--id", String(windowId)]
+        } else if (CompositorService.isMango) {
+            command = ["mmsg", "dispatch", "focusid", "client," + String(windowId)]
+        } else if (Quickshell.env("SWAYSOCK")) {
+            command = ["swaymsg", "[con_id=" + String(windowId) + "]", "focus"]
+        } else {
+            return
+        }
         queueAction(command)
+    }
+
+    Process {
+        id: overviewActionProc
+        command: []
+        running: false
+        property string kind: command.length > 1 ? String(command[1]) : ""
+        property string stderrBuffer: ""
+        stderr: SplitParser { onRead: data => overviewActionProc.stderrBuffer += data + "\n" }
+        onExited: exitCode => {
+            var actionKind = overviewActionProc.kind
+            root.overviewActionBusy = false
+            root.overviewActionError = exitCode === 0 ? "" : "Could not complete the workspace action."
+            if (exitCode !== 0) Log.warn("WorkspaceService", overviewActionProc.stderrBuffer.trim() || root.overviewActionError)
+            overviewActionProc.stderrBuffer = ""
+            root.overviewActionFinished(actionKind, exitCode === 0)
+            refreshDelay.restart()
+        }
+    }
+
+    Process {
+        id: desktopIconProc
+        command: ["bash", root.desktopIconScript]
+        running: false
+        property string outputBuffer: ""
+        stdout: SplitParser { onRead: data => desktopIconProc.outputBuffer += data + "\n" }
+        onExited: exitCode => {
+            if (exitCode === 0 && desktopIconProc.outputBuffer.trim() !== "") {
+                try {
+                    var metadata = root.parseDesktopMetadata(desktopIconProc.outputBuffer)
+                    root.desktopIcons = metadata.icons
+                    root.desktopCommands = metadata.commands
+                    root.desktopEntries = metadata.entries
+                    root.revision++
+                } catch (error) {
+                    Log.warn("WorkspaceService", "Desktop icon metadata parse failed: " + error)
+                }
+            }
+            desktopIconProc.outputBuffer = ""
+        }
+        Component.onCompleted: running = true
     }
 
     Process {
@@ -242,7 +325,7 @@ Singleton {
             ? ["bash", Core.PathService.configPath("scripts/hypr_events.sh")]
             : (CompositorService.isNiri
                 ? ["niri", "msg", "--json", "event-stream"]
-                : ["mmsg", "-w", "-t"])
+                : ["mmsg", "watch", "all-tags"])
         stdout: SplitParser {
             onRead: data => {
                 if (String(data || "").trim().length > 0) eventDebounce.restart()
@@ -254,6 +337,28 @@ Singleton {
                 Log.warn("WorkspaceService", "Compositor event stream unavailable; using polling fallback")
             } else if (CompositorService.compositor !== "unknown") {
                 eventReconnect.restart()
+            }
+        }
+    }
+
+    // Mango exposes client changes on a separate JSON watch stream. Tag and
+    // client events both rebuild the combined workspace snapshot.
+    Process {
+        id: mangoClientEventProc
+        running: CompositorService.isMango && !root.mangoClientEventFallback
+        command: ["mmsg", "watch", "all-clients"]
+        stdout: SplitParser {
+            onRead: data => {
+                if (String(data || "").trim().length > 0) eventDebounce.restart()
+            }
+        }
+        onExited: exitCode => {
+            if (!CompositorService.isMango) return
+            if (exitCode === 127) {
+                root.mangoClientEventFallback = true
+                Log.warn("WorkspaceService", "Mango client event stream unavailable; using polling fallback")
+            } else {
+                mangoClientEventReconnect.restart()
             }
         }
     }
@@ -287,9 +392,18 @@ Singleton {
         }
     }
     Timer {
+        id: mangoClientEventReconnect
+        interval: 1000
+        repeat: false
+        onTriggered: {
+            if (CompositorService.isMango && !mangoClientEventProc.running && !root.mangoClientEventFallback)
+                mangoClientEventProc.running = true
+        }
+    }
+    Timer {
         interval: 1000
         repeat: true
-        running: root.eventFallback
+        running: root.eventFallback || (CompositorService.isMango && root.mangoClientEventFallback) || !!Quickshell.env("SWAYSOCK")
         onTriggered: root.requestRefresh()
     }
 }

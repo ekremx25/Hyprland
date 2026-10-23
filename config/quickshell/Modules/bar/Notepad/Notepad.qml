@@ -10,8 +10,12 @@ Rectangle {
     id: root
     width: 36
     height: 36
-    color: "transparent"
+    color: Theme.materialActive
+        ? (mouseArea.containsMouse ? Qt.lighter(Theme.notepadColor, 1.08) : Theme.notepadColor)
+        : "transparent"
     radius: 12
+    border.width: Theme.materialActive && notepadWindow.visible ? 1 : 0
+    border.color: Theme.foregroundFor(Theme.notepadColor)
 
     NotepadService { id: notepadService }
 
@@ -20,7 +24,19 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: notepadWindow.visible = !notepadWindow.visible
+        onClicked: {
+            notepadWindow.openedByClick = true
+            hoverOpen.handleClick()
+        }
+    }
+
+    // Hover peeks at the notepad; once you type it stays open until you click
+    // the icon again or press Escape.
+    HoverOpen {
+        id: hoverOpen
+        popup: notepadWindow
+        keepOpen: notepadWindow.edited
+        onAboutToOpen: notepadWindow.positionUnderIcon()
     }
 
     Text {
@@ -28,36 +44,72 @@ Rectangle {
         text: "󰠮" // Notepad icon
         font.family: "JetBrainsMono Nerd Font"
         font.pixelSize: 20
-        color: mouseArea.containsMouse || notepadWindow.visible ? "#f9e2af" : "#cdd6f4" // Yellow accent on hover/active
+        color: Theme.materialActive ? Theme.foregroundFor(root.color)
+            : (mouseArea.containsMouse || notepadWindow.visible ? Theme.cpYellow : Theme.cpText)
     }
     
     // --- NOTEPAD WINDOW ---
-    PopupWindow {
+    PanelWindow {
+        PopupEntrance {}  // liquid ring open animation
         id: notepadWindow
+        screen: root.QsWindow.window ? root.QsWindow.window.screen : null
+        anchors { top: true; left: true }
+        margins { top: 51; left: 5 }
+
+        function positionUnderIcon() {
+            const bar = root.QsWindow.window
+            if (!bar || !bar.screen) return
+            const pos = bar.contentItem.mapFromItem(root, 0, 0)
+            // Resolve the icon inside its bar, including bottom/right bars.
+            const offsetX = bar.anchors.right && !bar.anchors.left
+                ? bar.screen.width - bar.width : 0
+            const offsetY = bar.anchors.bottom && !bar.anchors.top
+                ? bar.screen.height - bar.height : 0
+            const iconX = offsetX + pos.x
+            const iconY = offsetY + pos.y
+            margins.left = Math.round(Math.max(5, Math.min(
+                iconX + root.width / 2 - implicitWidth / 2,
+                bar.screen.width - implicitWidth - 5)))
+            // Prefer below; keep the panel visible when the icon is at the bottom.
+            const below = iconY + root.height + 5
+            margins.top = Math.round(Math.max(5,
+                below + implicitHeight <= bar.screen.height - 5
+                    ? below : iconY - implicitHeight - 5))
+        }
+
+        Timer {
+            interval: 100
+            repeat: true
+            running: notepadWindow.visible
+            onTriggered: notepadWindow.positionUnderIcon()
+        }
+        exclusionMode: ExclusionMode.Ignore
+        WlrLayershell.layer: WlrLayer.Overlay
+        WlrLayershell.keyboardFocus: !visible ? WlrKeyboardFocus.None
+            : (openedByClick || edited ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.OnDemand)
+        // Set once the user types while the notepad is open.
+        property bool edited: false
+        // A hover peek must not steal the keyboard from the app you are typing in;
+        // clicking the icon (or into the notepad) still gives it focus.
+        property bool openedByClick: false
+
+        onVisibleChanged: {
+            if (!visible) { edited = false; openedByClick = false }
+            if (visible) Qt.callLater(function() {
+                notepadWindow.positionUnderIcon()
+                textArea.forceActiveFocus()
+            })
+        }
         visible: false
         implicitWidth: 320
         implicitHeight: 400
         color: "transparent"
 
-        anchor.window: root.QsWindow.window
-        anchor.onAnchoring: {
-            if (!anchor.window) return;
-            var win = anchor.window;
-            var isVertBar = win.height > win.width;
-            var itemPos = win.contentItem.mapFromItem(root, 0, 0);
-            if (isVertBar) {
-                notepadWindow.anchor.rect.x = -notepadWindow.width - 5;
-                notepadWindow.anchor.rect.y = itemPos.y + root.height / 2 - notepadWindow.height / 2;
-            } else {
-                notepadWindow.anchor.rect.x = Math.max(5, itemPos.x);
-                notepadWindow.anchor.rect.y = win.height + 5;
-            }
-        }
 
         Rectangle {
             anchors.fill: parent
-            color: "#1e1e2e"
-            border.color: "#f9e2af"
+            color: Theme.cpBase
+            border.color: Theme.cpYellow
             border.width: 2
             radius: 12
 
@@ -74,7 +126,7 @@ Rectangle {
 
                 Text {
                     text: "Notepad"
-                    color: "#f9e2af"
+                    color: Theme.cpYellow
                     font.bold: true
                     font.pixelSize: 16
                     font.family: Theme.fontFamily
@@ -88,17 +140,20 @@ Rectangle {
 
                     TextArea {
                         id: textArea
+                        focus: true
+                        Keys.onEscapePressed: notepadWindow.visible = false
+                        Keys.onPressed: notepadWindow.edited = true
                         placeholderText: "Take a note here..."
-                        color: "#cdd6f4"
+                        color: Theme.cpText
                         font.pixelSize: 13
                         font.family: Theme.fontFamily
                         wrapMode: TextEdit.Wrap
                         selectByMouse: true
                         
                         background: Rectangle {
-                            color: Qt.rgba(0,0,0,0.2)
+                            color: Theme.withAlpha(Theme.background, 0.45)
                             radius: 8
-                            border.color: parent.activeFocus ? "#f9e2af" : Qt.rgba(255,255,255,0.1)
+                            border.color: parent.activeFocus ? Theme.cpYellow : Theme.withAlpha(Theme.text, 0.1)
                             border.width: 1
                         }
 

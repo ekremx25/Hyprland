@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
 import "../../../Widgets"
-import "../Settings/SettingsPalette.js" as SettingsPalette
 
 // Draggable monitor layout canvas card.
 // All state access flows through the `page` reference.
@@ -46,7 +45,7 @@ Rectangle {
 
             Rectangle {
                 radius: 8
-                color: Qt.rgba(255, 255, 255, 0.04)
+                color: Theme.withAlpha(Theme.text, 0.04)
                 border.color: page.softBorder
                 border.width: 1
                 implicitWidth: hintText.implicitWidth + 16
@@ -68,7 +67,7 @@ Rectangle {
             Layout.fillHeight: true
             radius: 14
             color: Qt.rgba(12 / 255, 15 / 255, 21 / 255, 0.55)
-            border.color: Qt.rgba(255, 255, 255, 0.06)
+            border.color: Theme.withAlpha(Theme.text, 0.06)
             border.width: 1
 
             Rectangle {
@@ -86,14 +85,38 @@ Rectangle {
                 anchors.fill: parent
                 anchors.margins: 12
 
+                Rectangle {
+                    visible: page.snapGuideX !== null
+                    x: page.snapGuideX !== null ? page.layoutToCanvasX(page.snapGuideX, layoutCanvas.width, layoutCanvas.height) : 0
+                    y: 0
+                    width: 2
+                    height: parent.height
+                    radius: 1
+                    color: Qt.rgba(141 / 255, 187 / 255, 255 / 255, 0.78)
+                    z: 20
+                }
+
+                Rectangle {
+                    visible: page.snapGuideY !== null
+                    x: 0
+                    y: page.snapGuideY !== null ? page.layoutToCanvasY(page.snapGuideY, layoutCanvas.width, layoutCanvas.height) : 0
+                    width: parent.width
+                    height: 2
+                    radius: 1
+                    color: Qt.rgba(141 / 255, 187 / 255, 255 / 255, 0.78)
+                    z: 20
+                }
+
                 Repeater {
                     model: page.outputs
 
                     Rectangle {
+                        id: monitorTile
                         required property var modelData
                         required property int index
                         property real dragOffsetX: 0
                         property real dragOffsetY: 0
+                        property bool dragging: false
 
                         x: page.boxXForOutput(modelData, layoutCanvas.width, layoutCanvas.height)
                         y: page.boxYForOutput(modelData, layoutCanvas.width, layoutCanvas.height)
@@ -101,13 +124,13 @@ Rectangle {
                         height: page.boxHeightForOutput(modelData, layoutCanvas.width, layoutCanvas.height)
                         radius: 14
                         color: page.selectedIdx === index ? Qt.rgba(65 / 255, 101 / 255, 166 / 255, 0.60) : Qt.rgba(65 / 255, 72 / 255, 84 / 255, 0.78)
-                        border.color: page.selectedIdx === index ? "#8dbbff" : Qt.rgba(255, 255, 255, 0.16)
+                        border.color: page.selectedIdx === index ? Theme.primary : Theme.withAlpha(Theme.text, 0.16)
                         border.width: page.selectedIdx === index ? 2 : 1
 
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Behavior on border.color { ColorAnimation { duration: 140 } }
-                        Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-                        Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                        Behavior on x { enabled: !monitorTile.dragging; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                        Behavior on y { enabled: !monitorTile.dragging; NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                         Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                         Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
@@ -122,14 +145,14 @@ Rectangle {
                                 Rectangle {
                                     width: 26; height: 26; radius: 8
                                     color: Qt.rgba(255, 255, 255, page.selectedIdx === index ? 0.18 : 0.10)
-                                    border.color: Qt.rgba(255, 255, 255, 0.22)
+                                    border.color: Theme.withAlpha(Theme.text, 0.22)
                                     border.width: 1
 
                                     Text {
                                         font.family: Theme.fontFamily
                                         anchors.centerIn: parent
                                         text: page.monitorLabel(index)
-                                        color: "white"
+                                        color: Theme.text
                                         font.pixelSize: 13
                                         font.bold: true
                                     }
@@ -140,8 +163,8 @@ Rectangle {
                                 Rectangle {
                                     visible: page.defaultMonitorName === modelData.name
                                     radius: 7
-                                    color: Qt.rgba(255, 255, 255, 0.12)
-                                    border.color: Qt.rgba(255, 255, 255, 0.18)
+                                    color: Theme.withAlpha(Theme.text, 0.12)
+                                    border.color: Theme.withAlpha(Theme.text, 0.18)
                                     border.width: 1
                                     implicitWidth: mainText.implicitWidth + 14
                                     implicitHeight: 24
@@ -151,7 +174,7 @@ Rectangle {
                                         id: mainText
                                         anchors.centerIn: parent
                                         text: "Main display"
-                                        color: "white"
+                                        color: Theme.text
                                         font.pixelSize: 10
                                         font.bold: true
                                     }
@@ -163,7 +186,7 @@ Rectangle {
                             Text {
                                 font.family: Theme.fontFamily
                                 text: modelData.name
-                                color: "white"
+                                color: Theme.text
                                 font.pixelSize: Math.max(13, Math.min(17, parent.width / 7))
                                 font.bold: true
                                 Layout.alignment: Qt.AlignHCenter
@@ -172,7 +195,7 @@ Rectangle {
                             Text {
                                 font.family: Theme.fontFamily
                                 text: page.effectiveWidth(modelData) + " x " + page.effectiveHeight(modelData)
-                                color: Qt.rgba(255, 255, 255, 0.86)
+                                color: Theme.withAlpha(Theme.text, 0.86)
                                 font.pixelSize: 10
                                 Layout.alignment: Qt.AlignHCenter
                             }
@@ -180,7 +203,7 @@ Rectangle {
                             Text {
                                 font.family: Theme.fontFamily
                                 text: Math.round(page.outputPosX(modelData)) + ", " + Math.round(page.outputPosY(modelData))
-                                color: Qt.rgba(255, 255, 255, 0.74)
+                                color: Theme.withAlpha(Theme.text, 0.74)
                                 font.pixelSize: 10
                                 Layout.alignment: Qt.AlignHCenter
                             }
@@ -194,7 +217,7 @@ Rectangle {
                             height: width
                             radius: width / 2
                             color: Qt.rgba(11 / 255, 17 / 255, 26 / 255, 0.88)
-                            border.color: Qt.rgba(255, 255, 255, 0.28)
+                            border.color: Theme.withAlpha(Theme.text, 0.28)
                             border.width: 2
                             visible: page.identifyMode
                             opacity: page.identifyMode ? 1 : 0
@@ -205,7 +228,7 @@ Rectangle {
                                 font.family: Theme.fontFamily
                                 anchors.centerIn: parent
                                 text: page.monitorLabel(index)
-                                color: "white"
+                                color: Theme.text
                                 font.pixelSize: Math.max(24, parent.width * 0.34)
                                 font.bold: true
                             }
@@ -217,19 +240,33 @@ Rectangle {
                             cursorShape: pressed ? Qt.ClosedHandCursor : Qt.PointingHandCursor
                             onPressed: function(mouse) {
                                 page.selectOutput(index);
-                                parent.dragOffsetX = mouse.x;
-                                parent.dragOffsetY = mouse.y;
+                                monitorTile.dragging = true;
+                                monitorTile.dragOffsetX = mouse.x;
+                                monitorTile.dragOffsetY = mouse.y;
+                                page.snapGuideX = null;
+                                page.snapGuideY = null;
                             }
                             onPositionChanged: function(mouse) {
                                 if (!pressed) return;
-                                page.selectOutput(index);
-                                var newX = page.canvasToLayoutX(parent.x + mouse.x - parent.dragOffsetX, layoutCanvas.width, layoutCanvas.height);
-                                var newY = page.canvasToLayoutY(parent.y + mouse.y - parent.dragOffsetY, layoutCanvas.width, layoutCanvas.height);
+                                var newX = page.canvasToLayoutX(monitorTile.x + mouse.x - monitorTile.dragOffsetX, layoutCanvas.width, layoutCanvas.height);
+                                var newY = page.canvasToLayoutY(monitorTile.y + mouse.y - monitorTile.dragOffsetY, layoutCanvas.width, layoutCanvas.height);
                                 var snapped = page.snapDraggedPosition(modelData.name, newX, newY);
+                                page.snapGuideX = snapped.guideX;
+                                page.snapGuideY = snapped.guideY;
                                 if (page.selectedOutput && page.selectedOutput.name === modelData.name) {
                                     page.selPosX = snapped.x;
                                     page.selPosY = snapped.y;
                                 }
+                            }
+                            onReleased: {
+                                monitorTile.dragging = false;
+                                page.snapGuideX = null;
+                                page.snapGuideY = null;
+                            }
+                            onCanceled: {
+                                monitorTile.dragging = false;
+                                page.snapGuideX = null;
+                                page.snapGuideY = null;
                             }
                             onClicked: page.selectOutput(index)
                         }

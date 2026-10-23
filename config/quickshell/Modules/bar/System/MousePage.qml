@@ -2,7 +2,6 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import "../../../Widgets"
-import "../Settings/SettingsPalette.js" as SettingsPalette
 import "../../../Services"
 
 Item {
@@ -38,7 +37,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 Rectangle {
                     radius: 8
-                    color: mouseService.supported ? Qt.rgba(166/255, 227/255, 161/255, 0.14) : Qt.rgba(243/255, 139/255, 168/255, 0.14)
+                    color: mouseService.supported ? Theme.withAlpha(Theme.green, 0.14) : Theme.withAlpha(Theme.red, 0.14)
                     implicitWidth: statusRow.implicitWidth + 16
                     implicitHeight: 28
                     RowLayout {
@@ -46,7 +45,7 @@ Item {
                         anchors.centerIn: parent
                         spacing: 6
                         Text {  text: mouseService.supported ? "●" : "●"; color: mouseService.supported ? Theme.green : Theme.red; font.pixelSize: 11; font.family: Theme.fontFamily }
-                        Text {  text: mouseService.supported ? "Hyprland" : "Unsupported"; color: SettingsPalette.text; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
+                        Text {  text: mouseService.compositorLabel; color: SettingsPalette.text; font.pixelSize: 11; font.bold: true; font.family: Theme.fontFamily }
                     }
                 }
             }
@@ -55,7 +54,7 @@ Item {
                 Layout.fillWidth: true
                 radius: 12
                 color: SettingsPalette.surface
-                border.color: Qt.rgba(255,255,255,0.05)
+                border.color: Theme.withAlpha(Theme.text, 0.05)
                 border.width: 1
                 implicitHeight: previewRow.implicitHeight + 24
 
@@ -69,7 +68,7 @@ Item {
                         Layout.preferredWidth: 140
                         Layout.preferredHeight: 96
                         radius: 12
-                        color: Qt.rgba(137/255, 180/255, 250/255, 0.10)
+                        color: Theme.withAlpha(Theme.primary, 0.10)
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: 4
@@ -83,13 +82,13 @@ Item {
                         Layout.preferredWidth: 140
                         Layout.preferredHeight: 96
                         radius: 12
-                        color: Qt.rgba(249/255, 226/255, 175/255, 0.10)
+                        color: Theme.withAlpha(Theme.yellow, 0.10)
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: 4
                             Text {  text: "↕"; font.pixelSize: 34; horizontalAlignment: Text.AlignHCenter; Layout.alignment: Qt.AlignHCenter; font.family: Theme.fontFamily }
                             Text {  text: "Wheel"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; Layout.alignment: Qt.AlignHCenter; font.family: Theme.fontFamily }
-                            Text {  text: mouseService.scrollFactor.toFixed(2) + "x"; color: "#f9e2af"; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter; font.family: Theme.fontFamily }
+                            Text {  text: mouseService.scrollFactor.toFixed(2) + "x"; color: Theme.cpYellow; font.pixelSize: 12; Layout.alignment: Qt.AlignHCenter; font.family: Theme.fontFamily }
                         }
                     }
 
@@ -97,7 +96,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 96
                         radius: 12
-                        color: Qt.rgba(203/255, 166/255, 247/255, 0.10)
+                        color: Theme.withAlpha(Theme.mauve, 0.10)
                         ColumnLayout {
                             anchors.left: parent.left
                             anchors.right: parent.right
@@ -106,7 +105,7 @@ Item {
                             spacing: 4
                             Text {  text: "Acceleration Profile"; color: SettingsPalette.text; font.pixelSize: 13; font.bold: true; font.family: Theme.fontFamily }
                             Text {  text: mouseService.accelProfile === "flat" ? "Flat / raw response" : "Adaptive / libinput default"; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
-                            Text {  text: mouseService.managedByQuickshell ? "~/.config/quickshell/mouse_config.json" : "Hyprland Lua runtime defaults"; color: Theme.primary; font.pixelSize: 11; font.family: Theme.fontFamily }
+                            Text {  text: mouseService.managedByQuickshell ? "~/.config/quickshell/mouse_config.json" : mouseService.compositorLabel + " runtime defaults"; color: Theme.primary; font.pixelSize: 11; font.family: Theme.fontFamily }
                         }
                     }
                 }
@@ -135,7 +134,7 @@ Item {
                             Item { Layout.fillWidth: true }
                             Text {  text: mouseService.sensitivity.toFixed(2); color: Theme.primary; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
                         }
-                        Text {  text: "Controls Hyprland `input.sensitivity`."; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
+                        Text {  text: mouseService.compositorLabel === "Mango" ? "Controls Mango pointer and trackpad speed." : (mouseService.compositorLabel === "Niri" ? "Controls Niri pointer acceleration speed." : "Controls Hyprland `input.sensitivity`."); color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
                         Slider {
                             Layout.fillWidth: true
                             from: -1.0
@@ -153,9 +152,9 @@ Item {
                             Layout.fillWidth: true
                             Text {  text: "Wheel Scroll Speed"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true; font.family: Theme.fontFamily }
                             Item { Layout.fillWidth: true }
-                            Text {  text: mouseService.scrollFactor.toFixed(2) + "x"; color: "#f9e2af"; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
+                            Text {  text: mouseService.scrollFactor.toFixed(2) + "x"; color: Theme.cpYellow; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
                         }
-                        Text {  text: "Controls Hyprland `input.scroll_factor`."; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
+                        Text {  text: mouseService.compositorLabel === "Mango" ? "Controls Mango wheel and trackpad scroll speed." : (mouseService.compositorLabel === "Niri" ? "Controls Niri mouse wheel scroll speed." : "Controls Hyprland `input.scroll_factor`."); color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
                         Slider {
                             Layout.fillWidth: true
                             from: 0.25
@@ -179,7 +178,7 @@ Item {
                         }
                     }
 
-                    Rectangle { Layout.fillWidth: true; height: 1; color: Qt.rgba(255,255,255,0.04) }
+                    Rectangle { Layout.fillWidth: true; height: 1; color: Theme.withAlpha(Theme.text, 0.04) }
 
                     ColumnLayout {
                         Layout.fillWidth: true
@@ -200,8 +199,8 @@ Item {
                                 Layout.fillWidth: true
                                 height: 38
                                 radius: 8
-                                color: themeDropdownMA.containsMouse ? Qt.rgba(69/255, 71/255, 90/255, 0.8) : Qt.rgba(49/255, 50/255, 68/255, 0.6)
-                                border.color: mousePage.themeDropdownOpen ? Theme.primary : Qt.rgba(255,255,255,0.08)
+                                color: themeDropdownMA.containsMouse ? Theme.withAlpha(Theme.raisedSurface, 0.8) : Theme.withAlpha(Theme.surface, 0.6)
+                                border.color: mousePage.themeDropdownOpen ? Theme.primary : Theme.withAlpha(Theme.text, 0.08)
                                 border.width: 1
                                 Behavior on color { ColorAnimation { duration: 100 } }
                                 Behavior on border.color { ColorAnimation { duration: 100 } }
@@ -244,9 +243,9 @@ Item {
                             Layout.fillWidth: true
                             visible: mousePage.themeDropdownOpen
                             implicitHeight: Math.min(themeOptionsCol.implicitHeight + 8, 220)
-                            color: Qt.rgba(49/255, 50/255, 68/255, 0.95)
+                            color: Theme.withAlpha(Theme.surface, 0.95)
                             radius: 10
-                            border.color: Qt.rgba(255,255,255,0.08)
+                            border.color: Theme.withAlpha(Theme.text, 0.08)
                             border.width: 1
                             clip: true
 
@@ -271,8 +270,8 @@ Item {
                                             height: 36
                                             radius: 6
                                             color: mouseService.cursorTheme === modelData
-                                                ? Qt.rgba(137/255, 180/255, 250/255, 0.15)
-                                                : (themeOptionMA.containsMouse ? Qt.rgba(69/255, 71/255, 90/255, 0.5) : "transparent")
+                                                ? Theme.withAlpha(Theme.primary, 0.15)
+                                                : (themeOptionMA.containsMouse ? Theme.withAlpha(Theme.raisedSurface, 0.5) : "transparent")
                                             Behavior on color { ColorAnimation { duration: 100 } }
 
                                             RowLayout {
@@ -324,9 +323,9 @@ Item {
                             Layout.fillWidth: true
                             Text {  text: "Cursor Size"; color: SettingsPalette.text; font.pixelSize: 14; font.bold: true; font.family: Theme.fontFamily }
                             Item { Layout.fillWidth: true }
-                            Text {  text: mouseService.cursorSize + " px"; color: "#cba6f7"; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
+                            Text {  text: mouseService.cursorSize + " px"; color: Theme.cpMauve; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
                         }
-                        Text {  text: "Applied using `hyprctl setcursor`."; color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
+                        Text {  text: mouseService.compositorLabel === "Mango" ? "Applied through Mango cursor settings." : (mouseService.compositorLabel === "Niri" ? "Applied through Niri cursor settings." : "Applied using `hyprctl setcursor`."); color: SettingsPalette.subtext; font.pixelSize: 11; font.family: Theme.fontFamily }
                         Slider {
                             Layout.fillWidth: true
                             from: 16
@@ -342,7 +341,7 @@ Item {
             Rectangle {
                 Layout.fillWidth: true
                 radius: 12
-                color: mouseService.supported ? Qt.rgba(137/255, 180/255, 250/255, 0.08) : Qt.rgba(243/255, 139/255, 168/255, 0.08)
+                color: mouseService.supported ? Theme.withAlpha(Theme.primary, 0.08) : Theme.withAlpha(Theme.red, 0.08)
                 implicitHeight: infoCol.implicitHeight + 24
 
                 ColumnLayout {
@@ -352,7 +351,7 @@ Item {
                     spacing: 6
                     Text {
                         font.family: Theme.fontFamily
-                        text: mouseService.supported ? "Settings are applied live and saved for future Hyprland sessions." : "Mouse tuning is currently only implemented for Hyprland."
+                        text: mouseService.supported ? "Settings are applied live and saved for future " + mouseService.compositorLabel + " sessions." : "Mouse tuning is not available for this compositor."
                         color: SettingsPalette.text
                         font.pixelSize: 12
                         wrapMode: Text.Wrap
@@ -377,7 +376,7 @@ Item {
                     width: 96
                     height: 36
                     radius: 8
-                    color: reloadMA.containsMouse ? Qt.rgba(255,255,255,0.10) : Qt.rgba(255,255,255,0.06)
+                    color: reloadMA.containsMouse ? Theme.withAlpha(Theme.text, 0.10) : Theme.withAlpha(Theme.text, 0.06)
                     Text {  anchors.centerIn: parent; text: "Reload"; color: SettingsPalette.text; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
                     MouseArea {
                         id: reloadMA
@@ -395,7 +394,7 @@ Item {
                     radius: 8
                     color: applyMA.containsMouse ? Qt.lighter(Theme.primary, 1.15) : Theme.primary
                     opacity: mouseService.supported ? 1.0 : 0.6
-                    Text {  anchors.centerIn: parent; text: mouseService.isBusy ? "Applying..." : "Apply"; color: "#1e1e2e"; font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
+                    Text {  anchors.centerIn: parent; text: mouseService.isBusy ? "Applying..." : "Apply"; color: Theme.foregroundFor(Theme.primary); font.pixelSize: 12; font.bold: true; font.family: Theme.fontFamily }
                     MouseArea {
                         id: applyMA
                         anchors.fill: parent

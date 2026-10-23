@@ -2,28 +2,37 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import "../../../Widgets"
 import "../../../Services"
+import "../BarDefaults.js" as BarDefaults
+import "WorkspaceAppearance.js" as Appearance
 
 Rectangle {
     id: workspaceRoot
+    IpcHandler {
+        target: "workspaces-" + workspaceRoot.monitorName
+        function status(): string {
+            return JSON.stringify({monitor: workspaceRoot.monitorName, config: workspaceRoot.config,
+                count: workspaceRoot.activeWorkspaces.length,
+                labels: workspaceRoot.activeWorkspaces.map(function(w) { return w.displayName || w.name; })});
+        }
+    }
     required property string monitorName
-    property var config: ({
-        format: "roman",
-        style: "square",
-        transparent: true,
-        displayMode: "role",
-        workspaceCount: 5,
-        showEmpty: true,
-        showSpecial: true,
-        wrapAround: true,
-        reverseScroll: false,
-        maxIcons: 4
-    })
-    property string style: config.style || "fill"
-    property bool isTransparent: config.transparent === true
+    property var config: BarDefaults.createWorkspacesConfig()
+    property string style: config.style || BarDefaults.createWorkspacesConfig().style
+    property bool isTransparent: config.transparent !== false
     property color activeColor: Theme.workspacesColor
+    // Opaque fills keep the chosen accent visible over any wallpaper.
+    readonly property color inactiveColor: blendAccent(0.72)
+    readonly property color hoverColor: blendAccent(0.88)
+    function blendAccent(amount) {
+        var surface = Theme.panelSurface;
+        return Qt.rgba(activeColor.r * amount + surface.r * (1 - amount),
+                       activeColor.g * amount + surface.g * (1 - amount),
+                       activeColor.b * amount + surface.b * (1 - amount), 1);
+    }
     property int workspaceRevision: WorkspaceService.revision
     property var activeWorkspaces: {
         var currentRevision = workspaceRoot.workspaceRevision
@@ -35,7 +44,7 @@ Rectangle {
     property bool groupApps: config.groupApps !== false
     property bool scrollEnabled: config.scrollEnabled !== false
     property int iconSize: config.iconSize || 20
-    property int maxIcons: Math.max(1, Math.min(12, config.maxIcons || 4))
+    property int maxIcons: BarDefaults.normalizeWorkspacesConfig(config).maxIcons
 
     // Mouse scroll accumulator
     property real mouseAccumulator: 0
@@ -51,12 +60,12 @@ Rectangle {
     color: "transparent"
     border.width: 0
 
-    implicitHeight: 34
+    implicitHeight: 32
     implicitWidth: wsRow.implicitWidth
 
     // --- FORMAT CONVERTER ---
     function getWorkspaceLabel(numStr) {
-        var fmt = config.format || "chinese";
+        var fmt = config.format || BarDefaults.createWorkspacesConfig().format;
 
         if (fmt === "roman") {
             var romans = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
@@ -73,6 +82,29 @@ Rectangle {
             return map[numStr] || numStr;
         }
 
+        if (fmt === "urartu") {
+            // Urartian used Assyrian cuneiform: units 1-9, tens as 𒌋 (U).
+            var units = ["", "𒁹", "𒈫", "𒐈", "𒐉", "𒐊", "𒐋", "𒐌", "𒐍", "𒐎"];
+            var u = parseInt(numStr);
+            if (isNaN(u) || u < 1 || u > 20) return numStr;
+            return "𒌋".repeat(Math.floor(u / 10)) + units[u % 10];
+        }
+
+        if (fmt === "gokturk") {
+            // Old Turkic has no numerals; the Orkhon inscriptions spell numbers out.
+            var words = {
+                "1": "𐰋𐰃𐰼", "2": "𐰀𐰚𐰃", "3": "𐰇𐰲", "4": "𐱅𐰇𐰼𐱅", "5": "𐰋𐰃𐱁",
+                "6": "𐰞𐱃𐰃", "7": "𐰘𐰃𐱅𐰃", "8": "𐰾𐰚𐰔", "9": "𐱃𐰸𐰔", "10": "𐰆𐰣"
+            };
+            return words[numStr] || numStr;
+        }
+
+        if (fmt === "arabic-indic") {
+            var digits = "٠١٢٣٤٥٦٧٨٩";
+            if (!/^[0-9]+$/.test(numStr)) return numStr;
+            return numStr.replace(/[0-9]/g, function(d) { return digits[d]; });
+        }
+
         // Arabic (Default fallback)
         return numStr;
     }
@@ -84,7 +116,7 @@ Rectangle {
     function scrollWorkspaces(direction) {
         if (!workspaceRoot.scrollEnabled) return;
         var wss = workspaceRoot.activeWorkspaces.filter(function(workspace) {
-            return !workspace.is_special && /^\d+$/.test(String(workspace.name || ""));
+            return !workspace.is_special && /^\d+$/.test(String(workspace.targetName || workspace.name || ""));
         });
         if (wss.length < 2) return;
 
@@ -93,7 +125,7 @@ Rectangle {
         var nextIndex = WorkspaceService.nextWorkspaceIndex(wss, validIndex, direction, workspaceRoot.config);
 
         if (nextIndex !== validIndex) {
-            switchToWorkspace(wss[nextIndex].name);
+            switchToWorkspace(wss[nextIndex].targetName || wss[nextIndex].name);
         }
     }
 
@@ -117,22 +149,81 @@ Rectangle {
         }
     }
 
+    // --- LIQUID ACTIVE INDICATOR ---
+    // One blob marks the active workspace. On a switch its leading edge moves
+    // fast and its trailing edge slow, so it stretches toward the new workspace
+    // and then pulls together there like a drop of liquid.
+    readonly property bool liquidIndicator: EffectSettings.liquidWorkspace
+        && Appearance.resolve(workspaceRoot.style, workspaceRoot.isTransparent, true).fill
+    readonly property int activeIndex: {
+        for (var i = 0; i < workspaceRoot.activeWorkspaces.length; i++)
+            if (workspaceRoot.activeWorkspaces[i].is_active) return i;
+        return -1;
+    }
+
+    Rectangle {
+        id: liquidBlob
+        property Item target: null
+        property bool movingRight: true
+        property real leftEdge: 0
+        property real rightEdge: 0
+        property bool animate: false
+        Behavior on leftEdge { enabled: liquidBlob.animate; NumberAnimation { duration: EffectSettings.ms(liquidBlob.movingRight ? 420 : 190); easing.type: Easing.OutCubic } }
+        Behavior on rightEdge { enabled: liquidBlob.animate; NumberAnimation { duration: EffectSettings.ms(liquidBlob.movingRight ? 190 : 420); easing.type: Easing.OutCubic } }
+
+        visible: workspaceRoot.liquidIndicator && target !== null
+        x: wsRow.x + leftEdge
+        y: wsRow.y + (target ? target.y : 0)
+        width: Math.max(0, rightEdge - leftEdge)
+        height: target ? target.height : 0
+        radius: target ? target.radius : 0
+        color: workspaceRoot.activeColor
+        Behavior on color { ColorAnimation { duration: 190 } }
+
+        function sync() {
+            var next = workspaceRoot.activeIndex >= 0 ? wsRepeater.itemAt(workspaceRoot.activeIndex) : null;
+            if (!next) { target = null; animate = false; return; }
+            // Jump into place on first show; flow on every later change.
+            if (target === null) animate = false;
+            else if (next !== target) movingRight = next.x >= leftEdge;
+            target = next;
+            leftEdge = next.x;
+            rightEdge = next.x + next.width;
+            if (!animate) Qt.callLater(function() { liquidBlob.animate = true; });
+        }
+
+        Connections {
+            target: liquidBlob.target
+            function onXChanged() { liquidBlob.sync() }
+            function onWidthChanged() { liquidBlob.sync() }
+        }
+    }
+    onActiveIndexChanged: Qt.callLater(liquidBlob.sync)
+    Component.onCompleted: Qt.callLater(liquidBlob.sync)
+
     // --- VISUAL LAYOUT (Professional Glassmorphism Design) ---
     Row {
         id: wsRow
         anchors.centerIn: parent
-        spacing: 6
+        spacing: 4
 
         Repeater {
+            id: wsRepeater
             model: workspaceRoot.activeWorkspaces
+            onItemAdded: Qt.callLater(liquidBlob.sync)
             delegate: Rectangle {
                 id: wsBox
+                objectName: "workspaceColorTile"
+                readonly property color contentColor: !appearance.fill
+                    ? (isActive ? workspaceRoot.activeColor : Theme.text)
+                    : Theme.foregroundFor(isActive ? workspaceRoot.activeColor : color)
                 property var wsData: modelData
                 property bool isActive: wsData.is_active
                 property int winCount: wsData.winCount
                 property var visibleApps: (wsData.groupedWindows || []).slice(0, workspaceRoot.maxIcons)
                 property int hiddenAppCount: Math.max(0, (wsData.groupedWindows || []).length - visibleApps.length)
                 property bool isHovered: workspaceHover.hovered
+                readonly property var appearance: Appearance.resolve(workspaceRoot.style, workspaceRoot.isTransparent, isActive)
 
                 // Label toggle state
                 // Workspace numbers must remain visible for every workspace.
@@ -147,65 +238,67 @@ Rectangle {
                 }
 
                 // Size
-                implicitWidth: wsContentRow.implicitWidth + 22
-                height: 34
-                radius: style === "square" ? 8 : 17
+                implicitWidth: wsContentRow.implicitWidth + 18
+                height: 32
+                radius: appearance.radius
 
                 // Hover scale
-                scale: isHovered ? 1.05 : 1.0
-                Behavior on scale { NumberAnimation { duration: 200; easing.type: Easing.OutBack } }
+                scale: isHovered ? 1.025 : 1.0
+                Behavior on scale { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
                 // --- GLASSMORPHISM BACKGROUND ---
                 color: {
-                    if (isActive) return Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.25)
-                    if (isHovered) return Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.08)
-                    return Qt.rgba(Theme.surface.r, Theme.surface.g, Theme.surface.b, 0.15)
+                    if (!appearance.fill) return "transparent"
+                    // The liquid blob paints the active background.
+                    if (isActive) return workspaceRoot.liquidIndicator ? "transparent" : activeColor
+                    return isHovered ? workspaceRoot.hoverColor : workspaceRoot.inactiveColor
                 }
 
-                border.width: 1
+                border.width: appearance.borderWidth
                 border.color: {
-                    if (isActive) return Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.45)
-                    if (isHovered) return Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.12)
-                    return Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.06)
+                    if (!appearance.fill)
+                        return Theme.withAlpha(activeColor, isActive ? 1 : (isHovered ? 0.65 : 0.3))
+                    return Theme.withAlpha(wsBox.contentColor, isActive ? 0.65 : 0.20)
                 }
 
-                Behavior on color { ColorAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                Behavior on border.color { ColorAnimation { duration: 250; easing.type: Easing.OutCubic } }
-                Behavior on implicitWidth { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
+                Behavior on color { ColorAnimation { duration: 190; easing.type: Easing.OutCubic } }
+                Behavior on border.color { ColorAnimation { duration: 190; easing.type: Easing.OutCubic } }
+                Behavior on implicitWidth { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
                 // --- GLOW LAYERS (behind box, active only) ---
                 Rectangle {
                     z: -2
                     anchors.centerIn: parent
-                    width: parent.implicitWidth + 6
-                    height: parent.height + 6
-                    radius: parent.radius + 3
-                    color: Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.12)
-                    visible: isActive
+                    width: parent.implicitWidth + 4
+                    height: parent.height + 4
+                    radius: parent.radius + 2
+                    color: Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.065)
+                    visible: isActive && wsBox.appearance.fill
                     opacity: isActive ? 1.0 : 0.0
                     Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.OutCubic } }
                 }
                 Rectangle {
                     z: -3
                     anchors.centerIn: parent
-                    width: parent.implicitWidth + 12
-                    height: parent.height + 12
-                    radius: parent.radius + 6
-                    color: Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.06)
-                    visible: isActive
+                    width: parent.implicitWidth + 8
+                    height: parent.height + 8
+                    radius: parent.radius + 4
+                    color: Qt.rgba(activeColor.r, activeColor.g, activeColor.b, 0.025)
+                    visible: isActive && wsBox.appearance.fill
                     opacity: isActive ? 1.0 : 0.0
                     Behavior on opacity { NumberAnimation { duration: 350; easing.type: Easing.OutCubic } }
                 }
 
                 // Glass top-edge highlight
                 Rectangle {
+                    visible: wsBox.appearance.fill
                     anchors.top: parent.top
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.margins: 1
                     height: 1
                     radius: parent.radius
-                    color: Qt.rgba(1, 1, 1, isActive ? 0.12 : 0.05)
+                    color: Qt.rgba(1, 1, 1, isActive ? 0.08 : 0.03)
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
 
@@ -213,7 +306,7 @@ Rectangle {
                 Row {
                     id: wsContentRow
                     anchors.centerIn: parent
-                    spacing: 7
+                    spacing: 6
 
                     // Minimal dot indicator (when label is hidden)
                     Rectangle {
@@ -234,10 +327,12 @@ Rectangle {
                     Text {
                         id: labelText
                         visible: wsBox.showLabel
-                        text: getWorkspaceLabel(wsData.name)
-                        color: isActive ? Theme.workspaceActiveTextColor : Theme.text
+                        text: getWorkspaceLabel(wsData.displayName || wsData.name)
+                        color: wsBox.contentColor
+                        style: workspaceRoot.isTransparent ? Text.Outline : Text.Normal
+                        styleColor: Theme.foregroundFor(wsBox.contentColor)
                         font.bold: true
-                        font.pixelSize: 13
+                        font.pixelSize: 12
                         font.family: Theme.fontFamily
                         font.letterSpacing: 0.5
                         anchors.verticalCenter: parent.verticalCenter
@@ -248,7 +343,7 @@ Rectangle {
                     // Gradient separator
                     Rectangle {
                         width: 1
-                        height: 16
+                        height: 14
                         anchors.verticalCenter: parent.verticalCenter
                         visible: winCount > 0 && workspaceRoot.showApps && wsBox.showLabel
                         gradient: Gradient {
@@ -261,7 +356,7 @@ Rectangle {
 
                     // APPLICATION ICONS
                     Row {
-                        spacing: 5
+                        spacing: 4
                         anchors.verticalCenter: parent.verticalCenter
                         visible: winCount > 0 && workspaceRoot.showApps
 
@@ -269,18 +364,36 @@ Rectangle {
                             model: wsBox.visibleApps
 
                             Item {
-                                width: appIconText.implicitWidth
+                                id: appIconItem
+                                z: 2
+                                width: workspaceRoot.iconSize + 2
                                 height: workspaceRoot.iconSize + 4
+
+                                Image {
+                                    id: appIconImage
+                                    width: workspaceRoot.iconSize
+                                    height: workspaceRoot.iconSize
+                                    anchors.centerIn: parent
+                                    source: modelData.iconSource || ""
+                                    sourceSize: Qt.size(48, 48)
+                                    fillMode: Image.PreserveAspectFit
+                                    smooth: true
+                                    antialiasing: true
+                                    visible: source.toString().length > 0 && status !== Image.Error
+                                    opacity: 1.0 // Running-app icons remain legible in inactive workspaces too.
+                                    scale: modelData.active ? 1.08 : 1.0
+
+                                    Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack } }
+                                }
 
                                 Text {
                                     id: appIconText
+                                    visible: !appIconImage.visible
                                     text: modelData.icon
-                                    color: {
-                                        if (isActive && modelData.active) return Theme.workspaceActiveTextColor
-                                        if (modelData.active) return Theme.primary
-                                        if (isActive) return Qt.rgba(Theme.workspaceActiveTextColor.r, Theme.workspaceActiveTextColor.g, Theme.workspaceActiveTextColor.b, 0.85)
-                                        return Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.7)
-                                    }
+                                    color: wsBox.contentColor
+                                    style: workspaceRoot.isTransparent ? Text.Outline : Text.Normal
+                                    styleColor: Theme.foregroundFor(wsBox.contentColor)
                                     font.pixelSize: workspaceRoot.iconSize
                                     font.family: "JetBrainsMono Nerd Font"
                                     anchors.centerIn: parent
@@ -336,7 +449,9 @@ Rectangle {
                             Text {
                                 id: hiddenCountText
                                 text: "+" + wsBox.hiddenAppCount
-                                color: isActive ? Theme.workspaceActiveTextColor : Qt.rgba(Theme.text.r, Theme.text.g, Theme.text.b, 0.7)
+                                color: wsBox.contentColor
+                                    style: workspaceRoot.isTransparent ? Text.Outline : Text.Normal
+                                    styleColor: Theme.foregroundFor(wsBox.contentColor)
                                 font.pixelSize: Math.max(9, workspaceRoot.iconSize - 7)
                                 font.bold: true
                                 font.family: Theme.fontFamily
@@ -354,8 +469,8 @@ Rectangle {
                     width: isActive ? parent.implicitWidth * 0.5 : 0
                     height: 2.5
                     radius: 1.25
-                    color: activeColor
-                    visible: style === "underline"
+                    color: wsBox.contentColor
+                    visible: wsBox.appearance.indicator === "underline"
                     opacity: isActive ? 1.0 : 0.0
                     Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -363,14 +478,14 @@ Rectangle {
 
                 // --- DOT STYLE ---
                 Rectangle {
-                    anchors.top: parent.bottom
-                    anchors.topMargin: 3
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 0
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: isActive ? 5 : 3
                     height: isActive ? 5 : 3
                     radius: width / 2
                     color: activeColor
-                    visible: style === "dot"
+                    visible: wsBox.appearance.indicator === "dot"
                     opacity: isActive ? 1.0 : 0.3
                     Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutBack } }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -384,8 +499,8 @@ Rectangle {
                     width: isActive ? parent.implicitWidth * 0.5 : 0
                     height: 2.5
                     radius: 1.25
-                    color: activeColor
-                    visible: style === "overline"
+                    color: wsBox.contentColor
+                    visible: wsBox.appearance.indicator === "overline"
                     opacity: isActive ? 1.0 : 0.0
                     Behavior on width { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -399,8 +514,8 @@ Rectangle {
                     width: 2.5
                     height: isActive ? parent.height * 0.55 : 0
                     radius: 1.25
-                    color: activeColor
-                    visible: style === "pipe"
+                    color: wsBox.contentColor
+                    visible: wsBox.appearance.indicator === "pipe"
                     opacity: isActive ? 1.0 : 0.0
                     Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutQuint } }
                     Behavior on opacity { NumberAnimation { duration: 200 } }
@@ -413,7 +528,7 @@ Rectangle {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         if (!wsBox.isActive) {
-                            workspaceRoot.switchToWorkspace(wsData.name)
+                            workspaceRoot.switchToWorkspace(wsData.targetName || wsData.name)
                         }
                         wsBox.labelForced = !wsBox.labelForced
                         if (wsBox.labelForced) {

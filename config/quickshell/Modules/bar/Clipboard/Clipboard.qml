@@ -4,6 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 import "."
 import "../../../Widgets"
+import "../../../Services" as S
 
 Rectangle {
     id: root
@@ -16,15 +17,16 @@ Rectangle {
     readonly property color contentColor: Theme.foregroundFor(Theme.clipboardColor)
     color: Theme.clipboardColor
     Behavior on color { ColorAnimation { duration: Theme.animMedium } }
-    opacity: hasActive ? 1 : 0.74
+    opacity: 1 // Empty history must not dim the actionable clipboard icon.
     
     Behavior on opacity { NumberAnimation { duration: 180 } }
     
-    ClipboardBackend { id: backend }
-    property alias hasActive: backend.hasActive
-    property alias currentClip: backend.currentClip
-    property alias maxHistory: backend.maxHistory
-    property alias clipboardModel: backend.historyModel
+    // One shared history for every bar/dock instance instead of one per screen.
+    readonly property var backend: S.ClipboardHistory
+    readonly property bool hasActive: backend.hasActive
+    readonly property string currentClip: backend.currentClip
+    readonly property int maxHistory: backend.maxHistory
+    readonly property var clipboardModel: backend.historyModel
 
     function copyToClipboard(text) {
         backend.copyToClipboard(text);
@@ -54,14 +56,17 @@ Rectangle {
         }
     }
     
+    HoverOpen { id: hoverOpen; popup: popup }
+
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: popup.visible = !popup.visible
+        onClicked: hoverOpen.handleClick()
     }
     
     // ── POPUP ──
     PopupWindow {
+        PopupEntrance { originItem: root }  // liquid ring open animation
         id: popup
         visible: false
         

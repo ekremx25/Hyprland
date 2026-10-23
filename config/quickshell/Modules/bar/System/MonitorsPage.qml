@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import Quickshell
 import "."
 import "../../../Widgets"
-import "../Settings/SettingsPalette.js" as SettingsPalette
 import "../../../Services"
 import "../../../Services/core/Log.js" as Log
 import "MonitorGeometry.js" as MonitorGeometry
@@ -11,12 +10,16 @@ import "MonitorGeometry.js" as MonitorGeometry
 Item {
     id: page
 
+    signal settingsApplied()
+
     MonitorsBackend {
         id: backend
         onRefreshRequested: page.syncSelection()
+        onApplyCompleted: function(operation) { page.handleApplyCompleted(operation); }
     }
 
     property alias outputs: backend.outputs
+    property alias persistenceError: backend.persistenceError
     property alias selectedIdx: backend.selectedIdx
     property alias selectedOutput: backend.selectedOutput
     property alias colorModeOptions: backend.colorModeOptions
@@ -44,12 +47,19 @@ Item {
     readonly property int sdrLuminanceMax: 600
     property bool identifyMode: false
     property var draftSettings: ({})
+    property var snapGuideX: null
+    property var snapGuideY: null
+    property bool applyInProgress: false
+    property bool awaitingConfirmation: false
+    property bool revertWhenPreviewReady: false
+    property int confirmationSeconds: 10
+    readonly property bool monitorOperationBusy: applyInProgress || backend.busy
 
     readonly property color cardColor: Qt.rgba(245 / 255, 247 / 255, 250 / 255, 0.05)
-    readonly property color cardBorder: Qt.rgba(255, 255, 255, 0.08)
-    readonly property color softBorder: Qt.rgba(255, 255, 255, 0.05)
-    readonly property color accentSoft: Qt.rgba(137 / 255, 180 / 255, 250 / 255, 0.14)
-    readonly property color accentBorder: Qt.rgba(137 / 255, 180 / 255, 250 / 255, 0.55)
+    readonly property color cardBorder: Theme.withAlpha(Theme.text, 0.08)
+    readonly property color softBorder: Theme.withAlpha(Theme.text, 0.05)
+    readonly property color accentSoft: Theme.withAlpha(Theme.primary, 0.14)
+    readonly property color accentBorder: Theme.withAlpha(Theme.primary, 0.55)
 
     function getDefaultMonitorName() {
         for (var i = 0; i < outputs.length; i++) {
@@ -157,7 +167,9 @@ Item {
     function boxHeightForOutput(output, cW, cH)          { return MonitorGeometry.boxHeightForOutput(output, outputs, geoCtx(), cW, cH); }
     function canvasToLayoutX(canvasX, cW, cH)            { return MonitorGeometry.canvasToLayoutX(canvasX, outputs, geoCtx(), cW, cH); }
     function canvasToLayoutY(canvasY, cW, cH)            { return MonitorGeometry.canvasToLayoutY(canvasY, outputs, geoCtx(), cW, cH); }
-    function snapDraggedPosition(outputName, rawX, rawY) { return MonitorGeometry.snapDraggedPosition(outputName, rawX, rawY, outputs, geoCtx()); }
+    function layoutToCanvasX(layoutX, cW, cH)            { return MonitorGeometry.layoutToCanvasX(layoutX, outputs, geoCtx(), cW, cH); }
+    function layoutToCanvasY(layoutY, cW, cH)            { return MonitorGeometry.layoutToCanvasY(layoutY, outputs, geoCtx(), cW, cH); }
+    function snapDraggedPosition(outputName, rawX, rawY) { return MonitorGeometry.snapDraggedPosition(outputName, rawX, rawY, outputs, geoCtx(), 96); }
 
     function adjustSelectedPosition(axis, delta) {
         if (axis === "x") selPosX += delta;
@@ -169,14 +181,58 @@ Item {
     }
 
     function applySettings() {
-        if (!selectedOutput) return;
+        if (!selectedOutput || monitorOperationBusy || awaitingConfirmation) return;
         if (!selRes || !selHz) {
             Log.warn("MonitorsPage", "Cannot apply settings without resolution and refresh rate");
             return;
         }
         saveCurrentDraft();
+        applyInProgress = true;
+        revertWhenPreviewReady = false;
         backend.applySettings(outputs, selectedOutput.name, selRes, selHz, selScale, selPosX, selPosY, selHdr, selBitdepth, selVrr, selSdrLuminance, selSdrBrightness, selSdrSaturation, selColorManagement, selIccProfile, selSdrEotf, defaultMonitorName, selAutoScale);
         draftSettings = ({});
+    }
+
+    function handleApplyCompleted(operation) {
+        applyInProgress = false;
+        syncSelection();
+        if (operation === "preview") {
+            awaitingConfirmation = true;
+            confirmationSeconds = 10;
+            confirmationTimer.restart();
+            if (revertWhenPreviewReady) {
+                revertWhenPreviewReady = false;
+                revertAppliedSettings();
+            }
+        } else if (operation === "revert") {
+            awaitingConfirmation = false;
+            confirmationTimer.stop();
+            draftSettings = ({});
+            syncSelection();
+        }
+    }
+
+    function confirmAppliedSettings() {
+        if (!awaitingConfirmation || monitorOperationBusy) return;
+        confirmationTimer.stop();
+        awaitingConfirmation = false;
+        if (backend.confirmPreview()) page.settingsApplied();
+    }
+
+    function revertAppliedSettings() {
+        if (!awaitingConfirmation || monitorOperationBusy) return;
+        confirmationTimer.stop();
+        awaitingConfirmation = false;
+        applyInProgress = true;
+        if (!backend.revertPreview()) applyInProgress = false;
+    }
+
+    function cancelPendingPreview() {
+        if (awaitingConfirmation) {
+            revertAppliedSettings();
+        } else if (applyInProgress) {
+            revertWhenPreviewReady = true;
+        }
     }
 
     function refresh() { backend.refresh(); }
@@ -452,6 +508,16 @@ Item {
         onTriggered: page.identifyMode = false
     }
 
+    Timer {
+        id: confirmationTimer
+        interval: 1000
+        repeat: true
+        onTriggered: {
+            page.confirmationSeconds = Math.max(0, page.confirmationSeconds - 1);
+            if (page.confirmationSeconds <= 0) page.revertAppliedSettings();
+        }
+    }
+
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: 22
@@ -464,7 +530,7 @@ Item {
 
         MonitorLayoutCanvas {
             Layout.fillWidth: true
-            Layout.preferredHeight: 260
+            Layout.preferredHeight: page.height < 600 ? 140 : 260
             page: page
         }
 
@@ -548,7 +614,7 @@ Item {
 
                             Rectangle {
                                 radius: 10
-                                color: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? page.accentSoft : Qt.rgba(255, 255, 255, 0.04)
+                                color: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? page.accentSoft : Theme.withAlpha(Theme.text, 0.04)
                                 border.color: page.defaultMonitorName === (page.selectedOutput ? page.selectedOutput.name : "") ? page.accentBorder : page.softBorder
                                 border.width: 1
                                 implicitWidth: mainDisplayText.implicitWidth + 24
@@ -582,7 +648,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 radius: 12
-                                color: Qt.rgba(255, 255, 255, 0.03)
+                                color: Theme.withAlpha(Theme.text, 0.03)
                                 border.color: page.softBorder
                                 border.width: 1
                                 implicitHeight: 74
@@ -600,7 +666,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 radius: 12
-                                color: Qt.rgba(255, 255, 255, 0.03)
+                                color: Theme.withAlpha(Theme.text, 0.03)
                                 border.color: page.softBorder
                                 border.width: 1
                                 implicitHeight: 74
@@ -618,7 +684,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 radius: 12
-                                color: Qt.rgba(255, 255, 255, 0.03)
+                                color: Theme.withAlpha(Theme.text, 0.03)
                                 border.color: page.softBorder
                                 border.width: 1
                                 implicitHeight: 74
@@ -637,7 +703,7 @@ Item {
                             Rectangle {
                                 Layout.fillWidth: true
                                 radius: 12
-                                color: Qt.rgba(255, 255, 255, 0.03)
+                                color: Theme.withAlpha(Theme.text, 0.03)
                                 border.color: page.softBorder
                                 border.width: 1
                                 implicitHeight: 74
@@ -656,7 +722,7 @@ Item {
                         Rectangle {
                             Layout.fillWidth: true
                             radius: 12
-                            color: pendingChanges() ? page.accentSoft : Qt.rgba(255, 255, 255, 0.03)
+                            color: pendingChanges() ? page.accentSoft : Theme.withAlpha(Theme.text, 0.03)
                             border.color: pendingChanges() ? page.accentBorder : page.softBorder
                             border.width: 1
                             implicitHeight: hintRow.implicitHeight + 20
@@ -671,15 +737,15 @@ Item {
                                     width: 28
                                     height: 28
                                     radius: 9
-                                    color: pendingChanges() ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(166 / 255, 227 / 255, 161 / 255, 0.16)
-                                    border.color: pendingChanges() ? Qt.rgba(255, 255, 255, 0.2) : Qt.rgba(166 / 255, 227 / 255, 161 / 255, 0.35)
+                                    color: pendingChanges() ? Theme.withAlpha(Theme.text, 0.14) : Theme.withAlpha(Theme.green, 0.16)
+                                    border.color: pendingChanges() ? Theme.withAlpha(Theme.text, 0.2) : Theme.withAlpha(Theme.green, 0.35)
                                     border.width: 1
 
                                     Text {
                                         font.family: Theme.fontFamily
                                         anchors.centerIn: parent
                                         text: pendingChanges() ? "!" : "i"
-                                        color: pendingChanges() ? "white" : "#a6e3a1"
+                                        color: pendingChanges() ? Theme.text : Theme.cpGreen
                                         font.pixelSize: 13
                                         font.bold: true
                                     }
@@ -707,7 +773,7 @@ Item {
                                     required property var modelData
                                     required property int index
                                     radius: 10
-                                    color: page.selectedIdx === index ? page.accentSoft : Qt.rgba(255, 255, 255, 0.03)
+                                    color: page.selectedIdx === index ? page.accentSoft : Theme.withAlpha(Theme.text, 0.03)
                                     border.color: page.selectedIdx === index ? page.accentBorder : page.softBorder
                                     border.width: 1
                                     implicitWidth: chipLabel.implicitWidth + 28

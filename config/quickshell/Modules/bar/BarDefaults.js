@@ -4,9 +4,9 @@
 
 function createWorkspacesConfig() {
     return {
-        "format": "roman",
-        "style": "square",
-        "transparent": true,
+        "format": "gokturk",
+        "style": "circle",
+        "transparent": false,
         "displayMode": "role",
         "workspaceCount": 5,
         "showEmpty": true,
@@ -16,7 +16,7 @@ function createWorkspacesConfig() {
         "scrollEnabled": true,
         "wrapAround": true,
         "reverseScroll": false,
-        "iconSize": 20,
+        "iconSize": 18,
         "maxIcons": 4
     };
 }
@@ -40,7 +40,7 @@ function normalizeWorkspacesConfig(config) {
     var source = config && typeof config === "object" ? config : {};
 
     return {
-        format: _choice(source.format, ["chinese", "roman", "arabic"], defaults.format),
+        format: _choice(source.format, ["chinese", "roman", "arabic", "urartu", "gokturk", "arabic-indic"], defaults.format),
         style: _choice(source.style, ["square", "circle", "outline", "underline", "overline", "pipe", "dot"], defaults.style),
         transparent: _boolean(source.transparent, defaults.transparent),
         displayMode: _choice(source.displayMode, ["role", "occupied", "global"], defaults.displayMode),
@@ -59,9 +59,9 @@ function normalizeWorkspacesConfig(config) {
 
 function createBarConfig() {
     return {
-        left: ["Launcher","RamModule","SysInfoGroup","CurrencyConverter"],
-        center: ["Workspaces","Notifications","Notepad"],
-        right: ["Equalizer","Volume","Clipboard","PowerGroup"],
+        left: ["CurrencyConverter","RamModule","SysInfoGroup"],
+        center: ["Workspaces","Notifications","Notepad","ActivityMonitor"],
+        right: ["Equalizer","Volume","Clipboard","Hyprmoncfg","PowerGroup"],
         inactive: ["NightLight"],
         workspaces: createWorkspacesConfig(),
         theme: "",

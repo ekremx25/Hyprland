@@ -16,7 +16,7 @@ function normalizeConfig(config) {
         displayMode: mode,
         workspaceCount: clampInt(source.workspaceCount, 1, 20, 5),
         showEmpty: source.showEmpty !== false,
-        showSpecial: source.showSpecial === true,
+        showSpecial: source.showSpecial !== false,
         wrapAround: source.wrapAround !== false,
         reverseScroll: source.reverseScroll === true,
         maxIcons: clampInt(source.maxIcons, 1, 12, 4)
@@ -64,6 +64,9 @@ function emptyWorkspace(id, monitorName) {
 
 function workspaceSort(left, right) {
     if (!!left.is_special !== !!right.is_special) return left.is_special ? 1 : -1;
+    var leftOrder = left.displayOrder !== undefined ? Number(left.displayOrder) : Number(left.sortOrder);
+    var rightOrder = right.displayOrder !== undefined ? Number(right.displayOrder) : Number(right.sortOrder);
+    if (!isNaN(leftOrder) && !isNaN(rightOrder) && leftOrder !== rightOrder) return leftOrder - rightOrder;
     var leftNum = Number(left.id);
     var rightNum = Number(right.id);
     if (!isNaN(leftNum) && !isNaN(rightNum)) return leftNum - rightNum;
@@ -71,7 +74,7 @@ function workspaceSort(left, right) {
 }
 
 function buildHyprlandState(monitors, workspaces, clients) {
-    var state = { monitorOrder: [], byMonitor: {}, global: [] };
+    var state = { monitorOrder: [], byMonitor: {}, global: [], focusedMonitor: "" };
     var monitorList = Array.isArray(monitors) ? monitors : [];
     var workspaceList = Array.isArray(workspaces) ? workspaces : [];
     var clientList = Array.isArray(clients) ? clients : [];
@@ -81,6 +84,7 @@ function buildHyprlandState(monitors, workspaces, clients) {
         var monitorName = String(monitor.name || "");
         if (monitorName.length === 0) continue;
         state.monitorOrder.push(monitorName);
+        if (monitor.focused === true) state.focusedMonitor = monitorName;
         state.byMonitor[monitorName] = {
             activeId: monitor.activeWorkspace ? monitor.activeWorkspace.id : null,
             specialId: monitor.specialWorkspace ? monitor.specialWorkspace.id : null,
@@ -137,11 +141,79 @@ function buildHyprlandState(monitors, workspaces, clients) {
     return state;
 }
 
+// Niri workspace IDs are opaque runtime identifiers. The user-visible index is
+// `idx`, and every monitor owns an independent workspace list. Keep the opaque
+// ID for matching windows, but use the local index for ordering and activation.
+function buildNiriState(outputs, workspaces, windows) {
+    var state = { monitorOrder: [], byMonitor: {}, global: [], localIndexed: true };
+    var outputMap = outputs && typeof outputs === "object" ? outputs : {};
+    var workspaceList = Array.isArray(workspaces) ? workspaces : [];
+    var windowList = Array.isArray(windows) ? windows : [];
+
+    for (var outputName in outputMap) {
+        state.monitorOrder.push(outputName);
+        state.byMonitor[outputName] = { activeId: null, specialId: null, workspaces: [] };
+    }
+
+    var workspaceById = {};
+    for (var wi = 0; wi < workspaceList.length; ++wi) {
+        var raw = workspaceList[wi] || {};
+        var monitorName = String(raw.output || "");
+        if (!state.byMonitor[monitorName]) {
+            state.monitorOrder.push(monitorName);
+            state.byMonitor[monitorName] = { activeId: null, specialId: null, workspaces: [] };
+        }
+
+        var localIndex = parseInt(raw.idx);
+        if (isNaN(localIndex) || localIndex < 1) localIndex = state.byMonitor[monitorName].workspaces.length + 1;
+        var entry = {
+            id: raw.id,
+            idx: localIndex,
+            sortOrder: localIndex,
+            name: raw.name !== undefined && raw.name !== null ? String(raw.name) : String(localIndex),
+            monitor: monitorName,
+            is_active: raw.is_active === true,
+            is_special: false,
+            winCount: 0,
+            windows: [],
+            groupedWindows: []
+        };
+
+        if (entry.is_active) state.byMonitor[monitorName].activeId = raw.id;
+        workspaceById[String(raw.id)] = entry;
+        state.byMonitor[monitorName].workspaces.push(entry);
+        state.global.push(entry);
+    }
+
+    for (var windowIndex = 0; windowIndex < windowList.length; ++windowIndex) {
+        var rawWindow = windowList[windowIndex] || {};
+        var parent = workspaceById[String(rawWindow.workspace_id)];
+        if (!parent) continue;
+        parent.windows.push({
+            id: rawWindow.id || "",
+            app_id: rawWindow.app_id || "",
+            title: rawWindow.title || "",
+            is_active: rawWindow.is_focused === true,
+            urgent: rawWindow.is_urgent === true
+        });
+        parent.winCount++;
+    }
+
+    state.global.sort(workspaceSort);
+    for (var monitorKey in state.byMonitor) state.byMonitor[monitorKey].workspaces.sort(workspaceSort);
+    return state;
+}
+
 function cloneWorkspace(workspace) {
     return {
         id: workspace.id,
         idx: workspace.idx,
+        sortOrder: workspace.sortOrder,
+        displayOrder: workspace.displayOrder,
         name: workspace.name,
+        targetName: workspace.targetName,
+        displayName: workspace.displayName,
+        localTag: workspace.localTag,
         monitor: workspace.monitor,
         is_active: workspace.is_active,
         is_special: workspace.is_special,
@@ -162,18 +234,66 @@ function workspacesForMonitor(state, monitorName, config, roleMap) {
         : (monitorState.workspaces || []);
     var result = [];
     var seen = {};
+    var localRoleMode = normalized.displayMode === "role"
+        && (safeState.tagBased === true || safeState.localIndexed === true);
 
     function add(workspace) {
         if (!workspace) return;
         if (workspace.is_special && !normalized.showSpecial) return;
         var key = String(workspace.id);
         if (seen[key]) return;
+        if ((safeState.tagBased === true || safeState.localIndexed === true)
+                && !normalized.showEmpty && !workspace.is_active && (workspace.winCount || 0) === 0) return;
         if (normalized.displayMode === "occupied" && !workspace.is_active && (workspace.winCount || 0) === 0) return;
         seen[key] = true;
         result.push(cloneWorkspace(workspace));
     }
 
-    for (var i = 0; i < source.length; ++i) add(source[i]);
+    if (localRoleMode) {
+        // Mango and Niri number workspaces locally on every monitor. Present a
+        // global-looking role range while retaining the local activation target.
+        var tagRange = rangeForMonitor(monitorName, normalized, roleMap, safeState.monitorOrder || []);
+        var localTags = {};
+        var monitorTags = monitorState.workspaces || [];
+        for (var ti = 0; ti < monitorTags.length; ++ti) {
+            var slot = safeState.localIndexed === true ? monitorTags[ti].idx : monitorTags[ti].id;
+            localTags[String(slot)] = monitorTags[ti];
+        }
+
+        for (var localId = 1; localId <= normalized.workspaceCount; ++localId) {
+            var localWorkspace = localTags[String(localId)];
+            if (!localWorkspace) {
+                var emptyId = safeState.localIndexed === true ? monitorName + "::" + localId : localId;
+                localWorkspace = emptyWorkspace(emptyId, monitorName);
+                localWorkspace.idx = localId;
+                localWorkspace.sortOrder = localId;
+                localWorkspace.name = String(localId);
+            }
+            var decorated = cloneWorkspace(localWorkspace);
+            decorated.localTag = localId;
+            decorated.targetName = String(safeState.localIndexed === true ? localId : (localWorkspace.name || localId));
+            decorated.displayName = String(tagRange.start + localId - 1);
+            decorated.displayOrder = tagRange.start + localId - 1;
+            add(decorated);
+        }
+
+        // Never hide an active or occupied tag outside the configured role
+        // range. Prefix it with the monitor role so its label stays unambiguous.
+        for (var extraIndex = 0; extraIndex < monitorTags.length; ++extraIndex) {
+            var extra = monitorTags[extraIndex];
+            var extraId = parseInt(safeState.localIndexed === true ? extra.idx : extra.id);
+            if (extraId >= 1 && extraId <= normalized.workspaceCount) continue;
+            if (!extra.is_active && (extra.winCount || 0) === 0) continue;
+            var extraDecorated = cloneWorkspace(extra);
+            extraDecorated.localTag = extraId;
+            extraDecorated.targetName = String(safeState.localIndexed === true ? extraId : (extra.name || extra.id));
+            extraDecorated.displayName = String(tagRange.role || "display").charAt(0).toUpperCase() + String(extraId);
+            extraDecorated.displayOrder = tagRange.end + Math.max(1, extraId);
+            add(extraDecorated);
+        }
+    } else {
+        for (var i = 0; i < source.length; ++i) add(source[i]);
+    }
 
     if (normalized.displayMode === "global" && normalized.showEmpty) {
         for (var globalId = 1; globalId <= normalized.workspaceCount; ++globalId) {
@@ -181,7 +301,11 @@ function workspacesForMonitor(state, monitorName, config, roleMap) {
         }
     }
 
-    if (normalized.displayMode === "role") {
+    // Numeric workspace IDs can be filled directly only when they are global.
+    // Mango role mode above keeps its local IDs and remaps display labels only.
+    if (normalized.displayMode === "role"
+            && safeState.tagBased !== true
+            && safeState.localIndexed !== true) {
         var range = rangeForMonitor(monitorName, normalized, roleMap, safeState.monitorOrder || []);
         if (normalized.showEmpty) {
             for (var id = range.start; id <= range.end; ++id) {

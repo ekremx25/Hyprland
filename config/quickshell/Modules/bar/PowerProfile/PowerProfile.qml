@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
 import "../../../Widgets"
+import "../../../Services" as S
 
 Rectangle {
     id: root
@@ -46,14 +47,26 @@ Rectangle {
     MouseArea {
         anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
-        onClicked: {
-            profilePopup.visible = !profilePopup.visible
-            if (profilePopup.visible) powerProfileService.refresh()
-        }
+        onClicked: hoverOpen.handleClick()
+    }
+
+    // Lets a parent group stay expanded while the popup is showing, and take over
+    // hover-to-open (its own hover area sits above this chip).
+    readonly property bool popupOpen: profilePopup.visible
+    property alias popupWindow: profilePopup
+    property bool ownHover: true
+    function refreshProfiles() { powerProfileService.refresh() }
+
+    HoverOpen {
+        id: hoverOpen
+        hoverMode: root.ownHover && S.EffectSettings.hoverOpen
+        popup: profilePopup
+        onOpened: powerProfileService.refresh()
     }
 
     // --- POPUP ---
     PopupWindow {
+        PopupEntrance { originItem: root }  // liquid ring open animation
         id: profilePopup
         visible: false
         implicitWidth: 260
@@ -104,7 +117,7 @@ Rectangle {
                 // Not available message
                 Text {
                     visible: !root.available
-                    text: "powerprofilesctl not found"
+                    text: "Power profile service unavailable"
                     color: Theme.overlay2
                     font.pixelSize: 12
                     font.family: Theme.fontFamily
@@ -119,12 +132,12 @@ Rectangle {
                         Layout.fillWidth: true
                         height: 42
                         radius: 10
-                        visible: root.available
+                        visible: root.available && powerProfileService.availableProfiles.indexOf(modelData) !== -1
 
                         property bool isActive: root.currentProfile === modelData
                         property var pData: root.profileInfo(modelData)
 
-                        color: isActive ? Qt.rgba(255,255,255,0.12) : (profMa.containsMouse ? Qt.rgba(255,255,255,0.05) : "transparent")
+                        color: isActive ? Theme.withAlpha(Theme.text, 0.12) : (profMa.containsMouse ? Theme.withAlpha(Theme.text, 0.05) : "transparent")
                         border.color: isActive ? pData.color : "transparent"
                         border.width: isActive ? 2 : 0
 

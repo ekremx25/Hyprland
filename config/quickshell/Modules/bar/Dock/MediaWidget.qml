@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell.Services.Mpris
 import "../../../Widgets"
+import "../../../Services" as S
 
 Rectangle {
     id: mediaWidget
@@ -20,9 +21,9 @@ Rectangle {
     readonly property real bgLuma: (mediaWidget.color.r * 0.299) + (mediaWidget.color.g * 0.587) + (mediaWidget.color.b * 0.114)
     readonly property real primaryLuma: (Theme.primary.r * 0.299) + (Theme.primary.g * 0.587) + (Theme.primary.b * 0.114)
     readonly property bool uiIsLight: bgLuma > 0.55
-    readonly property color adaptiveText: uiIsLight ? "#0f172a" : "#e2e8f0"
-    readonly property color adaptiveSubtext: uiIsLight ? "#475569" : "#94a3b8"
-    readonly property color adaptiveOnPrimary: primaryLuma > 0.62 ? "#0b1220" : "#f8fafc"
+    readonly property color adaptiveText: Theme.text
+    readonly property color adaptiveSubtext: Theme.subtext
+    readonly property color adaptiveOnPrimary: Theme.foregroundFor(Theme.primary)
 
     component MediaControlButton: Rectangle {
         required property string iconText
@@ -38,8 +39,8 @@ Rectangle {
         color: primaryButton
             ? Theme.primary
             : hoverAccent
-                ? (buttonMouse.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.2) : Qt.rgba(137/255, 180/255, 250/255, 0.08))
-                : (buttonMouse.containsMouse ? Qt.rgba(255,255,255,0.1) : "transparent")
+                ? (buttonMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.2) : Theme.withAlpha(Theme.primary, 0.08))
+                : (buttonMouse.containsMouse ? Theme.withAlpha(Theme.text, 0.1) : "transparent")
 
         Text {
             anchors.centerIn: parent
@@ -106,11 +107,22 @@ Rectangle {
     implicitWidth: mainRow.implicitWidth + (12 * dockScale)
     implicitHeight: 40 * dockScale
     radius: 12 * dockScale
-    color: Qt.rgba(30/255, 30/255, 46/255, 0.65)
-    border.color: Qt.rgba(137/255, 180/255, 250/255, 0.15)
+    color: Theme.withAlpha(Theme.background, 0.65)
+    border.color: Theme.withAlpha(Theme.primary, 0.15)
     border.width: 1
 
     Behavior on implicitWidth { NumberAnimation { duration: 300; easing.type: Easing.OutBack } }
+
+    // --- Music visualizer: cava runs only while playing ---
+    property bool visualizerHeld: false
+    readonly property bool wantsVisualizer: isPlaying && S.EffectSettings.visualizer
+    function syncVisualizer() {
+        if (wantsVisualizer && !visualizerHeld) { S.CavaService.acquire(); visualizerHeld = true; }
+        else if (!wantsVisualizer && visualizerHeld) { S.CavaService.release(); visualizerHeld = false; }
+    }
+    onWantsVisualizerChanged: syncVisualizer()
+    Component.onCompleted: syncVisualizer()
+    Component.onDestruction: if (visualizerHeld) S.CavaService.release()
 
     RowLayout {
         id: mainRow
@@ -138,7 +150,7 @@ Rectangle {
                 width: 28 * dockScale
                 height: 28 * dockScale
                 radius: 14 * dockScale
-                color: Qt.rgba(137/255, 180/255, 250/255, 0.1)
+                color: Theme.withAlpha(Theme.primary, 0.1)
 
                 Text {
                     anchors.centerIn: parent
@@ -187,7 +199,7 @@ Rectangle {
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Qt.rgba(137/255, 180/255, 250/255, 0.2)
+                    color: Theme.withAlpha(Theme.primary, 0.2)
                     visible: !parent.children[0].visible
 
                     Text {
@@ -196,6 +208,34 @@ Rectangle {
                         font.family: Theme.fontFamily
                         font.pixelSize: 16 * dockScale
                         color: Theme.primary
+                    }
+                }
+            }
+
+            // Compact equalizer: 24 cava bands folded into 6 bars.
+            Row {
+                id: miniEq
+                readonly property int barCount: 6
+                visible: mediaWidget.expanded && S.CavaService.active && mediaWidget.wantsVisualizer
+                Layout.preferredHeight: 18 * dockScale
+                Layout.alignment: Qt.AlignVCenter
+                spacing: 2 * dockScale
+
+                Repeater {
+                    model: miniEq.barCount
+                    Rectangle {
+                        required property int index
+                        readonly property real level: {
+                            var v = S.CavaService.values, per = S.CavaService.bars / miniEq.barCount, sum = 0;
+                            for (var i = index * per; i < (index + 1) * per; i++) sum += v[i] || 0;
+                            return sum / per;
+                        }
+                        width: 3 * dockScale
+                        height: Math.max(3 * dockScale, miniEq.height * Math.min(1, level))
+                        y: miniEq.height - height
+                        radius: width / 2
+                        color: Theme.primary
+                        Behavior on height { NumberAnimation { duration: 70; easing.type: Easing.OutQuad } }
                     }
                 }
             }

@@ -1,10 +1,30 @@
 {
   "materialYou": true,
-  "wallpaperPath": "~/Pictures/Wal/CanadaDayFogo.jpg",
+  "wallpaperSource": "desktop",
+  "wallpaperPath": "~/Pictures/wallpapers/Study-table.png",
   "mode": "dark",
-  "matugenType": "scheme-tokyo-night",
+  "matugenType": "scheme-wallpaper-spectrum",
   "applyToKitty": true,
-  "applyToGtk": false,
   "liveUpdate": true,
-  "_schemaVersion": 1
+  "manualAccentColors": [
+    "",
+    "",
+    "",
+    "",
+    "",
+    ""
+  ],
+  "moduleAccentColors": {
+    "launcher": "#bbf7f7",
+    "cpu": "#77eeb3",
+    "ram": "#e8e8e8",
+    "workspaces": "#ffffff",
+    "calendar": "#77b3ee",
+    "notepad": "#727272",
+    "weather": "#77eeb3",
+    "currency": "#e8e8e8",
+    "clipboard": "#757575",
+    "notification": "#727272",
+    "power": "#77eeee"
+  }
 }

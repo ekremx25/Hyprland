@@ -1,6 +1,5 @@
 import QtQuick
 import QtQuick.Layouts
-import "../Settings/SettingsPalette.js" as SettingsPalette
 import "../../../Widgets"
 
 // Bottom footer with status copy + Revert / Apply buttons.
@@ -26,9 +25,13 @@ Rectangle {
 
             Text {
                 font.family: Theme.fontFamily
-                text: root.page.pendingChanges()
-                    ? "Review your changes before applying them."
-                    : "Your current display configuration is saved."
+                text: root.page.persistenceError ? root.page.persistenceError : root.page.awaitingConfirmation
+                    ? ("Keep this layout? Reverting in " + root.page.confirmationSeconds + " seconds.")
+                    : root.page.monitorOperationBusy
+                        ? "Applying display configuration…"
+                        : root.page.pendingChanges()
+                            ? "Review your changes before applying them."
+                            : "Your current display configuration is saved."
                 color: SettingsPalette.text
                 font.pixelSize: 13
                 font.bold: true
@@ -36,9 +39,11 @@ Rectangle {
 
             Text {
                 font.family: Theme.fontFamily
-                text: root.page.selectedOutput
-                    ? ("Selected display: " + root.page.selectedOutput.name + " | Position " + root.page.selPosX + ", " + root.page.selPosY)
-                    : "No display selected."
+                text: root.page.awaitingConfirmation
+                    ? "If every display looks correct, choose Keep. Otherwise it will restore automatically."
+                    : root.page.selectedOutput
+                        ? ("Selected display: " + root.page.selectedOutput.name + " | Position " + root.page.selPosX + ", " + root.page.selPosY)
+                        : "No display selected."
                 color: SettingsPalette.subtext
                 font.pixelSize: 11
             }
@@ -47,9 +52,9 @@ Rectangle {
         Rectangle {
             radius: 10
             color: revertArea.enabled
-                ? (revertArea.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03))
-                : Qt.rgba(255, 255, 255, 0.02)
-            border.color: revertArea.enabled ? root.page.softBorder : Qt.rgba(255, 255, 255, 0.03)
+                ? (revertArea.containsMouse ? Theme.withAlpha(Theme.text, 0.08) : Theme.withAlpha(Theme.text, 0.03))
+                : Theme.withAlpha(Theme.text, 0.02)
+            border.color: revertArea.enabled ? root.page.softBorder : Theme.withAlpha(Theme.text, 0.03)
             border.width: 1
             implicitWidth: 90
             implicitHeight: 40
@@ -57,7 +62,7 @@ Rectangle {
             Text {
                 font.family: Theme.fontFamily
                 anchors.centerIn: parent
-                text: "Revert"
+                text: root.page.awaitingConfirmation ? "Revert now" : "Revert"
                 color: revertArea.enabled ? SettingsPalette.text : SettingsPalette.subtext
                 font.pixelSize: 12
                 font.bold: true
@@ -67,9 +72,13 @@ Rectangle {
                 id: revertArea
                 anchors.fill: parent
                 hoverEnabled: true
-                enabled: root.page.selectedOutput !== null && root.page.pendingChanges()
+                enabled: root.page.awaitingConfirmation
+                    || (!root.page.monitorOperationBusy && root.page.selectedOutput !== null && root.page.pendingChanges())
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.page.syncSelection()
+                onClicked: {
+                    if (root.page.awaitingConfirmation) root.page.revertAppliedSettings();
+                    else root.page.syncSelection();
+                }
             }
         }
 
@@ -77,8 +86,8 @@ Rectangle {
             radius: 10
             color: applyArea.enabled
                 ? (applyArea.containsMouse ? Qt.lighter(Theme.primary, 1.1) : Theme.primary)
-                : Qt.rgba(255, 255, 255, 0.08)
-            border.color: applyArea.enabled ? Qt.lighter(Theme.primary, 1.2) : Qt.rgba(255, 255, 255, 0.05)
+                : Theme.withAlpha(Theme.text, 0.08)
+            border.color: applyArea.enabled ? Qt.lighter(Theme.primary, 1.2) : Theme.withAlpha(Theme.text, 0.05)
             border.width: 1
             implicitWidth: 118
             implicitHeight: 40
@@ -86,8 +95,12 @@ Rectangle {
             Text {
                 font.family: Theme.fontFamily
                 anchors.centerIn: parent
-                text: root.page.pendingChanges() ? "Apply" : "Saved"
-                color: applyArea.enabled ? "#11151b" : SettingsPalette.subtext
+                text: root.page.awaitingConfirmation
+                    ? ("Keep · " + root.page.confirmationSeconds + "s")
+                    : root.page.monitorOperationBusy
+                        ? "Applying…"
+                        : root.page.pendingChanges() ? "Apply" : "Saved"
+                color: applyArea.enabled ? Theme.foregroundFor(Theme.primary) : SettingsPalette.subtext
                 font.pixelSize: 13
                 font.bold: true
             }
@@ -96,9 +109,13 @@ Rectangle {
                 id: applyArea
                 anchors.fill: parent
                 hoverEnabled: true
-                enabled: root.page.selectedOutput !== null && root.page.pendingChanges()
+                enabled: root.page.awaitingConfirmation
+                    || (!root.page.monitorOperationBusy && root.page.selectedOutput !== null && root.page.pendingChanges())
                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: root.page.applySettings()
+                onClicked: {
+                    if (root.page.awaitingConfirmation) root.page.confirmAppliedSettings();
+                    else root.page.applySettings();
+                }
             }
         }
     }

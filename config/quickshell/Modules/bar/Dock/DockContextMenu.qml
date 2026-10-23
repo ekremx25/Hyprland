@@ -3,29 +3,34 @@ import "../../../Widgets"
 
 // Right-click menu for a dock item.
 // Pin/unpin, close window, open dock settings.
-Rectangle {
+DockPopup {
     id: menu
 
     required property var modelData
     required property real dockScale
-    required property bool shown
     required property var backend
     required property var settingsPopup
 
     signal closeRequested()
 
-    anchors.horizontalCenter: parent.horizontalCenter
-    anchors.bottom: parent.top
-    anchors.bottomMargin: 14
+    // Poof only when the icon actually leaves the dock.
+    function poofAnchor() {
+        if (!menu.panel || !menu.anchorItem) return;
+        var c = menu.anchorItem.mapToItem(null, menu.anchorItem.width / 2, menu.anchorItem.height / 2);
+        menu.panel.spawnPoof(c.x, c.y, menu.anchorItem.iconSource);
+    }
 
-    width: menuContent.implicitWidth + (16 * dockScale)
-    height: menuContent.implicitHeight + (12 * dockScale)
-    radius: 12 * dockScale
-    color: Qt.rgba(30/255, 30/255, 46/255, 0.96)
-    border.color: Qt.rgba(49/255, 50/255, 68/255, 0.8)
-    border.width: 1
-    z: 100
-    visible: shown
+    implicitWidth: menuContent.implicitWidth + 16 * dockScale
+    implicitHeight: menuContent.implicitHeight + 12 * dockScale
+    glassRadius: 12 * dockScale
+
+    Rectangle {
+        anchors.fill: parent
+        radius: 12 * menu.dockScale
+        color: menu.glass ? "transparent" : Theme.withAlpha(Theme.background, 0.96)
+        border.color: menu.glass ? "transparent" : Theme.withAlpha(Theme.surface, 0.8)
+        border.width: 1
+    }
 
     component MenuAction: Rectangle {
         required property string label
@@ -35,7 +40,7 @@ Rectangle {
         width: 140 * menu.dockScale
         height: 30 * menu.dockScale
         radius: 8 * menu.dockScale
-        color: actionMouse.containsMouse ? Qt.rgba(137/255, 180/255, 250/255, 0.18) : "transparent"
+        color: actionMouse.containsMouse ? Theme.withAlpha(Theme.primary, 0.18) : "transparent"
 
         Text {
             anchors.centerIn: parent
@@ -58,7 +63,7 @@ Rectangle {
     component MenuSeparator: Rectangle {
         width: 120 * menu.dockScale
         height: 1
-        color: Qt.rgba(1, 1, 1, 0.1)
+        color: Theme.withAlpha(Theme.text, 0.1)
         anchors.horizontalCenter: parent.horizontalCenter
     }
 
@@ -72,6 +77,7 @@ Rectangle {
             labelColor: menu.modelData.isPinned ? Theme.red : Theme.primary
             activate: function() {
                 if (menu.modelData.isPinned) {
+                    if (!menu.modelData.isRunning) menu.poofAnchor();
                     menu.backend.unpinApp(menu.modelData.appId);
                 } else {
                     menu.backend.pinApp(menu.modelData.appId);
@@ -87,6 +93,7 @@ Rectangle {
             labelColor: Theme.text
             activate: function() {
                 if (menu.modelData.isRunning && menu.modelData.windowId) {
+                    if (!menu.modelData.isPinned) menu.poofAnchor();
                     menu.backend.closeWindow(menu.modelData.windowId);
                 }
                 menu.closeRequested();
@@ -94,6 +101,12 @@ Rectangle {
         }
 
         MenuSeparator {}
+
+        MenuAction {
+            label: "  Dismiss"
+            labelColor: Theme.text
+            activate: function() { menu.closeRequested(); }
+        }
 
         MenuAction {
             label: "  Dock Settings"

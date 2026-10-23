@@ -3,6 +3,9 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import "./core/Log.js" as Log
+import "./core/MangoIpc.js" as MangoIpc
+import "./core/CompositorDetection.js" as Detection
+import "../Modules/bar/System/MonitorParsers.js" as MonitorParsers
 
 Singleton {
     id: root
@@ -15,21 +18,21 @@ Singleton {
     // Compositor detection
     readonly property string niriSocket: Quickshell.env("NIRI_SOCKET") || ""
     readonly property string hyprlandSignature: Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") || ""
+    readonly property string mangoSignature: Quickshell.env("MANGO_INSTANCE_SIGNATURE") || ""
 
-    property bool isNiri: niriSocket !== ""
-    property bool isHyprland: hyprlandSignature !== ""
-    property bool isMango: !isHyprland && !isNiri && mangoDetected
-    property bool mangoDetected: false
-    property string compositor: isHyprland ? "hyprland" : (isNiri ? "niri" : (isMango ? "mango" : "unknown"))
+    readonly property bool isNiri: compositor === "niri"
+    readonly property bool isHyprland: compositor === "hyprland"
+    readonly property bool isMango: compositor === "mango"
+    property string compositor: Detection.fromEnvironment(
+        Quickshell.env("XDG_CURRENT_DESKTOP"), Quickshell.env("XDG_SESSION_DESKTOP"),
+        niriSocket, mangoSignature, hyprlandSignature)
 
     // Monitor info
     property var monitors: []
 
     Component.onCompleted: {
-        // Detect Mango if not Hyprland or Niri
-        if (!isHyprland && !isNiri) {
-            mangoDetectProc.running = true;
-        } else {
+        if (compositor === "unknown") compositorDetectProc.running = true;
+        else {
             applySavedMonitorsProc.running = true;
             refreshMonitors();
         }
@@ -41,17 +44,21 @@ Singleton {
         proc.running = true;
     }
 
-    // Mango detection via mmsg
+    // No declared session: the shared helper can verify Mango's live IPC.
+    // Conflicting hints or an explicitly different desktop remain unknown.
     Process {
-        id: mangoDetectProc
-        command: ["sh", "-c", "command -v mmsg && echo yes || echo no"]
+        id: compositorDetectProc
+        command: ["bash", root.configDir + "/scripts/detect_compositor.sh"]
         property string buf: ""
-        stdout: SplitParser { onRead: data => { mangoDetectProc.buf += data; } }
-        onExited: {
-            root.mangoDetected = mangoDetectProc.buf.trim().indexOf("yes") !== -1;
-            applySavedMonitorsProc.running = true;
-            root.refreshMonitors();
-            mangoDetectProc.buf = "";
+        stdout: SplitParser { onRead: data => { compositorDetectProc.buf += data; } }
+        onExited: exitCode => {
+            var detected = compositorDetectProc.buf.trim();
+            root.compositor = exitCode === 0 && ["niri", "mango", "hyprland"].indexOf(detected) >= 0 ? detected : "unknown";
+            if (root.compositor !== "unknown") {
+                applySavedMonitorsProc.running = true;
+                root.refreshMonitors();
+            }
+            compositorDetectProc.buf = "";
         }
     }
     
@@ -112,20 +119,13 @@ Singleton {
         stdout: SplitParser { onRead: data => { niriMonitorProc.buf += data; } }
         onExited: {
             try {
-                var outputs = JSON.parse(niriMonitorProc.buf);
-                var list = [];
-                for (var name in outputs) {
-                    var o = outputs[name];
-                    list.push({
-                        name: name,
-                        make: o.make || "",
-                        model: o.model || "",
-                        width: o.currentMode ? o.currentMode.width : 0,
-                        height: o.currentMode ? o.currentMode.height : 0,
-                        refreshRate: o.currentMode ? (o.currentMode.refreshRate / 1000.0).toFixed(1) : "0",
-                        scale: o.scale || 1.0
-                    });
-                }
+                var raw = JSON.parse(niriMonitorProc.buf);
+                var list = MonitorParsers.parseNiriOutputs(niriMonitorProc.buf).map(function(o) {
+                    var size = o.res.split("x");
+                    return {name: o.name, make: raw[o.name].make || "", model: raw[o.name].model || "",
+                        width: Number(size[0] || 0), height: Number(size[1] || 0),
+                        refreshRate: Number(o.hz || 0).toFixed(1), scale: Number(o.scale)};
+                });
                 root.monitors = list;
             } catch(e) {
                 Log.warn("CompositorService", "Niri monitor parse error: " + e);
@@ -134,30 +134,15 @@ Singleton {
         }
     }
 
-    // Mango monitor listing via mmsg -O
+    // Mango 0.16+ monitor listing via JSON IPC.
     Process {
         id: mangoMonitorProc
-        command: ["mmsg", "-O"]
+        command: ["mmsg", "get", "all-monitors"]
         property string buf: ""
         stdout: SplitParser { onRead: data => { mangoMonitorProc.buf += data; } }
         onExited: {
             try {
-                var lines = mangoMonitorProc.buf.trim().split("\n");
-                var list = [];
-                for (var i = 0; i < lines.length; i++) {
-                    var line = lines[i].trim();
-                    if (line === "") continue;
-                    // Parse mmsg -O output — each line is one monitor
-                    list.push({
-                        name: line,
-                        make: "",
-                        model: "",
-                        width: 0,
-                        height: 0,
-                        refreshRate: "0",
-                        scale: 1.0
-                    });
-                }
+                var list = MangoIpc.normalizeMonitors(JSON.parse(mangoMonitorProc.buf || "{}"));
                 if (list.length > 0) root.monitors = list;
             } catch(e) {
                 Log.warn("CompositorService", "Mango monitor parse error: " + e);
@@ -209,7 +194,14 @@ Singleton {
             ];
             startProcess(focusProc, false);
         } else if (isMango) {
-            Log.warn("CompositorService", "Mango focusWindow not supported for appId: " + appId);
+            focusProc.command = [
+                "sh",
+                "-c",
+                "mmsg get all-clients | jq -r --arg appId \"$1\" '.clients[]? | select(.appid == $appId) | .id' | head -1 | xargs -r -I{} mmsg dispatch focusid client,{}",
+                "sh",
+                appId
+            ];
+            startProcess(focusProc, false);
         }
     }
 
@@ -243,7 +235,14 @@ Singleton {
             ];
             startProcess(focusByNameProc, false);
         } else if (isMango) {
-            Log.warn("CompositorService", "Mango focusAppByName not supported for: " + appName);
+            focusByNameProc.command = [
+                "sh",
+                "-c",
+                "mmsg get all-clients | jq -r --arg needle \"$1\" '.clients[]? | select((((.appid // \"\") | ascii_downcase) | contains($needle)) or (((.title // \"\") | ascii_downcase) | contains($needle))) | .id' | head -1 | xargs -r -I{} mmsg dispatch focusid client,{}",
+                "sh",
+                needle
+            ];
+            startProcess(focusByNameProc, false);
         }
     }
 

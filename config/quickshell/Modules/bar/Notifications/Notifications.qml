@@ -8,6 +8,7 @@ import "../../../Widgets"
 // This component is the button in the bar
 Rectangle {
     id: root
+    property var screenData: null
 
     // APPEARANCE
     implicitWidth: layout.implicitWidth + 24
@@ -28,11 +29,11 @@ Rectangle {
         ? Theme.ramColor
         : Theme.notificationColor
     readonly property color contentColor: Theme.foregroundFor(normalColor)
-    readonly property color mutedContentColor: Qt.rgba(contentColor.r, contentColor.g, contentColor.b, 0.68)
+    readonly property color mutedContentColor: contentColor
     color: normalColor
     border.width: hasActive ? 1 : 0
     border.color: monochromeMode ? contentColor : Theme.notificationColor
-    opacity: hasActive || notifService.dnd ? 1 : 0.74
+    opacity: 1 // No unread notifications is a state, not a disabled control.
 
     scale: notifHover.hovered && !notifHover.pressed ? 1.06 : (notifHover.pressed ? 0.92 : 1.0)
 
@@ -168,6 +169,7 @@ Rectangle {
             }
             
             onLoaded: {
+                item.screen = Qt.binding(() => root.screenData)
                 item.visible = Qt.binding(() => notifPopup.visible)
             }
         }
@@ -185,6 +187,7 @@ Rectangle {
     
     DurationPopup {
         id: durPopup
+        screen: root.screenData
         visible: false
     }
 
