@@ -1,0 +1,2 @@
+# Machine-specific Hyprland overrides; each machine keeps its own.
+config/hypr/lua/local.lua

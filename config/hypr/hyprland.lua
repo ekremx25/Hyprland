@@ -6,8 +6,11 @@ package.path = hypr_dir .. "/?.lua;" .. hypr_dir .. "/?/init.lua;" .. package.pa
 
 require("lua.env")
 require("lua.general")
--- This display is also connected over DP-3; keep the 165 Hz DP connection active.
-hl.monitor({ output = "HDMI-A-1", disabled = true })
 require("lua.rules")
 require("lua.keybinds")
 require("lua.execs")
+
+-- Optional machine-specific overrides (monitors, rules for custom Hyprland
+-- builds) live in lua/local.lua, which is not part of the shared config.
+-- A missing or failing local.lua never breaks the main config.
+pcall(require, "lua.local")

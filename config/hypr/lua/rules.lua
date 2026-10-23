@@ -74,11 +74,3 @@ floating_centered_rule(
   { initial_class = "^(hyprpolkitagent)$" },
   { "(monitor_w*0.32)", "(monitor_h*0.28)" }
 )
-
--- Edge-only saturation trial (removed 16 Oct 2026 to roll back).
--- Requires the saturation window rule from the hdr3.edge3 build.
-hl.window_rule({
-  name = "edge-saturation-trial",
-  match = { class = "^(microsoft-edge)$" },
-  saturation = "1.08",
-})
