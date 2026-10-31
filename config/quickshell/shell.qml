@@ -12,6 +12,7 @@ import "./Modules/bar/Dock"
 import "./Modules/bar/Tray"
 import "./Modules/OSD"
 import "./Modules/overview"
+import "./Modules/wallpaper"
 
 // Staged loading strategy:
 //
@@ -38,8 +39,14 @@ ShellRoot {
         source: "Services/MonitorHotplugService.qml"
     }
 
+    Loader {
+        active: true
+        source: "Services/HyprEffectsService.qml"
+    }
+
     Bar {}
     WorkspaceOverview {}
+    WallpaperDeck {}
 
     // ── Stage 2: background services (after 300ms) ───────────────────
     Loader { id: eqLoader;    active: false; source: "Services/EqBootstrap.qml"    }
@@ -74,6 +81,9 @@ ShellRoot {
         onTriggered: {
             eqLoader.active    = true;
             mouseLoader.active = true;
+            // Touching the singleton creates it, so VPN-bypass addresses stay
+            // current in the background; it loads its own status on creation.
+            VpnBypassService.loaded;
         }
     }
 

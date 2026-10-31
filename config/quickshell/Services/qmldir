@@ -19,3 +19,6 @@ singleton CpuCoreStats CpuCoreStats.qml
 singleton ClipboardHistory ClipboardHistory.qml
 singleton CavaService CavaService.qml
 singleton EffectSettings EffectSettings.qml
+
+singleton WallpaperDeckService WallpaperDeckService.qml
+singleton VpnBypassService VpnBypassService.qml
