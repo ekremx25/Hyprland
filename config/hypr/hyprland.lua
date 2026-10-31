@@ -18,6 +18,10 @@ pcall(require, "lua.quickshell_effects")
 -- they are not reset to defaults when Hyprland reloads.
 pcall(require, "lua.quickshell_input")
 
+-- Monitor mode, scale, position and colour chosen in Quickshell
+-- (Settings → Monitors), matched by EDID so they survive port changes.
+pcall(require, "lua.quickshell_monitors")
+
 -- Optional machine-specific overrides (monitors, rules for custom Hyprland
 -- builds) live in lua/local.lua, which is not part of the shared config.
 -- A missing or failing local.lua never breaks the main config.
